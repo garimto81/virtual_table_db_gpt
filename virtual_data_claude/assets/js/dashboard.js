@@ -12,37 +12,57 @@ let dashboardData = {
 
 // 페이지 로드 시 초기화
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('========================================');
+    console.log('📊 대시보드 페이지 로드 시작');
+    console.log('========================================');
+    console.log(`⏰ 시작 시간: ${new Date().toISOString()}`);
+    
     initDashboard();
     loadDashboardData();
     setupAutoRefresh();
+    
+    console.log('✅ 대시보드 초기화 프로세스 완료');
 });
 
 /**
  * 대시보드 초기화
  */
 function initDashboard() {
-    console.log('대시보드 초기화 중...');
+    console.log('🔧 [INIT] 대시보드 초기화 시작...');
+    console.log('  └─ Chart.js 로드 상태 확인 중...');
     
     // Chart.js가 로드되었는지 확인
     if (typeof Chart === 'undefined') {
-        console.error('Chart.js가 로드되지 않았습니다. 재시도 중...');
+        console.warn('⚠️ [INIT] Chart.js가 아직 로드되지 않았습니다');
+        console.log('  └─ 1초 후 재시도 예정...');
         setTimeout(initDashboard, 1000);
         return;
     }
+    
+    console.log('  ✓ Chart.js 로드 확인 완료');
+    console.log('  └─ 차트 컨텍스트 설정 중...');
     
     // 차트 컨텍스트 설정
     const dailyCtx = document.getElementById('daily-hands-chart');
     const positionCtx = document.getElementById('position-winrate-chart');
     
     if (dailyCtx) {
+        console.log('  └─ 일별 핸드 차트 생성 중...');
         dashboardData.charts.daily = createDailyChart(dailyCtx);
+        console.log('    ✓ 일별 핸드 차트 생성 완료');
+    } else {
+        console.warn('  ⚠️ 일별 핸드 차트 엘리먼트를 찾을 수 없음');
     }
     
     if (positionCtx) {
+        console.log('  └─ 포지션별 승률 차트 생성 중...');
         dashboardData.charts.position = createPositionChart(positionCtx);
+        console.log('    ✓ 포지션별 승률 차트 생성 완료');
+    } else {
+        console.warn('  ⚠️ 포지션별 승률 차트 엘리먼트를 찾을 수 없음');
     }
     
-    console.log('대시보드 초기화 완료');
+    console.log('✅ [INIT] 대시보드 초기화 완료');
 }
 
 /**
@@ -50,37 +70,76 @@ function initDashboard() {
  */
 async function loadDashboardData() {
     try {
-        console.log('대시보드 데이터 로딩 시작...');
+        console.log('📡 [DATA] 대시보드 데이터 로딩 시작...');
+        console.log('  └─ 로딩 오버레이 표시 중...');
         showLoading();
         
+        console.log('  └─ Google Sheets API 호출 준비...');
+        console.log(`    └─ API URL: ${(await getConfig()).appsScriptUrl}`);
+        
         // API에서 데이터 가져오기
+        console.log('  └─ 병렬 API 호출 시작...');
+        console.log('    ├─ 통계 데이터 요청 (getStats)');
+        console.log('    └─ 최근 핸드 데이터 요청 (getLatest, limit=10)');
+        
+        const startTime = Date.now();
+        
         const [statsResponse, recentResponse] = await Promise.all([
             fetchStatistics().catch(err => {
-                console.error('통계 로드 실패:', err);
+                console.error('    ❌ 통계 로드 실패:', err.message);
+                console.error('      └─ 에러 상세:', err);
                 return { stats: null, error: err.message };
             }),
             fetchRecentHands(10).catch(err => {
-                console.error('최근 핸드 로드 실패:', err);
+                console.error('    ❌ 최근 핸드 로드 실패:', err.message);
+                console.error('      └─ 에러 상세:', err);
                 return { hands: [], error: err.message };
             })
         ]);
         
-        console.log('API 응답:', { statsResponse, recentResponse });
+        const loadTime = Date.now() - startTime;
+        console.log(`  ✓ API 호출 완료 (소요시간: ${loadTime}ms)`);
+        
+        // 응답 상태 확인
+        console.log('  └─ API 응답 분석...');
+        if (statsResponse.stats) {
+            console.log(`    ✓ 통계 데이터: ${Object.keys(statsResponse.stats).length}개 필드`);
+            console.log(`      └─ 총 핸드: ${statsResponse.stats.totalHands || 0}`);
+        } else {
+            console.warn('    ⚠️ 통계 데이터 없음');
+        }
+        
+        if (recentResponse.hands) {
+            console.log(`    ✓ 최근 핸드: ${recentResponse.hands.length}개`);
+        } else {
+            console.warn('    ⚠️ 최근 핸드 데이터 없음');
+        }
         
         // 데이터 저장
+        console.log('  └─ 데이터 저장 중...');
         dashboardData.stats = statsResponse.stats || {};
         dashboardData.recentHands = recentResponse.hands || [];
+        console.log('    ✓ 로컬 데이터 저장 완료');
         
         // UI 업데이트
+        console.log('  └─ UI 업데이트 시작...');
+        console.log('    ├─ 요약 카드 업데이트...');
         updateSummaryCards(dashboardData.stats);
+        console.log('    ├─ 차트 업데이트...');
         updateCharts(dashboardData.stats);
+        console.log('    └─ 최근 핸드 테이블 업데이트...');
         updateRecentHandsTable(dashboardData.recentHands);
         
+        console.log('  └─ 로딩 오버레이 숨김...');
         hideLoading();
-        console.log('대시보드 데이터 로딩 완료');
+        
+        console.log('✅ [DATA] 대시보드 데이터 로딩 완료');
+        console.log('========================================');
         
     } catch (error) {
-        console.error('대시보드 데이터 로드 실패:', error);
+        console.error('❌ [DATA] 대시보드 데이터 로드 실패!');
+        console.error('  └─ 에러:', error.message);
+        console.error('  └─ 스택:', error.stack);
         showError('데이터를 불러올 수 없습니다. 콘솔을 확인하세요.');
         hideLoading();
     }
@@ -96,16 +155,22 @@ async function fetchStatistics() {
         const callbackName = 'statsCallback_' + Date.now();
         const url = `${config.appsScriptUrl}?action=getStats&callback=${callbackName}`;
         
+        console.log('    📊 [API] 통계 데이터 요청...');
+        console.log(`      └─ Callback: ${callbackName}`);
+        console.log(`      └─ URL: ${url}`);
+        
         // JSONP 콜백 설정
         window[callbackName] = function(data) {
+            console.log('      ✓ JSONP 콜백 호출됨');
             delete window[callbackName];
             document.head.removeChild(script);
             
             if (data.success !== false) {
-                console.log('통계 데이터 로드 성공:', data);
+                console.log('      ✓ 통계 데이터 수신 성공');
+                console.log(`        └─ 데이터 키: ${Object.keys(data).join(', ')}`);
                 resolve(data);
             } else {
-                console.error('통계 데이터 로드 실패:', data.error);
+                console.error('      ❌ API 에러:', data.error);
                 reject(new Error(data.error || '통계 데이터 로드 실패'));
             }
         };
@@ -114,16 +179,27 @@ async function fetchStatistics() {
         const script = document.createElement('script');
         script.src = url;
         script.onerror = () => {
+            console.warn('      ⚠️ JSONP 로드 실패, fetch 폴백 시도...');
             delete window[callbackName];
             document.head.removeChild(script);
             
             // CORS 실패 시 일반 fetch 시도
             fetch(`${config.appsScriptUrl}?action=getStats`)
-                .then(response => response.json())
-                .then(data => resolve(data))
-                .catch(err => reject(err));
+                .then(response => {
+                    console.log('        └─ Fetch 응답 상태:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('        ✓ Fetch 성공');
+                    resolve(data);
+                })
+                .catch(err => {
+                    console.error('        ❌ Fetch도 실패:', err.message);
+                    reject(err);
+                });
         };
         
+        console.log('      └─ JSONP 스크립트 태그 추가...');
         document.head.appendChild(script);
     });
 }
@@ -138,16 +214,24 @@ async function fetchRecentHands(limit = 10) {
         const callbackName = 'handsCallback_' + Date.now();
         const url = `${config.appsScriptUrl}?action=getLatest&limit=${limit}&callback=${callbackName}`;
         
+        console.log('    🃏 [API] 최근 핸드 데이터 요청...');
+        console.log(`      └─ Callback: ${callbackName}`);
+        console.log(`      └─ Limit: ${limit}`);
+        console.log(`      └─ URL: ${url}`);
+        
         // JSONP 콜백 설정
         window[callbackName] = function(data) {
+            console.log('      ✓ JSONP 콜백 호출됨');
             delete window[callbackName];
             document.head.removeChild(script);
             
             if (data.success !== false) {
-                console.log('최근 핸드 데이터 로드 성공:', data);
+                console.log('      ✓ 최근 핸드 데이터 수신 성공');
+                console.log(`        └─ 핸드 수: ${data.hands ? data.hands.length : 0}`);
+                console.log(`        └─ 전체 핸드: ${data.total || 0}`);
                 resolve(data);
             } else {
-                console.error('최근 핸드 데이터 로드 실패:', data.error);
+                console.error('      ❌ API 에러:', data.error);
                 reject(new Error(data.error || '최근 핸드 데이터 로드 실패'));
             }
         };
@@ -156,16 +240,27 @@ async function fetchRecentHands(limit = 10) {
         const script = document.createElement('script');
         script.src = url;
         script.onerror = () => {
+            console.warn('      ⚠️ JSONP 로드 실패, fetch 폴백 시도...');
             delete window[callbackName];
             document.head.removeChild(script);
             
             // CORS 실패 시 일반 fetch 시도
             fetch(`${config.appsScriptUrl}?action=getLatest&limit=${limit}`)
-                .then(response => response.json())
-                .then(data => resolve(data))
-                .catch(err => reject(err));
+                .then(response => {
+                    console.log('        └─ Fetch 응답 상태:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('        ✓ Fetch 성공');
+                    resolve(data);
+                })
+                .catch(err => {
+                    console.error('        ❌ Fetch도 실패:', err.message);
+                    reject(err);
+                });
         };
         
+        console.log('      └─ JSONP 스크립트 태그 추가...');
         document.head.appendChild(script);
     });
 }
@@ -431,21 +526,25 @@ function setupAutoRefresh() {
  * 설정 가져오기
  */
 async function getConfig() {
-    // Google Apps Script URL 설정
-    return {
-        appsScriptUrl: 'https://script.google.com/macros/s/AKfycbwWfm4L72PgwtZTD8ur-vyAi4JJsHaQ5REhGhFdp5OYSrQbQacgkoUZRhvzZanrE6in/exec'
+    console.log('    ⚙️ [CONFIG] 설정 로드...');
+    // Google Apps Script URL 설정 (업데이트된 URL 사용)
+    const config = {
+        appsScriptUrl: 'https://script.google.com/macros/s/AKfycbwb0qvHN2PO7_-T_Bn_laY66NVTc0_Oe4yyuBDJHHMe_fiqN0UeanCGKNno4XnMW5Sg/exec'
     };
+    console.log(`      └─ Apps Script URL: ${config.appsScriptUrl}`);
+    return config;
 }
 
 /**
  * 로딩 표시
  */
 function showLoading() {
-    console.log('Loading...');
+    console.log('    🔄 [UI] 로딩 오버레이 표시');
     
     // 로딩 오버레이 생성
     let loadingOverlay = document.getElementById('loading-overlay');
     if (!loadingOverlay) {
+        console.log('      └─ 로딩 오버레이 생성 중...');
         loadingOverlay = document.createElement('div');
         loadingOverlay.id = 'loading-overlay';
         loadingOverlay.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
@@ -453,6 +552,7 @@ function showLoading() {
             <div class="bg-white rounded-lg p-6 flex flex-col items-center">
                 <div class="spinner border-4 border-gray-200 border-t-blue-600 rounded-full w-12 h-12 animate-spin"></div>
                 <p class="mt-4 text-gray-600">데이터 로딩 중...</p>
+                <p class="mt-2 text-sm text-gray-500">Google Sheets에서 데이터를 가져오고 있습니다...</p>
             </div>
         `;
         document.body.appendChild(loadingOverlay);
@@ -465,11 +565,12 @@ function showLoading() {
  * 로딩 숨김
  */
 function hideLoading() {
-    console.log('Loading complete');
+    console.log('    🔄 [UI] 로딩 오버레이 숨김');
     
     const loadingOverlay = document.getElementById('loading-overlay');
     if (loadingOverlay) {
         loadingOverlay.style.display = 'none';
+        console.log('      ✓ 로딩 완료');
     }
 }
 

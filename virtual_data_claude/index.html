@@ -169,6 +169,31 @@
     <div id="toast-container" class="fixed bottom-4 right-4 z-40 space-y-2"></div>
 
     <!-- Scripts -->
+    <script>
+        // 초기 로깅 설정
+        console.log('========================================');
+        console.log('🎰 포커 핸드 로거 v35 시작');
+        console.log('========================================');
+        console.log(`⏰ 페이지 로드 시간: ${new Date().toISOString()}`);
+        console.log(`📱 User Agent: ${navigator.userAgent}`);
+        console.log(`🌐 URL: ${window.location.href}`);
+        console.log('========================================');
+        
+        // 네트워크 상태 확인
+        console.log('🔌 네트워크 상태 확인...');
+        if (navigator.onLine) {
+            console.log('  ✓ 온라인 상태');
+        } else {
+            console.warn('  ⚠️ 오프라인 상태');
+        }
+        
+        // Service Worker 확인
+        if ('serviceWorker' in navigator) {
+            console.log('📦 Service Worker 지원 확인됨');
+        } else {
+            console.warn('⚠️ Service Worker 미지원 브라우저');
+        }
+    </script>
     <script type="module" src="js/app.js"></script>
 </body>
 </html>

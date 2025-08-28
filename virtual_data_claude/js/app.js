@@ -3,6 +3,9 @@
  * 모듈화된 구조로 재설계
  */
 
+console.log('📂 [APP.JS] 메인 애플리케이션 모듈 로드 시작');
+console.log('  └─ 모듈 import 진행 중...');
+
 import { Config } from './config/config.js';
 import { StateManager } from './core/StateManager.js';
 import { EventBus } from './core/EventBus.js';
@@ -11,6 +14,8 @@ import { DataService } from './services/DataService.js';
 import { StorageService } from './services/StorageService.js';
 import { Logger } from './utils/Logger.js';
 import { Toast } from './utils/Toast.js';
+
+console.log('  ✓ 모든 모듈 import 완료');
 
 class PokerHandLogger {
     constructor() {
