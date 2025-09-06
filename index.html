@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - 키 플레이어 분석
-  Version: 8.7.1
+  Version: 8.8.0
   Last Updated: 2025-09-06
-  Description: 키 플레이어 식별 및 자동 파일명 생성 + 개선된 Virtual 시트 매칭 + 카드 파싱 안정성 향상
+  Description: 키 플레이어 식별 + 멀티 플레이어 지원 + 개선된 Virtual 시트 매칭 + 카드 파싱 안정성 향상
 -->
 <html lang="ko">
 <head>
@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>포커 핸드 모니터링 v8.7.1 - 키 플레이어 분석</title>
+  <title>포커 핸드 모니터링 v8.8.0 - 키 플레이어 분석</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -491,8 +491,8 @@
 
   <script>
     // ====================================
-    // 포커 핸드 모니터링 시스템 v8.7.1 - 개선된 Virtual 시트 매칭 + 카드 파싱 안정성 향상
-    const VERSION = '8.7.1';
+    // 포커 핸드 모니터링 시스템 v8.8.0 - 멀티 플레이어 지원 + Virtual 시트 매칭 + 카드 파싱 안정성 향상
+    const VERSION = '8.8.0';
     // ====================================
     
     const CONFIG = {
@@ -1151,10 +1151,10 @@
       return div;
     }
     
-    // 핸드 상세 데이터 로드
+    // 핸드 상세 데이터 로드 - 멀티 플레이어 지원 개선
     async function loadHandDetails(handNumber) {
       try {
-        console.log('📡 핸드 상세 데이터 로딩:', handNumber);
+        console.log('📡 핸드 상세 데이터 로딩 (멀티 플레이어):', handNumber);
         const response = await fetch(CONFIG.CSV_INDEX_URL + '&t=' + Date.now(), {
           method: 'GET',
           mode: 'cors',
@@ -1171,12 +1171,17 @@
         const rows = parseCSV(text);
         console.log('📝 플레이어 인덱스 파싱된 행 수:', rows.length);
         
-        handData = {};
+        // 멀티 플레이어 데이터 구조로 변경
+        handData = {
+          handNumber: handNumber,
+          players: []
+        };
         
+        let playersFound = 0;
         for (let i = 1; i < rows.length; i++) {
           const row = rows[i];
           if (row[0] === handNumber) {
-            handData = {
+            const player = {
               handNumber: row[0],
               position: row[1],
               holeCards: row[2],
@@ -1188,11 +1193,12 @@
               result: row[8],
               playerName: row[9]
             };
-            break;
+            handData.players.push(player);
+            playersFound++;
           }
         }
         
-        console.log('✅ 핸드 상세 데이터 로딩 완료:', handNumber);
+        console.log(`✅ 핸드 상세 데이터 로딩 완료: ${handNumber} (플레이어 ${playersFound}명)`);
         updatePlayersSection();
         updateActionHistory();
         updateHandResult();
@@ -1208,11 +1214,58 @@
       }
     }
     
-    // 플레이어 섹션 업데이트 (간소화)
+    // 플레이어 섹션 업데이트 - 멀티 플레이어 지원
     function updatePlayersSection() {
       const container = document.getElementById('players-section');
       container.innerHTML = '';
       
+      // 멀티 플레이어 데이터 구조 지원
+      if (handData.players && handData.players.length > 0) {
+        // 멀티 플레이어 표시
+        handData.players.forEach((player, index) => {
+          const playerDiv = document.createElement('div');
+          playerDiv.className = 'player-item mb-2 p-2 bg-gray-800 rounded border border-gray-700';
+          
+          // 홀카드 생성
+          const holeCardsHtml = player.holeCards ? 
+            player.holeCards.split(' ').map(card => {
+              try {
+                const cardElement = createCardElement(card, 'card-mini');
+                return cardElement.outerHTML;
+              } catch (error) {
+                console.warn('카드 생성 오류:', card, error);
+                return `<div class="card-mini bg-red-200"><div>?</div><div>?</div></div>`;
+              }
+            }).join('') : 
+            '<span class="text-gray-500 text-xs">카드 없음</span>';
+          
+          playerDiv.innerHTML = `
+            <div class="flex justify-between items-center mb-1">
+              <div class="flex items-center gap-2">
+                <span class="pos-badge bg-blue-600 text-white px-1 py-0.5 text-xs rounded">${player.position || 'N/A'}</span>
+                <span class="font-medium text-sm">${player.playerName || 'Unknown'}</span>
+              </div>
+              <span class="text-xs text-gray-400">#${index + 1}</span>
+            </div>
+            <div class="flex gap-1 mb-1">
+              ${holeCardsHtml}
+            </div>
+            <div class="text-xs text-gray-300">
+              ${player.result ? `결과: ${player.result}` : ''}
+            </div>
+          `;
+          container.appendChild(playerDiv);
+        });
+        
+        // 총 플레이어 수 표시
+        const summaryDiv = document.createElement('div');
+        summaryDiv.className = 'text-xs text-amber-400 mt-2 pt-2 border-t border-gray-700';
+        summaryDiv.innerHTML = `총 ${handData.players.length}명의 플레이어`;
+        container.appendChild(summaryDiv);
+        return;
+      }
+      
+      // 레거시 단일 플레이어 지원
       if (!handData.playerName) {
         container.innerHTML = '<div class="text-xs text-gray-400">플레이어 정보 없음</div>';
         return;
@@ -1222,27 +1275,67 @@
       playerDiv.className = 'player-item';
       playerDiv.innerHTML = `
         <div class="flex items-center gap-2">
-          <span class="pos-badge ${handData.position?.toLowerCase()}">${handData.position}</span>
+          <span class="pos-badge bg-blue-600 text-white px-1 py-0.5 text-xs rounded">${handData.position}</span>
           <span class="font-medium">${handData.playerName}</span>
         </div>
         <div class="flex gap-1">
-          ${handData.holeCards ? handData.holeCards.split(' ').map(card => 
-            `<div class="card-mini ${getCardSuitClass(card)}">
-              <div>${card[0]}</div>
-              <div>${getCardSuitSymbol(card[1])}</div>
-            </div>`
-          ).join('') : ''}
+          ${handData.holeCards ? handData.holeCards.split(' ').map(card => {
+            try {
+              const cardElement = createCardElement(card, 'card-mini');
+              return cardElement.outerHTML;
+            } catch (error) {
+              return `<div class="card-mini bg-red-200"><div>?</div><div>?</div></div>`;
+            }
+          }).join('') : ''}
         </div>
       `;
       
       container.appendChild(playerDiv);
     }
     
-    // 액션 히스토리 업데이트
+    // 액션 히스토리 업데이트 - 멀티 플레이어 지원
     function updateActionHistory() {
       const container = document.getElementById('action-history');
       container.innerHTML = '';
       
+      // 멀티 플레이어 액션 지원
+      if (handData.players && handData.players.length > 0) {
+        const stages = ['Preflop', 'Flop', 'Turn', 'River', 'Showdown'];
+        const actionFields = ['preflopAction', 'flopAction', 'turnAction', 'riverAction', 'showdownAction'];
+        
+        stages.forEach((stage, stageIndex) => {
+          const stageDiv = document.createElement('div');
+          stageDiv.className = 'action-stage mb-2';
+          
+          let hasActions = false;
+          let actionsHtml = `<div class="text-xs font-medium text-amber-400 mb-1">${stage}:</div>`;
+          
+          handData.players.forEach((player) => {
+            const action = player[actionFields[stageIndex]];
+            if (action && action.trim()) {
+              hasActions = true;
+              actionsHtml += `
+                <div class="action-line flex items-center gap-2 mb-1 text-xs">
+                  <span class="text-blue-400">${player.playerName || 'Unknown'}:</span>
+                  <span class="action-badge bg-gray-700 px-1 py-0.5 rounded">${action}</span>
+                </div>
+              `;
+            }
+          });
+          
+          if (hasActions) {
+            stageDiv.innerHTML = actionsHtml;
+            container.appendChild(stageDiv);
+          }
+        });
+        
+        if (container.children.length === 0) {
+          container.innerHTML = '<div class="text-xs text-gray-400">액션 없음</div>';
+        }
+        return;
+      }
+      
+      // 레거시 단일 플레이어 액션
       const actions = [
         { stage: 'preflop', action: handData.preflopAction, label: 'Preflop' },
         { stage: 'flop', action: handData.flopAction, label: 'Flop' },
