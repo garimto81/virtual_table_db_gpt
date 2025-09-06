@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Table DB GPT - 포커 핸드 분석 시스템</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 to-slate-800 text-white min-h-screen">
+    <div class="container mx-auto px-4 py-16">
+        <div class="text-center mb-16">
+            <h1 class="text-5xl font-bold mb-6 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                🎲 Virtual Table DB GPT
+            </h1>
+            <p class="text-xl text-gray-300 max-w-2xl mx-auto">
+                온라인 포커 게임의 핸드 히스토리를 체계적으로 관리하고 분석하는 통합 웹 애플리케이션
+            </p>
+        </div>
+
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+            <!-- 메인 모니터링 시스템 -->
+            <div class="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-blue-500 transition-all">
+                <h3 class="text-xl font-semibold mb-3 text-blue-400">🎯 메인 모니터링 시스템</h3>
+                <p class="text-gray-400 mb-4">실시간 포커 핸드 모니터링 및 AI 분석</p>
+                <a href="src/poker-monitor.html" class="inline-block bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-md transition-colors">
+                    시작하기
+                </a>
+            </div>
+
+            <!-- 모바일 버전 -->
+            <div class="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-green-500 transition-all">
+                <h3 class="text-xl font-semibold mb-3 text-green-400">📱 모바일 최적화</h3>
+                <p class="text-gray-400 mb-4">모바일 기기용 컴팩트 인터페이스</p>
+                <a href="src/index-compact.html" class="inline-block bg-green-600 hover:bg-green-700 px-4 py-2 rounded-md transition-colors">
+                    모바일 버전
+                </a>
+            </div>
+
+            <!-- AI 설정 -->
+            <div class="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-purple-500 transition-all">
+                <h3 class="text-xl font-semibold mb-3 text-purple-400">⚙️ AI 설정</h3>
+                <p class="text-gray-400 mb-4">Gemini, OpenAI, Claude API 설정</p>
+                <a href="src/setup-gemini.html" class="inline-block bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-md transition-colors">
+                    설정하기
+                </a>
+            </div>
+        </div>
+
+        <!-- 분석 도구들 -->
+        <div class="mb-16">
+            <h2 class="text-3xl font-bold mb-8 text-center">📊 분석 도구</h2>
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <a href="tools/analyze-hand-times.html" class="bg-slate-800 rounded-lg p-4 border border-slate-700 hover:border-blue-400 transition-all block">
+                    <h4 class="font-semibold mb-2">⏰ 시간 분석</h4>
+                    <p class="text-sm text-gray-400">핸드 타이밍 분석</p>
+                </a>
+                <a href="tools/analyze-csv-file.html" class="bg-slate-800 rounded-lg p-4 border border-slate-700 hover:border-blue-400 transition-all block">
+                    <h4 class="font-semibold mb-2">📂 CSV 분석</h4>
+                    <p class="text-sm text-gray-400">CSV 파일 데이터 분석</p>
+                </a>
+                <a href="tools/fetch-virtual-sheet.html" class="bg-slate-800 rounded-lg p-4 border border-slate-700 hover:border-blue-400 transition-all block">
+                    <h4 class="font-semibold mb-2">🔍 시트 연동</h4>
+                    <p class="text-sm text-gray-400">Virtual 시트 데이터 조회</p>
+                </a>
+                <a href="tools/find-exact-row.html" class="bg-slate-800 rounded-lg p-4 border border-slate-700 hover:border-blue-400 transition-all block">
+                    <h4 class="font-semibold mb-2">🎯 행 검색</h4>
+                    <p class="text-sm text-gray-400">정확한 데이터 행 찾기</p>
+                </a>
+            </div>
+            
+            <div class="text-center mt-6">
+                <h3 class="text-xl font-semibold mb-4">🧪 테스트 도구</h3>
+                <a href="tools/virtual-sheet-test.html" class="inline-block bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-lg font-semibold transition-colors">
+                    Virtual 시트 분석 테스터
+                </a>
+                <p class="text-sm text-gray-400 mt-2">시간값과 시트 링크로 매칭 테스트</p>
+            </div>
+        </div>
+
+        <!-- 분석 도구들 -->
+        <div class="mb-16" style="display: none;">
+            <h2 class="text-3xl font-bold mb-8 text-center">📊 분석 도구</h2>
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            </div>
+        </div>
+
+        <!-- 기술 스택 -->
+        <div class="text-center">
+            <h2 class="text-2xl font-bold mb-6">🛠 기술 스택</h2>
+            <div class="flex flex-wrap justify-center gap-3">
+                <span class="bg-blue-600 px-3 py-1 rounded-full text-sm">HTML5</span>
+                <span class="bg-yellow-600 px-3 py-1 rounded-full text-sm">JavaScript</span>
+                <span class="bg-cyan-600 px-3 py-1 rounded-full text-sm">Tailwind CSS</span>
+                <span class="bg-green-600 px-3 py-1 rounded-full text-sm">Google Apps Script</span>
+                <span class="bg-purple-600 px-3 py-1 rounded-full text-sm">AI APIs</span>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="text-center mt-16 pt-8 border-t border-slate-700">
+            <p class="text-gray-400">
+                Built with ❤️ by 
+                <a href="https://github.com/garimto81" class="text-blue-400 hover:text-blue-300">garimto81</a>
+                | Version 8.7.0
+            </p>
+        </footer>
+    </div>
+</body>
+</html>

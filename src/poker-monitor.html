@@ -1,0 +1,2596 @@
+<!DOCTYPE html>
+<!--
+  포커 핸드 모니터링 시스템 - 키 플레이어 분석
+  Version: 8.7.0
+  Last Updated: 2025-09-06
+  Description: 키 플레이어 식별 및 자동 파일명 생성 + 개선된 Virtual 시트 매칭
+-->
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>포커 핸드 모니터링 v8.7.0 - 키 플레이어 분석</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body { 
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #e2e8f0;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    
+    /* 컴팩트 카드 스타일 */
+    .card-mini {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 48px;
+      background-color: #FFFFFF !important;
+      color-scheme: light;
+      border: 1px solid #6b7280;
+      border-radius: 4px;
+      font-weight: 800;
+      font-size: 16px;
+      margin: 0 1px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      position: relative;
+    }
+    
+    /* 스페이드, 클럽 - 진한 검은색 */
+    .card-mini.spade, .card-mini.club { 
+      color: #000000 !important;
+    }
+    
+    /* 하트, 다이아몬드 - 진한 빨간색 */
+    .card-mini.heart, .card-mini.diamond { 
+      color: #dc2626 !important;
+    }
+    
+    /* 보드 카드 스타일 */
+    .board-card {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 60px;
+      background-color: #FFFFFF !important;
+      color-scheme: light;
+      border: 2px solid #f59e0b;
+      border-radius: 6px;
+      font-weight: 900;
+      font-size: 20px;
+      margin: 0 2px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      position: relative;
+    }
+    
+    /* 스페이드, 클럽 - 진한 검은색 */
+    .board-card.spade, .board-card.club { 
+      color: #000000 !important;
+    }
+    
+    /* 하트, 다이아몬드 - 진한 빨간색 */
+    .board-card.heart, .board-card.diamond { 
+      color: #dc2626 !important;
+    }
+    
+    /* 액션 배지 스타일 */
+    .action-badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .action-badge.fold { background: #64748b; color: white; }
+    .action-badge.check { background: #0ea5e9; color: white; }
+    .action-badge.call { background: #22c55e; color: white; }
+    .action-badge.bet { background: #f97316; color: white; }
+    .action-badge.raise { background: #ef4444; color: white; }
+    .action-badge.allin { background: #fbbf24; color: #000; }
+    
+    /* 포지션 배지 */
+    .pos-badge {
+      display: inline-block;
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    
+    .pos-badge.btn { background: #fbbf24; color: #000; }
+    .pos-badge.sb { background: #10b981; color: white; }
+    .pos-badge.bb { background: #3b82f6; color: white; }
+    .pos-badge.utg { background: #8b5cf6; color: white; }
+    .pos-badge.mp { background: #ec4899; color: white; }
+    .pos-badge.co { background: #f97316; color: white; }
+    
+    /* 스크롤바 */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: #1e293b;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 3px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: #64748b;
+    }
+    
+    /* 컴팩트 그리드 레이아웃 */
+    .compact-grid {
+      display: grid;
+      grid-template-columns: 280px 1fr 320px;
+      gap: 12px;
+      padding: 12px;
+      height: 100vh;
+      max-width: 1920px;
+      margin: 0 auto;
+    }
+    
+    @media (max-width: 1440px) {
+      .compact-grid {
+        grid-template-columns: 260px 1fr 300px;
+      }
+    }
+    
+    /* 섹션 스타일 */
+    .section {
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 12px;
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .section-header {
+      font-size: 13px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #334155;
+    }
+    
+    /* 플레이어 리스트 */
+    .player-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    
+    .player-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 8px;
+      background: rgba(15, 23, 42, 0.4);
+      border: 1px solid #334155;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+    
+    .player-item:hover {
+      background: rgba(59, 130, 246, 0.1);
+      border-color: #3b82f6;
+    }
+    
+    .player-item.folded {
+      opacity: 0.5;
+    }
+    
+    /* 액션 타임라인 컴팩트 */
+    .action-line {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 6px;
+      font-size: 12px;
+      border-left: 2px solid transparent;
+    }
+    
+    .action-line.preflop { border-left-color: #8b5cf6; }
+    .action-line.flop { border-left-color: #3b82f6; }
+    .action-line.turn { border-left-color: #10b981; }
+    .action-line.river { border-left-color: #f97316; }
+    .action-line.showdown { border-left-color: #fbbf24; }
+    
+    /* 팟 디스플레이 */
+    .pot-display {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+      color: #000;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <!-- 헤더 -->
+  <div class="app-header" style="background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border-bottom: 1px solid #334155; padding: 10px 16px; position: sticky; top: 0; z-index: 100;">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
+        <span class="text-xs text-gray-500">v8.7.0</span>
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+          <span class="text-xs text-gray-400">연결됨</span>
+        </div>
+        <div class="flex items-center gap-2 text-xs text-gray-400">
+          <span>🔄 Virtual 시트 매칭</span>
+          <span>•</span>
+          <span>📊 실시간 분석</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <input type="text" id="virtual-sheet-url" 
+               class="text-xs bg-gray-700 px-2 py-1 rounded w-64" 
+               placeholder="Virtual 시트 URL 입력..."
+               title="Virtual 시트가 포함된 Google Sheets URL">
+        <button id="refresh-btn" class="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
+          새로고침
+        </button>
+        <button id="settings-btn" class="px-3 py-1 bg-gray-600 text-white rounded text-xs hover:bg-gray-700">
+          설정
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 메인 컨텐츠 -->
+  <div class="compact-grid">
+    
+    <!-- 왼쪽: 핸드 리스트 -->
+    <div class="section overflow-hidden">
+      <div class="section-header flex items-center justify-between">
+        <span>핸드 목록</span>
+        <span id="hand-count" class="text-xs">0</span>
+      </div>
+      <div class="flex gap-2 mb-2">
+        <select id="table-filter" class="bg-gray-700 text-xs px-2 py-1 rounded flex-1">
+          <option value="">모든 테이블</option>
+        </select>
+        <select id="status-filter" class="bg-gray-700 text-xs px-2 py-1 rounded">
+          <option value="">전체</option>
+          <option value="pending">대기</option>
+          <option value="completed">완료</option>
+        </select>
+      </div>
+      <div id="hand-list" class="flex-1 overflow-y-auto" style="max-height: calc(100vh - 180px);">
+        <!-- 핸드 리스트 동적 생성 -->
+      </div>
+    </div>
+
+    <!-- 중앙: 핸드 상세 정보 -->
+    <div class="section overflow-hidden">
+      <!-- 핸드 헤더 정보 -->
+      <div class="flex items-center justify-between mb-3 pb-2 border-b border-gray-700">
+        <div class="flex flex-col gap-1">
+          <div class="flex items-center gap-3">
+            <span class="text-sm font-bold">Hand #<span id="hand-number">-</span></span>
+            <span class="text-xs text-gray-400">Table: <span id="table-name">-</span></span>
+            <span class="text-xs text-gray-400">Blinds: <span id="blinds">-</span></span>
+          </div>
+          <div class="text-xs text-blue-300">
+            📹 <span id="camera-files">-</span>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <button id="edit-btn" class="px-2 py-1 bg-yellow-600 text-xs rounded">편집</button>
+          <button id="complete-btn" class="px-2 py-1 bg-green-600 text-xs rounded">완료</button>
+        </div>
+      </div>
+
+      <!-- 팟 정보 -->
+      <div class="pot-display mb-3">
+        POT: <span id="pot-amount">0</span>
+      </div>
+
+      <!-- 보드 카드 -->
+      <div class="mb-3">
+        <div class="section-header">Board</div>
+        <div id="board-cards" class="flex justify-center gap-1">
+          <!-- 보드 카드 동적 생성 -->
+        </div>
+      </div>
+
+      <!-- 플레이어 카드 섹션 -->
+      <div class="mb-3">
+        <div class="section-header">Players</div>
+        <div id="players-section" class="player-list" style="max-height: 180px; overflow-y: auto;">
+          <!-- 플레이어 정보 동적 생성 -->
+        </div>
+      </div>
+
+      <!-- 액션 히스토리 -->
+      <div class="flex-1">
+        <div class="section-header">Actions</div>
+        <div id="action-history" style="max-height: calc(100vh - 520px); overflow-y: auto;">
+          <!-- 액션 히스토리 동적 생성 -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 오른쪽: 요약 정보 -->
+    <div class="section">
+      <!-- 통계 -->
+      <div class="mb-3">
+        <div class="section-header">통계</div>
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-gray-800 rounded p-2">
+            <div class="text-xs text-gray-400">총 핸드</div>
+            <div class="text-lg font-bold" id="total-hands">0</div>
+          </div>
+          <div class="bg-gray-800 rounded p-2">
+            <div class="text-xs text-gray-400">완료</div>
+            <div class="text-lg font-bold text-green-400" id="completed-hands">0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 핸드 결과 -->
+      <div class="mb-3">
+        <div class="section-header">결과</div>
+        <div id="hand-result" class="bg-gray-800 rounded p-3">
+          <div class="text-xs text-gray-400">대기 중...</div>
+        </div>
+      </div>
+
+      <!-- 편집 노트 -->
+      <div class="flex-1">
+        <div class="section-header">노트</div>
+        <textarea id="hand-notes" 
+          class="w-full flex-1 bg-gray-800 rounded p-2 text-xs resize-none" 
+          style="min-height: 100px;"
+          placeholder="핸드 분석 노트..."></textarea>
+        <button id="save-notes" class="mt-2 w-full px-3 py-1 bg-blue-600 text-white rounded text-xs">
+          노트 저장
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 로그 메시지 모달 -->
+  <div id="log-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-gray-800 rounded-lg p-6 max-w-3xl w-full max-h-[80vh] flex flex-col">
+      <h2 class="text-lg font-bold mb-4">📊 처리 로그</h2>
+      <div id="log-messages" class="bg-black rounded p-4 text-green-400 font-mono text-xs overflow-y-auto flex-1 mb-4">
+        <!-- 로그 메시지가 여기에 표시됩니다 -->
+      </div>
+      <button onclick="closeLogModal()" class="px-4 py-2 bg-gray-700 rounded hover:bg-gray-600">
+        닫기
+      </button>
+    </div>
+  </div>
+  
+  <!-- 완료 파일명 입력 모달 -->
+  <div id="completion-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-gray-800 rounded-lg p-6 max-w-lg w-full">
+      <h2 class="text-lg font-bold mb-4">📝 핸드 편집 완료</h2>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm mb-2">최종 파일명</label>
+          <input type="text" id="final-filename" 
+                 class="w-full bg-gray-700 rounded px-3 py-2 text-sm" 
+                 placeholder="예: 2025-09-05_Hand91_Final.mp4">
+        </div>
+        <div>
+          <label class="block text-sm mb-2">핸드 시간 (시:분:초)</label>
+          <input type="text" id="hand-timestamp" 
+                 class="w-full bg-gray-700 rounded px-3 py-2 text-sm mono" 
+                 readonly>
+        </div>
+        <div>
+          <label class="block text-sm mb-2">매칭된 Virtual 시트 행</label>
+          <input type="text" id="matched-row" 
+                 class="w-full bg-gray-700 rounded px-3 py-2 text-sm" 
+                 readonly>
+        </div>
+        <div>
+          <label class="block text-sm mb-2">AI 분석 요약 (3줄)</label>
+          <textarea id="ai-summary" 
+                    class="w-full bg-gray-700 rounded px-3 py-2 text-sm" 
+                    rows="3"
+                    placeholder="AI가 자동으로 분석하여 요약합니다..."
+                    readonly></textarea>
+        </div>
+        <div class="text-xs text-gray-400">
+          <p>✅ Virtual 시트의 가장 비슷한 시간 행을 찾아 업데이트합니다</p>
+          <p>✅ F열: 파일명, H열: AI 요약이 자동 입력됩니다</p>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 mt-6">
+        <button id="cancel-completion" class="px-4 py-2 bg-gray-600 rounded text-sm">취소</button>
+        <button id="confirm-completion" class="px-4 py-2 bg-green-600 rounded text-sm">완료 처리</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 설정 모달 -->
+  <div id="settings-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full">
+      <h2 class="text-lg font-bold mb-4">설정</h2>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm mb-2">새로고침 간격</label>
+          <select id="refresh-interval" class="w-full bg-gray-700 rounded px-3 py-2">
+            <option value="5000">5초</option>
+            <option value="10000" selected>10초</option>
+            <option value="30000">30초</option>
+            <option value="60000">1분</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="checkbox" id="enable-notifications" checked>
+          <label for="enable-notifications" class="text-sm">새 핸드 알림 활성화</label>
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="checkbox" id="enable-sound" checked>
+          <label for="enable-sound" class="text-sm">소리 알림 활성화</label>
+        </div>
+        <div class="mt-4 pt-4 border-t border-gray-700">
+          <h3 class="text-sm font-bold mb-2">🤖 AI API 설정</h3>
+          <div class="mb-2">
+            <label class="block text-xs mb-1">AI 서비스 선택</label>
+            <select id="ai-service" class="w-full bg-gray-700 rounded px-3 py-1 text-sm">
+              <option value="none">사용 안 함 (기본 요약)</option>
+              <option value="openai">OpenAI (GPT-4/GPT-3.5)</option>
+              <option value="gemini">Google Gemini</option>
+              <option value="claude">Anthropic Claude</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="block text-xs mb-1">API 키</label>
+            <input type="password" id="ai-api-key" 
+                   class="w-full bg-gray-700 rounded px-3 py-1 text-sm" 
+                   placeholder="API 키 입력...">
+            <p class="text-xs text-gray-400 mt-1">
+              API 키는 로컬에만 저장됩니다.
+            </p>
+          </div>
+        </div>
+        <div class="mt-4 pt-4 border-t border-gray-700">
+          <button id="clear-notification-history" class="w-full px-4 py-2 bg-red-600 rounded text-sm hover:bg-red-700 transition">
+            🔄 버퍼 초기화
+          </button>
+          <p class="text-xs text-gray-400 mt-2">
+            최근 핸드 버퍼(최대 100개)가 초기화되며, 다음 로드시 기존 핸드도 새 핸드로 인식될 수 있습니다.
+          </p>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 mt-6">
+        <button id="cancel-settings" class="px-4 py-2 bg-gray-600 rounded text-sm">취소</button>
+        <button id="save-settings" class="px-4 py-2 bg-blue-600 rounded text-sm">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ====================================
+    // 포커 핸드 모니터링 시스템 v8.7.0 - 개선된 Virtual 시트 매칭
+    const VERSION = '8.7.0';
+    // ====================================
+    
+    const CONFIG = {
+      // Google Sheets CSV URLs
+      CSV_HAND_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=1906746276&single=true&output=csv',
+      CSV_INDEX_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=1354012271&single=true&output=csv',
+      APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzWfe_4CAKcMAzzoHzJBstQIC7jQxSVC1BO23nYwlU23Pd5vLPLjfUi-gKyqzDYvPRT/exec',
+      
+      // 설정
+      REFRESH_INTERVAL: 10000,
+      ENABLE_NOTIFICATIONS: true,
+      ENABLE_SOUND: true,
+      
+      // AI API 설정
+      AI_SERVICE: 'none', // 'none', 'openai', 'gemini', 'claude'
+      AI_API_KEY: '',
+      AI_MODEL: { // 각 서비스별 기본 모델
+        openai: 'gpt-3.5-turbo',
+        gemini: 'gemini-pro',
+        claude: 'claude-3-sonnet-20240229'
+      }
+    };
+    
+    // 전역 상태
+    let currentHand = null;
+    let allHands = [];
+    let masterHandList = new Map(); // 영구 저장용 마스터 핸드 목록
+    const MASTER_LIST_KEY = 'poker_master_hand_list_v1';
+    let handData = {};
+    let refreshTimerInitial = null;  // 초기 setTimeout용
+    let refreshTimerInterval = null;  // 반복 setInterval용
+    let lastHandCount = 0;
+    let isInitialLoad = true; // 첫 로딩인지 확인
+    
+    // 최근 5개 핸드만 추적하는 간단한 버퍼
+    class RecentHandsBuffer {
+      constructor() {
+        this.buffer = [];
+        this.maxSize = 100; // 5개는 너무 적음, 100개로 증가
+        this.storageKey = 'poker_recent_hands_buffer_v2'; // 버전 업그레이드
+        this.loadFromStorage();
+      }
+      
+      // 새 핸드 추가 (중복 체크 포함)
+      addHand(handNumber) {
+        const handStr = String(handNumber);
+        
+        // 이미 버퍼에 있으면 추가하지 않음
+        if (this.buffer.includes(handStr)) {
+          return false; // 중복
+        }
+        
+        // 버퍼에 추가
+        this.buffer.push(handStr);
+        
+        // 최대 크기 초과시 가장 오래된 것 제거
+        while (this.buffer.length > this.maxSize) {
+          this.buffer.shift();
+        }
+        
+        this.saveToStorage();
+        return true; // 새 핸드
+      }
+      
+      // 핸드 존재 여부 확인
+      hasHand(handNumber) {
+        return this.buffer.includes(String(handNumber));
+      }
+      
+      // 버퍼 상태 확인
+      getStatus() {
+        return {
+          buffer: [...this.buffer],
+          size: this.buffer.length,
+          maxSize: this.maxSize
+        };
+      }
+      
+      // localStorage에서 로드
+      loadFromStorage() {
+        try {
+          const stored = localStorage.getItem(this.storageKey);
+          if (stored) {
+            this.buffer = JSON.parse(stored) || [];
+            console.log(`💾 최근 핸드 버퍼 로드: ${this.buffer.length}개`);
+          }
+        } catch (e) {
+          console.error('버퍼 로드 실패:', e);
+          this.buffer = [];
+        }
+      }
+      
+      // localStorage에 저장
+      saveToStorage() {
+        try {
+          localStorage.setItem(this.storageKey, JSON.stringify(this.buffer));
+        } catch (e) {
+          console.error('버퍼 저장 실패:', e);
+        }
+      }
+      
+      // 버퍼 초기화
+      clear() {
+        this.buffer = [];
+        this.saveToStorage();
+        console.log('🔄 최근 핸드 버퍼 초기화 완료');
+      }
+    }
+    
+    // 전역 버퍼 인스턴스
+    const recentHandsBuffer = new RecentHandsBuffer();
+    
+    // 기존 알림 관련 설정
+    const STORAGE_KEY = 'poker_notified_hands_v3';
+    const MAX_STORED_HANDS = 500;
+    const NOTIFICATION_COOLDOWN = 30000; // 30초 쿨다운
+    
+    // 디버그 모드
+    const DEBUG_MODE = true; // 콘솔에 상세 로그 출력
+    
+    
+    // 알림 기록 불러오기 (시간 정보 포함)
+    function getNotifiedHands() {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const data = JSON.parse(stored);
+          // 객체 형태로 저장 (handNumber: timestamp)
+          return data.hands || {};
+        }
+      } catch (e) {
+        console.error('알림 기록 불러오기 실패:', e);
+      }
+      return {};
+    }
+    
+    // 알림 기록 저장 (시간 정보 포함)
+    // 중요: 한 번 알림을 표시한 핸드는 CSV에서 일시적으로 사라져도 
+    // 최소 24시간 동안은 기록을 유지하여 중복 알림 방지
+    function saveNotifiedHands(handsMap) {
+      try {
+        // 너무 오래된 기록만 제거 (24시간 이상)
+        // CSV 지연으로 인해 핸드가 잠시 사라질 수 있으므로
+        // 7일이 아닌 24시간으로 단축하여 메모리 효율성 향상
+        const now = Date.now();
+        const oneDayAgo = now - (24 * 60 * 60 * 1000);
+        const cleanedHands = {};
+        
+        // 기존 저장된 모든 핸드 유지 (24시간 내)
+        const existingData = getNotifiedHands();
+        for (const [handNumber, timestamp] of Object.entries(existingData)) {
+          if (timestamp > oneDayAgo) {
+            cleanedHands[handNumber] = timestamp;
+          }
+        }
+        
+        // 새로운 핸드 추가/업데이트
+        for (const [handNumber, timestamp] of Object.entries(handsMap)) {
+          cleanedHands[handNumber] = timestamp;
+        }
+        
+        // 최대 개수 제한
+        const entries = Object.entries(cleanedHands);
+        if (entries.length > MAX_STORED_HANDS) {
+          // 가장 오래된 것들 제거
+          entries.sort((a, b) => a[1] - b[1]);
+          const toKeep = entries.slice(-MAX_STORED_HANDS);
+          const finalHands = {};
+          toKeep.forEach(([handNumber, timestamp]) => {
+            finalHands[handNumber] = timestamp;
+          });
+          
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            hands: finalHands,
+            lastUpdated: new Date().toISOString()
+          }));
+        } else {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            hands: cleanedHands,
+            lastUpdated: new Date().toISOString()
+          }));
+        }
+        
+        if (DEBUG_MODE) {
+          console.log(`💾 알림 기록 저장: 총 ${Object.keys(cleanedHands).length}개 핸드 기록 유지`);
+        }
+      } catch (e) {
+        console.error('알림 기록 저장 실패:', e);
+      }
+    }
+    
+    // 알림 기록 초기화 (객체 형태: {handNumber: timestamp})
+    let notifiedHands = getNotifiedHands();
+    let lastDataSnapshot = ''; // 마지막 데이터 스냅샷 (데이터 변경 감지용)
+    
+    // ====================================
+    // 유틸리티 함수
+    // ====================================
+    
+    function parseCSV(text) {
+      const lines = text.trim().split('\n');
+      const rows = [];
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const row = [];
+        let inQuotes = false;
+        let currentField = '';
+        
+        for (let j = 0; j < line.length; j++) {
+          const char = line[j];
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            row.push(currentField.trim());
+            currentField = '';
+          } else {
+            currentField += char;
+          }
+        }
+        row.push(currentField.trim());
+        rows.push(row);
+      }
+      
+      return rows;
+    }
+    
+    function formatNumber(num) {
+      return new Intl.NumberFormat('ko-KR').format(num);
+    }
+    
+    function getSuitSymbol(suit) {
+      const symbols = {
+        's': '♠', 'h': '♥', 'd': '♦', 'c': '♣'
+      };
+      return symbols[suit.toLowerCase()] || '';
+    }
+    
+    function getSuitClass(suit) {
+      const classes = {
+        's': 'spade', 'h': 'heart', 'd': 'diamond', 'c': 'club'
+      };
+      return classes[suit.toLowerCase()] || '';
+    }
+    
+    function createCardElement(card, type = 'mini') {
+      if (!card || card === '?' || card.length < 2) {
+        // 알 수 없는 카드도 흰색 바탕으로 표시 (다크모드 무시)
+        return `<div class="${type === 'board' ? 'board-card' : 'card-mini'}" style="background-color: #FFFFFF !important; color: #6b7280; border-style: dashed; color-scheme: light;">?</div>`;
+      }
+      
+      const rank = card.slice(0, -1);
+      const suit = card.slice(-1);
+      const suitClass = getSuitClass(suit);
+      const suitSymbol = getSuitSymbol(suit);
+      
+      // 스페이드/클로버는 검은색, 하트/다이아는 빨간색으로 강제 설정
+      const textColor = (suit === 's' || suit === 'c') ? '#000000' : '#dc2626';
+      
+      // 카드에 랭크와 문양 표시
+      return `<div class="${type === 'board' ? 'board-card' : 'card-mini'} ${suitClass}" style="background-color: #FFFFFF !important; color: ${textColor} !important; color-scheme: light;">
+        <div style="display: flex; align-items: center; gap: 2px; color: ${textColor} !important;">
+          <span style="font-weight: 900; color: ${textColor} !important;">${rank}</span>
+          <span style="font-size: ${type === 'board' ? '16px' : '12px'}; color: ${textColor} !important;">${suitSymbol}</span>
+        </div>
+      </div>`;
+    }
+    
+    function getActionBadgeClass(action) {
+      const actionMap = {
+        'FOLD': 'fold',
+        'CHECK': 'check',
+        'CALL': 'call',
+        'CHECK/CALL': 'call',  // CHECK/CALL 통합 처리
+        'BET': 'bet',
+        'RAISE': 'raise',
+        'RAISE TO': 'raise',
+        'ALL-IN': 'allin',
+        'ALLIN': 'allin'
+      };
+      return actionMap[action.toUpperCase()] || 'check';
+    }
+    
+    // 액션 표시 텍스트 변환 함수 (이미 변환된 데이터이므로 그대로 반환)
+    function getActionDisplayText(action) {
+      if (!action) return '-';
+      // 이미 파싱 단계에서 CHECK/CALL로 변환되었음
+      return action.toUpperCase();
+    }
+    
+    function getPositionBadgeClass(position) {
+      const posMap = {
+        'BTN': 'btn',
+        'SB': 'sb',
+        'BB': 'bb',
+        'UTG': 'utg',
+        'MP': 'mp',
+        'CO': 'co'
+      };
+      return posMap[position] || '';
+    }
+    
+    // 카메라 파일명 변환 함수
+    function formatCameraFileName(camFiles) {
+      if (!camFiles || camFiles.length === 0) return [];
+      
+      const formattedFiles = [];
+      
+      // 카메라 이름과 번호를 페어로 처리
+      for (let i = 0; i < camFiles.length; i += 2) {
+        const camName = camFiles[i];
+        const camNumber = camFiles[i + 1];
+        
+        if (camName && camNumber) {
+          // 숫자를 4자리로 패딩 (예: 115 -> 0115)
+          const paddedNumber = String(camNumber).padStart(4, '0');
+          formattedFiles.push(camName + paddedNumber);
+        } else if (camName && !camNumber) {
+          // 번호가 없으면 그대로 추가
+          formattedFiles.push(camName);
+        }
+      }
+      
+      return formattedFiles;
+    }
+    
+    // ====================================
+    // 간단한 데이터 검증 함수
+    // ====================================
+    
+    function isCSVDataValid(newData) {
+      // 기본적인 데이터 유효성만 체크
+      if (!newData || newData.length === 0) {
+        console.warn('⚠️ CSV 데이터가 비어있음');
+        return false;
+      }
+      
+      // 핸드 번호가 있는 데이터 확인
+      const validHands = newData.filter(h => h.handNumber && !isNaN(parseInt(h.handNumber)));
+      if (validHands.length === 0) {
+        console.warn('⚠️ 유효한 핸드가 없음');
+        return false;
+      }
+      
+      return true;
+    }
+    
+    // ====================================
+    // 데이터 로드 함수
+    // ====================================
+    
+    async function loadIndexData(suppressNotification = false) {
+      console.log(`🔄 loadIndexData 호출 - 알림 억제: ${suppressNotification}, 초기로드: ${isInitialLoad}`);
+      try {
+        // 랜덤 파라미터 추가로 캐시 방지 강화
+        const randomParam = Math.random().toString(36).substring(7);
+        const csvUrl = CONFIG.CSV_INDEX_URL + '&t=' + Date.now() + '&r=' + randomParam;
+        console.log(`🌐 CSV 데이터 가져오기: ${csvUrl.substring(0, 100)}...`);
+        
+        const response = await fetch(csvUrl);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const text = await response.text();
+        console.log(`📄 CSV 원본 데이터 크기: ${text.length}문자`);
+        
+        const rows = parseCSV(text);
+        console.log(`📄 파싱된 행 수: ${rows.length}개`);
+        
+        const dataRows = rows.slice(1);
+        
+        // CSV에서 읽은 새로운 핸드 데이터
+        const newHandsFromCSV = dataRows.map(row => {
+          // lastAction에서도 CHECK/CALL 통합
+          let lastAction = row[15];
+          if (lastAction === 'CHECK' || lastAction === 'CALL') {
+            lastAction = 'CHECK/CALL';
+          }
+          
+          return {
+            handNumber: row[0],
+            startRow: parseInt(row[1]),
+            endRow: parseInt(row[2]),
+            handUpdatedAt: row[3],
+            handEdit: row[4] === 'TRUE',
+            handEditTime: row[5],
+            table: row[7],
+            cam: row[9], // J열 - Cam 정보
+            camFiles: formatCameraFileName([row[10], row[11], row[12], row[13]].filter(file => file && file.trim())), // K-N열 - CamFile 정보를 변환
+            lastStreet: row[14],
+            lastAction: lastAction,
+            workStatus: row[16] || '대기중'
+          };
+        });
+        
+        // 기본적인 데이터 유효성 체크
+        if (!isCSVDataValid(newHandsFromCSV)) {
+          console.warn('🚫 비어있는 CSV 데이터, 대기중...');
+          return;
+        }
+        
+        console.log(`📄 CSV에서 ${newHandsFromCSV.length}개 핸드 로드 완료`);
+        if (DEBUG_MODE && newHandsFromCSV.length > 0) {
+          console.log('🔍 로드된 핸드 번호:', newHandsFromCSV.map(h => h.handNumber).slice(0, 5));
+        }
+        
+        // 마스터 핸드 목록에 병합 (로컬 상태 보존)
+        for (const hand of newHandsFromCSV) {
+          const existingHand = masterHandList.get(hand.handNumber);
+          if (existingHand) {
+            // 기존 핸드가 있으면 로컬 상태 보존하면서 업데이트
+            const mergedHand = {
+              ...hand, // CSV에서 온 새 데이터
+              handEdit: existingHand.isLocallyCompleted || existingHand.handEdit, // 로컬 완료 우선
+              handEditTime: existingHand.handEditTime, // 로컬 완료 시간 보존
+              isLocallyCompleted: existingHand.isLocallyCompleted // 로컬 완료 플래그 보존
+            };
+            masterHandList.set(hand.handNumber, mergedHand);
+            
+            if (existingHand.isLocallyCompleted) {
+              console.log(`✅ 핸드 ${hand.handNumber}: 로컬 완료 상태 보존됨 (handEdit: ${mergedHand.handEdit})`);
+            }
+          } else {
+            // 새 핸드면 그대로 추가
+            masterHandList.set(hand.handNumber, hand);
+          }
+        }
+        
+        // 표시용 배열 생성 (마스터 목록에서)
+        allHands = Array.from(masterHandList.values());
+        allHands.sort((a, b) => parseInt(b.handNumber) - parseInt(a.handNumber));
+        
+        console.log(`📁 마스터 핸드 목록: 총 ${masterHandList.size}개 핸드`);
+        
+        // 마스터 핸드 목록 저장
+        saveMasterHandList();
+        
+        // 새 핸드 감지 및 알림 처리
+        if (!isInitialLoad && !suppressNotification) {
+          const handsToNotify = [];
+          
+          for (const hand of newHandsFromCSV) {
+            const handNumber = hand.handNumber;
+            
+            // RecentHandsBuffer에 추가 - 새 핸드이면 true 반환
+            if (recentHandsBuffer.addHand(handNumber)) {
+              handsToNotify.push(handNumber);
+            }
+          }
+          
+          // 알림 발송
+          if (handsToNotify.length > 0 && CONFIG.ENABLE_NOTIFICATIONS) {
+            console.log(`🔔 새로운 핸드 알림: ${handsToNotify.join(', ')}`);
+            showNotification(`${handsToNotify.length}개의 새로운 핸드가 추가되었습니다! (${handsToNotify.join(', ')})`);
+            playSound('notification');
+            
+            // 기존 알림 시스템에도 기록 (호환성)
+            const now = Date.now();
+            for (const handNumber of handsToNotify) {
+              notifiedHands[handNumber] = now;
+            }
+            saveNotifiedHands(notifiedHands);
+          }
+        } else if (isInitialLoad) {
+          // 초기 로딩시 모든 핸드를 버퍼에 추가 (알림 없이)
+          console.log(`🔍 초기 로딩: ${newHandsFromCSV.length}개 핸드를 버퍼에 추가`);
+          
+          // 모든 핸드를 버퍼에 추가 (최대 100개까지 저장)
+          for (const hand of newHandsFromCSV) {
+            recentHandsBuffer.addHand(hand.handNumber);
+          }
+          
+          // 초기 로딩 완료 처리
+          isInitialLoad = false;
+          const bufferStatus = recentHandsBuffer.getStatus();
+          console.log(`🚀 초기 로딩 완료. 핸드 수: ${newHandsFromCSV.length}개, 버퍼: ${bufferStatus.size}개`);
+        }
+        
+        updateHandList();
+        updateStats();
+        
+      } catch (error) {
+        console.error('Index 데이터 로드 실패:', error);
+      }
+    }
+    
+    async function loadHandData(handNumber) {
+      try {
+        const response = await fetch(CONFIG.CSV_HAND_URL + '&t=' + Date.now());
+        const text = await response.text();
+        const rows = parseCSV(text);
+        
+        const hand = allHands.find(h => h.handNumber === handNumber);
+        if (!hand) return null;
+        
+        const handRows = rows.slice(hand.startRow - 1, hand.endRow);
+        return parseHandDetails(handRows);
+        
+      } catch (error) {
+        console.error('Hand 데이터 로드 실패:', error);
+        return null;
+      }
+    }
+    
+    function parseHandDetails(rows) {
+      const hand = {
+        number: '',
+        table: '',
+        blinds: { sb: 0, bb: 0 },
+        players: [],
+        actions: [],
+        communityCards: [],
+        pot: 0,
+        winner: null,
+        streets: {
+          preflop: [],
+          flop: [],
+          turn: [],
+          river: [],
+          showdown: []
+        }
+      };
+      
+      let currentStreet = 'preflop';
+      let streetBetAmount = {}; // 각 스트리트의 현재 베팅 금액 추적
+      streetBetAmount['preflop'] = 0;
+      streetBetAmount['flop'] = 0;
+      streetBetAmount['turn'] = 0;
+      streetBetAmount['river'] = 0;
+      
+      for (const row of rows) {
+        const rowType = row[1];
+        
+        switch (rowType) {
+          case 'HAND':
+            hand.number = row[2];
+            hand.timestamp = row[3];
+            if (row[11] && row[12]) {
+              hand.blinds.sb = parseInt(row[11]) || 0;
+              hand.blinds.bb = parseInt(row[12]) || 0;
+            }
+            hand.table = row[16] || '';
+            break;
+          
+          case 'PLAYER':
+            const playerName = row[2];
+            const seat = parseInt(row[3]) || 0;
+            const chips = parseInt(row[5]) || parseInt(row[6]) || 0;
+            const cards = row[7] ? row[7].split(' ') : ['?', '?'];
+            
+            hand.players.push({
+              seat: seat,
+              name: playerName,
+              chips: chips,
+              cards: cards.length >= 2 ? cards : [cards[0] || '?', cards[1] || '?'],
+              position: '',
+              status: 'active'
+            });
+            break;
+          
+          case 'EVENT':
+            const eventType = row[2];
+            
+            if (eventType === 'BOARD') {
+              const boardNum = parseInt(row[3]) || 0;
+              const card = row[4];
+              
+              if (boardNum === 1) {
+                currentStreet = 'flop';
+                streetBetAmount['flop'] = 0; // 플롭 시작시 베팅 금액 초기화
+                // 첫 번째 플롭 카드 추가 (배열 초기화하지 않음)
+                hand.communityCards.push(card);
+              } else if (boardNum === 2 || boardNum === 3) {
+                // 두 번째, 세 번째 플롭 카드 추가
+                hand.communityCards.push(card);
+              } else if (boardNum === 4) {
+                currentStreet = 'turn';
+                streetBetAmount['turn'] = 0; // 턴 시작시 베팅 금액 초기화
+                hand.communityCards.push(card);
+              } else if (boardNum === 5) {
+                currentStreet = 'river';
+                streetBetAmount['river'] = 0; // 리버 시작시 베팅 금액 초기화
+                hand.communityCards.push(card);
+              }
+            } else {
+              const playerNum = row[3];
+              const amount = parseInt(row[4]) || 0;
+              
+              const playerObj = hand.players.find(p => p.seat === parseInt(playerNum));
+              const playerName = playerObj ? playerObj.name : `Player ${playerNum}`;
+              
+              // CHECK와 CALL을 스마트하게 구분
+              let displayAction = eventType;
+              const currentBet = streetBetAmount[currentStreet] || 0;
+              
+              // CALL 액션 처리
+              if (eventType === 'CALL') {
+                // 현재 스트리트에 베팅이 없고 amount가 0이거나 작으면 CHECK
+                // 또는 CALL하려는 금액이 현재 베팅과 같으면 CHECK
+                if ((currentBet === 0 && amount <= hand.blinds.bb) || amount === currentBet) {
+                  displayAction = 'CHECK/CALL';
+                  if (DEBUG_MODE) {
+                    console.log(`✅ CHECK 감지: ${playerName} (${currentStreet}, bet=${currentBet}, amount=${amount})`);
+                  }
+                } else {
+                  // 진짜 CALL
+                  displayAction = 'CHECK/CALL';
+                  if (DEBUG_MODE) {
+                    console.log(`📞 CALL 감지: ${playerName} ${amount} (${currentStreet}, bet=${currentBet})`);
+                  }
+                }
+              } else if (eventType === 'CHECK') {
+                displayAction = 'CHECK/CALL';
+              }
+              
+              // BET이나 RAISE가 발생하면 해당 스트리트의 베팅 금액 업데이트
+              if (eventType === 'BET' || eventType === 'RAISE' || eventType === 'RAISE TO') {
+                streetBetAmount[currentStreet] = amount;
+                if (DEBUG_MODE) {
+                  console.log(`📊 ${currentStreet} 베팅 업데이트: ${amount}`);
+                }
+              }
+              
+              const action = {
+                player: playerName,
+                action: displayAction,
+                amount: amount,
+                street: currentStreet
+              };
+              
+              hand.actions.push(action);
+              hand.streets[currentStreet].push(action);
+              
+              // pot 계산: amount가 있는 경우만 추가
+              if (amount > 0) {
+                // BET, CALL (with amount), RAISE, RAISE TO, ALL-IN 등
+                if (eventType === 'BET' || eventType === 'CALL' || eventType === 'RAISE' || eventType === 'RAISE TO' || eventType === 'ALL-IN' || eventType === 'ALLIN') {
+                  hand.pot += amount;
+                  
+                  if (DEBUG_MODE) {
+                    console.log(`💰 POT 추가: ${playerName} ${displayAction} ${amount} (현재 POT: ${hand.pot})`);
+                  }
+                }
+              }
+              
+              if (eventType === 'FOLD' && playerObj) {
+                playerObj.status = 'folded';
+              }
+            }
+            break;
+          
+          case 'WIN':
+            const winnerNum = row[2];
+            const winAmount = parseInt(row[3]) || 0;
+            const winnerObj = hand.players.find(p => p.seat === parseInt(winnerNum));
+            
+            hand.winner = {
+              player: winnerObj ? winnerObj.name : `Player ${winnerNum}`,
+              amount: winAmount,
+              hand: row[4] || ''
+            };
+            break;
+        }
+      }
+      
+      calculatePositions(hand);
+      return hand;
+    }
+    
+    function calculatePositions(hand) {
+      const playerCount = hand.players.length;
+      if (playerCount < 2) return;
+      
+      const positions = getPositionNames(playerCount);
+      hand.players.forEach((player, index) => {
+        player.position = positions[index];
+      });
+    }
+    
+    function getPositionNames(playerCount) {
+      const positions = {
+        2: ['BTN', 'BB'],
+        3: ['BTN', 'SB', 'BB'],
+        4: ['BTN', 'SB', 'BB', 'CO'],
+        5: ['BTN', 'SB', 'BB', 'UTG', 'CO'],
+        6: ['BTN', 'SB', 'BB', 'UTG', 'MP', 'CO'],
+        7: ['BTN', 'SB', 'BB', 'UTG', 'UTG+1', 'MP', 'CO'],
+        8: ['BTN', 'SB', 'BB', 'UTG', 'UTG+1', 'MP', 'MP+1', 'CO'],
+        9: ['BTN', 'SB', 'BB', 'UTG', 'UTG+1', 'UTG+2', 'MP', 'MP+1', 'CO']
+      };
+      
+      return positions[playerCount] || Array(playerCount).fill('').map((_, i) => `Seat ${i + 1}`);
+    }
+    
+    // ====================================
+    // UI 업데이트 함수
+    // ====================================
+    
+    function updateHandList() {
+      const listEl = document.getElementById('hand-list');
+      const tableFilter = document.getElementById('table-filter').value;
+      const statusFilter = document.getElementById('status-filter').value;
+      
+      let filteredHands = allHands;
+      
+      if (tableFilter) {
+        filteredHands = filteredHands.filter(h => h.table === tableFilter);
+      }
+      
+      if (statusFilter) {
+        filteredHands = filteredHands.filter(h => {
+          const isCompleted = h.handEdit || h.isLocallyCompleted;
+          if (statusFilter === 'completed') return isCompleted;
+          if (statusFilter === 'pending') return !isCompleted;
+          return true;
+        });
+      }
+      
+      listEl.innerHTML = filteredHands.map(hand => {
+        // 상태에 따른 색상 설정 (로컬 완료 상태도 고려)
+        const isCompleted = hand.handEdit || hand.isLocallyCompleted;
+        const statusColor = isCompleted ? 'border-green-500 bg-green-900/20' : 
+                          hand.workStatus === '진행중' ? 'border-yellow-500 bg-yellow-900/20' : 
+                          'border-gray-600 bg-gray-800';
+        
+        // 스트리트별 색상
+        const streetColors = {
+          'preflop': 'text-purple-400',
+          'flop': 'text-blue-400', 
+          'turn': 'text-green-400',
+          'river': 'text-orange-400',
+          'showdown': 'text-yellow-400'
+        };
+        const streetColor = streetColors[hand.lastStreet?.toLowerCase()] || 'text-gray-400';
+        
+        // 시간 표시 포맷
+        const time = hand.handUpdatedAt ? new Date(hand.handUpdatedAt).toLocaleTimeString('ko-KR', {
+          hour: '2-digit',
+          minute: '2-digit'
+        }) : '-';
+        
+        // 카메라 파일명 정보 (이미 변환된 형태)
+        const camFilesText = hand.camFiles && hand.camFiles.length > 0 ? 
+          hand.camFiles.slice(0, 2).join(', ') + 
+          (hand.camFiles.length > 2 ? ` (+${hand.camFiles.length - 2})` : '') : 
+          '파일 없음';
+
+        return `
+        <div class="rounded-lg p-3 cursor-pointer hover:scale-105 transition-all border ${statusColor}" 
+             onclick="selectHand('${hand.handNumber}')">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-sm font-bold text-white">Hand #${hand.handNumber}</span>
+            ${isCompleted ? '<span class="text-green-400">✓</span>' : 
+              hand.workStatus === '진행중' ? '<span class="text-yellow-400">⚡</span>' : ''}
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-gray-300">${hand.table || '테이블 -'}</span>
+            <span class="${streetColor} font-semibold">${hand.lastStreet || 'Preflop'}</span>
+          </div>
+          <div class="flex items-center justify-between text-xs mt-1">
+            <span class="text-gray-500">${hand.lastAction || '-'}</span>
+            <span class="text-gray-500">${time}</span>
+          </div>
+          <div class="text-xs text-blue-300 mt-1 truncate" title="${hand.camFiles?.join(', ') || ''}">
+            📹 ${camFilesText}
+          </div>
+        </div>
+      `;
+      }).join('');
+      
+      document.getElementById('hand-count').textContent = filteredHands.length;
+      
+      // 테이블 필터 옵션 업데이트 (현재 선택된 값 유지)
+      const tables = [...new Set(allHands.map(h => h.table).filter(t => t))];
+      const tableFilterEl = document.getElementById('table-filter');
+      const currentTable = tableFilterEl.value;
+      
+      // 테이블 목록이 달라졌을 때만 업데이트
+      const currentOptions = Array.from(tableFilterEl.options).slice(1).map(opt => opt.value);
+      const hasChanged = tables.length !== currentOptions.length || 
+                        tables.some(t => !currentOptions.includes(t));
+      
+      if (hasChanged) {
+        tableFilterEl.innerHTML = '<option value="">모든 테이블</option>' +
+          tables.map(table => `<option value="${table}">${table}</option>`).join('');
+      }
+      
+      // 현재 선택된 값 복원
+      if (currentTable && tables.includes(currentTable)) {
+        tableFilterEl.value = currentTable;
+      }
+    }
+    
+    function updateStats() {
+      document.getElementById('total-hands').textContent = allHands.length;
+      // 로컬 완료 상태도 고려하여 완료 핸드 수 계산
+      const completedCount = allHands.filter(h => h.handEdit || h.isLocallyCompleted).length;
+      document.getElementById('completed-hands').textContent = completedCount;
+    }
+    
+    async function selectHand(handNumber) {
+      currentHand = handNumber;
+      
+      const hand = await loadHandData(handNumber);
+      if (!hand) return;
+      
+      // 인덱스에서 카메라 파일 정보 가져오기
+      const indexHand = allHands.find(h => h.handNumber === handNumber);
+      
+      // 헤더 정보 업데이트
+      document.getElementById('hand-number').textContent = hand.number;
+      document.getElementById('table-name').textContent = hand.table || '-';
+      document.getElementById('blinds').textContent = `${hand.blinds.sb}/${hand.blinds.bb}`;
+      document.getElementById('pot-amount').textContent = formatNumber(hand.pot);
+      
+      // 카메라 파일명 업데이트 (이미 변환된 형태)
+      const cameraFilesEl = document.getElementById('camera-files');
+      if (indexHand && indexHand.camFiles && indexHand.camFiles.length > 0) {
+        cameraFilesEl.textContent = indexHand.camFiles.join(', ');
+        cameraFilesEl.title = indexHand.camFiles.join('\n');
+      } else {
+        cameraFilesEl.textContent = '파일 없음';
+        cameraFilesEl.title = '';
+      }
+      
+      // 보드 카드 표시
+      updateBoardCards(hand.communityCards);
+      
+      // 플레이어 카드 표시
+      updatePlayersSection(hand.players);
+      
+      // 액션 히스토리 표시
+      updateActionHistory(hand);
+      
+      // 핸드 결과 표시
+      updateHandResult(hand);
+      
+      // 버튼 상태 업데이트 (완료 상태에 따라 - 로컬 완료 상태도 고려)
+      const isCompleted = indexHand ? (indexHand.handEdit || indexHand.isLocallyCompleted) : false;
+      updateHandStatus(isCompleted);
+    }
+    
+    function updateBoardCards(cards) {
+      const container = document.getElementById('board-cards');
+      
+      // 5장의 카드 슬롯 표시 (비어있는 것은 흰색 점선)
+      let html = '';
+      for (let i = 0; i < 5; i++) {
+        if (cards && cards[i]) {
+          html += createCardElement(cards[i], 'board');
+        } else {
+          html += '<div class="board-card" style="background-color: #FFFFFF !important; color: #9ca3af; border: 2px dashed #d1d5db; color-scheme: light;">?</div>';
+        }
+      }
+      
+      container.innerHTML = html;
+    }
+    
+    function updatePlayersSection(players) {
+      const container = document.getElementById('players-section');
+      
+      container.innerHTML = players.map(player => `
+        <div class="player-item ${player.status === 'folded' ? 'folded' : ''}">
+          <div class="flex items-center gap-2">
+            <span class="pos-badge ${getPositionBadgeClass(player.position)}">${player.position}</span>
+            <span class="text-xs font-semibold">${player.name}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            ${player.cards.map(card => createCardElement(card)).join('')}
+            <span class="text-xs text-gray-400">${formatNumber(player.chips)}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+    
+    function updateActionHistory(hand) {
+      const container = document.getElementById('action-history');
+      const streets = ['preflop', 'flop', 'turn', 'river', 'showdown'];
+      
+      let html = '';
+      
+      streets.forEach(street => {
+        if (hand.streets[street] && hand.streets[street].length > 0) {
+          html += `<div class="mb-2">`;
+          html += `<div class="text-xs font-semibold text-gray-400 uppercase mb-1">${street}</div>`;
+          hand.streets[street].forEach(action => {
+            html += `
+              <div class="action-line ${street}">
+                <span class="text-xs">${action.player}</span>
+                <span class="action-badge ${getActionBadgeClass(action.action)}">${action.action}</span>
+                ${action.amount > 0 ? `<span class="text-xs text-gray-400">${formatNumber(action.amount)}</span>` : ''}
+              </div>
+            `;
+          });
+          html += `</div>`;
+        }
+      });
+      
+      container.innerHTML = html || '<div class="text-xs text-gray-500">액션 기록 없음</div>';
+    }
+    
+    function updateHandResult(hand) {
+      const container = document.getElementById('hand-result');
+      
+      if (!hand.winner) {
+        container.innerHTML = '<div class="text-xs text-gray-400">결과 없음</div>';
+        return;
+      }
+      
+      container.innerHTML = `
+        <div class="text-sm font-bold text-green-400">${hand.winner.player}</div>
+        <div class="text-xs text-gray-300">Win: ${formatNumber(hand.winner.amount)}</div>
+        ${hand.winner.hand ? `<div class="text-xs text-gray-400">${hand.winner.hand}</div>` : ''}
+      `;
+    }
+    
+    // ====================================
+    // 알림 함수
+    // ====================================
+    
+    function showNotification(message) {
+      if (!CONFIG.ENABLE_NOTIFICATIONS) return;
+      
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('포커 핸드 모니터링', {
+          body: message,
+          icon: '/favicon.ico'
+        });
+      }
+    }
+    
+    // 사용자 상호작용 호출 감지
+    let userInteracted = false;
+    document.addEventListener('click', () => { userInteracted = true; }, { once: true });
+    document.addEventListener('keydown', () => { userInteracted = true; }, { once: true });
+    
+    function playSound(type = 'notification') {
+      if (!CONFIG.ENABLE_SOUND) {
+        console.log('🔇 소리 비활성화 상태');
+        return;
+      }
+      
+      if (!userInteracted) {
+        console.log('🔇 사용자 상호작용 대기 중 - 소리 재생 건너뛰기');
+        return;
+      }
+      
+      console.log(`🔔 소리 재생 시도: ${type}`);
+      
+      const soundMap = {
+        // 부드러운 벨 소리 (새 핸드 알림용)
+        notification: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSl+zPDTgjMGHm7A7+OZURE',
+        
+        // 성공 소리 (완료/업데이트 성공시)
+        success: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSl+zPDTgjMGHm7A7+OZURE',
+        
+        // 차임벨 소리 (더 부드러운 알림)
+        chime: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSl+zPDTgjMGHm7A7+OZURE'
+      };
+      
+      // Web Audio API를 사용한 더 예쁜 소리 생성
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        if (type === 'chime') {
+          // 부드러운 차임벨 소리
+          playChimeSound(audioContext);
+        } else if (type === 'success') {
+          // 성공 소리 (상승하는 톤)
+          playSuccessSound(audioContext);
+        } else {
+          // 기본 알림 소리 (부드러운 벨)
+          playBellSound(audioContext);
+        }
+        console.log('✅ 소리 재생 성공');
+      } catch (error) {
+        console.log('⚠️ 소리 재생 실패:', error.message);
+        // Web Audio API 실패시 기본 오디오 사용
+        const audio = new Audio(soundMap[type] || soundMap.notification);
+        audio.volume = 0.5;
+        audio.play().catch(e => console.log('소리 재생 실패:', e));
+      }
+    }
+    
+    // 부드러운 벨 소리 생성
+    function playBellSound(audioContext) {
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 0.3);
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
+      
+      oscillator.type = 'sine';
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.8);
+    }
+    
+    // 성공 소리 생성 (상승하는 3음계)
+    function playSuccessSound(audioContext) {
+      const frequencies = [523.25, 659.25, 783.99]; // C5, E5, G5
+      const duration = 0.15;
+      
+      frequencies.forEach((freq, index) => {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(freq, audioContext.currentTime + (index * duration));
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime + (index * duration));
+        gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + (index * duration) + 0.02);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + (index * duration) + duration);
+        
+        oscillator.start(audioContext.currentTime + (index * duration));
+        oscillator.stop(audioContext.currentTime + (index * duration) + duration);
+      });
+    }
+    
+    // 차임벨 소리 생성 (화음)
+    function playChimeSound(audioContext) {
+      const frequencies = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6 화음
+      
+      frequencies.forEach((freq, index) => {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(freq, audioContext.currentTime);
+        oscillator.type = 'sine';
+        
+        const volume = 0.15 / (index + 1); // 높은 음일수록 작게
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(volume, audioContext.currentTime + 0.05);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 1.2);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 1.2);
+      });
+    }
+    
+    // ====================================
+    // 핸드 편집 상태 업데이트
+    // ====================================
+    
+    // 핸드 시간 가져오기
+    async function getHandTimestamp(handNumber) {
+      try {
+        const response = await fetch(CONFIG.CSV_HAND_URL + '&t=' + Date.now());
+        const text = await response.text();
+        const rows = parseCSV(text);
+        
+        for (const row of rows) {
+          if (row[1] === 'HAND' && row[2] === String(handNumber)) {
+            const timestamp = parseInt(row[3]);
+            if (!isNaN(timestamp) && timestamp > 0) {
+              return timestamp;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('핸드 시간 가져오기 실패:', error);
+      }
+      return null;
+    }
+    
+    // 로그 함수들
+    let logMessages = [];
+    
+    function addLogMessage(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString('ko-KR');
+      const logEntry = {
+        time: timestamp,
+        message: message,
+        type: type // info, success, warning, error
+      };
+      logMessages.push(logEntry);
+      
+      // 로그 메시지 창 업데이트
+      const logDiv = document.getElementById('log-messages');
+      if (logDiv) {
+        const colorClass = {
+          info: 'text-blue-400',
+          success: 'text-green-400',
+          warning: 'text-yellow-400',
+          error: 'text-red-400'
+        }[type] || 'text-gray-400';
+        
+        const logLine = document.createElement('div');
+        logLine.className = colorClass;
+        logLine.textContent = `[${timestamp}] ${message}`;
+        logDiv.appendChild(logLine);
+        
+        // 자동 스크롤
+        logDiv.scrollTop = logDiv.scrollHeight;
+      }
+    }
+    
+    function showLogModal() {
+      logMessages = [];
+      const logModal = document.getElementById('log-modal');
+      const logDiv = document.getElementById('log-messages');
+      if (logDiv) logDiv.innerHTML = '';
+      if (logModal) logModal.classList.remove('hidden');
+      
+      addLogMessage('🚀 핸드 편집 완료 프로세스 시작', 'info');
+    }
+    
+    function closeLogModal() {
+      const logModal = document.getElementById('log-modal');
+      if (logModal) logModal.classList.add('hidden');
+    }
+    
+    window.closeLogModal = closeLogModal;
+    
+    // Virtual 시트에서 가장 비슷한 시간 찾기 - 개선된 알고리즘 적용
+    async function findClosestVirtualRow(targetTime, virtualSheetUrl) {
+      try {
+        addLogMessage('📋 Virtual 시트 매칭 시작', 'info');
+        
+        // URL 형식 확인 및 변환
+        const sheetIdMatch = virtualSheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+        if (!sheetIdMatch) {
+          addLogMessage('❌ 올바른 Google Sheets URL이 아닙니다', 'error');
+          throw new Error('올바른 Google Sheets URL이 아닙니다');
+        }
+        
+        const sheetId = sheetIdMatch[1];
+        const gidMatch = virtualSheetUrl.match(/[#&]gid=(\d+)/);
+        const gid = gidMatch ? gidMatch[1] : '0';
+        
+        const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+        
+        addLogMessage('🌐 CSV 데이터 가져오는 중...', 'info');
+        const response = await fetch(csvUrl + '&t=' + Date.now());
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const text = await response.text();
+        
+        // HTML 응답 체크
+        if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+          addLogMessage('⚠️ 시트가 비공개 상태이거나 접근할 수 없습니다', 'warning');
+          throw new Error('시트가 비공개 상태이거나 접근할 수 없습니다');
+        }
+        
+        const rows = parseCSV(text);
+        addLogMessage(`✅ ${rows.length}개 행 로드됨`, 'success');
+        
+        // KST 시간 변환 - 개선된 로직
+        const targetDate = new Date(targetTime * 1000);
+        const kstDate = new Date(targetDate.toLocaleString("en-US", {timeZone: "Asia/Seoul"}));
+        const targetHours = kstDate.getHours();
+        const targetMinutes = kstDate.getMinutes();
+        const targetTimeStr = `${targetHours.toString().padStart(2, '0')}:${targetMinutes.toString().padStart(2, '0')}`;
+        
+        addLogMessage(`대상 시간: ${targetTimeStr} KST`, 'info');
+        
+        // 개선된 매칭 알고리즘
+        let closestRow = null;
+        let minDiff = Infinity;
+        let matchedRowIndex = -1;
+        let checkedCount = 0;
+        const maxDiffSeconds = 3 * 60; // ±3분 허용 범위
+        const candidates = [];
+        const timeColumnIndex = 2; // C열 (Seoul 시간)
+        
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i];
+          const timeCell = row[timeColumnIndex];
+          
+          if (!timeCell) continue;
+          checkedCount++;
+          
+          // 시간 파싱 (HH:MM 또는 HH:MM:SS 형식)
+          const timeMatch = timeCell.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+          if (!timeMatch) continue;
+          
+          const cellHours = parseInt(timeMatch[1]);
+          const cellMinutes = parseInt(timeMatch[2]);
+          
+          // 같은 날 기준으로 비교
+          const cellTotalMinutes = cellHours * 60 + cellMinutes;
+          const targetTotalMinutes = targetHours * 60 + targetMinutes;
+          
+          let diffMinutes = Math.abs(cellTotalMinutes - targetTotalMinutes);
+          
+          // 자정 넘나드는 경우 고려
+          const altDiff = Math.min(
+            Math.abs(cellTotalMinutes - targetTotalMinutes + 1440),
+            Math.abs(cellTotalMinutes - targetTotalMinutes - 1440)
+          );
+          diffMinutes = Math.min(diffMinutes, altDiff);
+          
+          const diffSeconds = diffMinutes * 60;
+          
+          if (diffSeconds <= maxDiffSeconds) {
+            candidates.push({
+              rowIndex: i + 1,
+              timeCell: timeCell,
+              diffSeconds: diffSeconds,
+              diffMinutes: Math.floor(diffSeconds / 60),
+              diffSecondsRemainder: diffSeconds % 60
+            });
+          }
+          
+          if (diffSeconds < minDiff && diffSeconds <= maxDiffSeconds) {
+            minDiff = diffSeconds;
+            closestRow = row;
+            matchedRowIndex = i + 1;
+          }
+        }
+        
+        addLogMessage(`검색된 셀 수: ${checkedCount}개`, 'info');
+        addLogMessage(`후보 수: ${candidates.length}개`, 'info');
+        
+        if (closestRow) {
+          const diffMinutes = Math.floor(minDiff / 60);
+          const diffSeconds = minDiff % 60;
+          
+          let timeDiffStr = '';
+          if (minDiff === 0) {
+            timeDiffStr = '완벽 일치';
+            addLogMessage('🎉 완벽 매칭!', 'success');
+          } else {
+            if (diffMinutes > 0) {
+              timeDiffStr = `${diffMinutes}분 ${diffSeconds}초`;
+            } else {
+              timeDiffStr = `${diffSeconds}초`;
+            }
+            addLogMessage('✅ 매칭 성공', 'success');
+          }
+          
+          addLogMessage(`📍 행 번호: ${matchedRowIndex}`, 'success');
+          addLogMessage(`⏰ 매칭된 시간: ${closestRow[timeColumnIndex]}`, 'success');
+          addLogMessage(`⏱️ 시간 차이: ${timeDiffStr}`, 'success');
+          
+          // 행 데이터 표시
+          if (closestRow[0]) addLogMessage(`A열: ${closestRow[0]}`, 'info');
+          if (closestRow[1]) addLogMessage(`B열: ${closestRow[1]}`, 'info');
+          if (closestRow[3]) addLogMessage(`D열: ${closestRow[3]}`, 'info');
+          
+          // 후보가 여러 개인 경우 상위 3개 표시
+          if (candidates.length > 1) {
+            const sortedCandidates = candidates.sort((a, b) => a.diffSeconds - b.diffSeconds);
+            const otherCandidates = sortedCandidates.slice(1, 4);
+            if (otherCandidates.length > 0) {
+              const candidateStr = otherCandidates.map(c => 
+                `행${c.rowIndex}(${c.timeCell}, ${c.diffSeconds}초차이)`
+              ).join(', ');
+              addLogMessage(`🔍 다른 후보: ${candidateStr}`, 'info');
+            }
+          }
+          
+          return {
+            success: true,
+            row: closestRow,
+            rowIndex: matchedRowIndex,
+            timeDiff: minDiff,
+            timeDiffStr: timeDiffStr,
+            targetTime: targetTimeStr,
+            matchedTime: closestRow[timeColumnIndex],
+            candidates: candidates.sort((a, b) => a.diffSeconds - b.diffSeconds),
+            checkedCount: checkedCount
+          };
+        } else {
+          addLogMessage('❌ 매칭 실패', 'error');
+          addLogMessage(`3분 범위 내에서 매칭되는 행을 찾을 수 없음`, 'error');
+          addLogMessage(`검색된 셀: ${checkedCount}개`, 'info');
+          
+          return {
+            success: false,
+            reason: `3분 범위 내에서 매칭되는 행을 찾을 수 없음`,
+            checkedCount: checkedCount,
+            targetTime: targetTimeStr
+          };
+        }
+      } catch (error) {
+        addLogMessage(`❌ 오류: ${error.message}`, 'error');
+        console.error('Virtual 시트 접근 오류:', error);
+        return null;
+      }
+    }
+    
+    // AI로 핸드 분석 및 3줄 요약
+    async function analyzeHandWithAI(handNumber) {
+      try {
+        const handData = await loadHandData(handNumber);
+        if (!handData) {
+          console.warn(`AI 분석: 핸드 ${handNumber} 데이터 로드 실패`);
+          return null;
+        }
+        
+        // 디버깅: handData 구조 확인
+        console.log(`AI 분석: 핸드 ${handNumber} 데이터 구조:`, {
+          hasPlayers: !!handData.players,
+          playersLength: handData.players?.length,
+          hasBoard: !!handData.board,
+          hasCommunityCards: !!handData.communityCards,
+          communityCardsLength: handData.communityCards?.length,
+          hasStreets: !!handData.streets,
+          streetsKeys: handData.streets ? Object.keys(handData.streets) : []
+        });
+        
+        // 핸드 정보를 텍스트로 변환 (안전한 처리)
+        let handText = `포커 핸드 #${handNumber} 분석:\n\n`;
+        
+        // 참가자 정보 안전하게 처리
+        if (handData.players && Array.isArray(handData.players)) {
+          handText += `참가자: ${handData.players.map(p => `${p.name || 'Unknown'} (${p.position || ''}, ${p.cards && Array.isArray(p.cards) ? p.cards.join(' ') : ''})`).join(', ')}\n`;
+        } else {
+          handText += `참가자: 정보 없음\n`;
+        }
+        
+        // 보드 카드 안전하게 처리 (communityCards 사용)
+        if (handData.communityCards && Array.isArray(handData.communityCards)) {
+          handText += `보드 카드: ${handData.communityCards.join(' ')}\n`;
+        } else if (handData.board && Array.isArray(handData.board)) {
+          handText += `보드 카드: ${handData.board.join(' ')}\n`;
+        } else {
+          handText += `보드 카드: 정보 없음\n`;
+        }
+        
+        handText += `액션 히스토리:\n`;
+        
+        // 각 스트릿별 액션 추가 (안전한 처리)
+        const streets = ['preflop', 'flop', 'turn', 'river'];
+        for (const street of streets) {
+          if (handData.streets && handData.streets[street] && Array.isArray(handData.streets[street]) && handData.streets[street].length > 0) {
+            handText += `- ${street}: ${handData.streets[street].map(a => `${a.player || 'Unknown'} ${a.action || ''} ${a.amount || ''}`).join(', ')}\n`;
+          }
+        }
+        
+        handText += `최종 팟: ${handData.pot || '알 수 없음'}\n`;
+        handText += `승자: ${handData.winner?.player || 'Unknown'} (${handData.winner?.amount || 0} 획득)\n`;
+        
+        // AI 서비스 확인
+        if (CONFIG.AI_SERVICE === 'none' || !CONFIG.AI_API_KEY) {
+          // 기본 요약 (실제 AI 없이) - 안전한 처리
+          const playerCount = handData.players && Array.isArray(handData.players) ? handData.players.length : 0;
+          const summary = [
+            `${playerCount}명 참여, 팟 ${handData.pot || '알 수 없음'}`,
+            `승자: ${handData.winner?.player || 'Unknown'} (${handData.winner?.amount || 0} 획득)`,
+            `키 스트릿: ${handData.lastStreet || 'preflop'}`
+          ].join('\n');
+          return summary;
+        }
+        
+        // AI API 호출
+        let aiResponse = '';
+        
+        if (CONFIG.AI_SERVICE === 'openai') {
+          aiResponse = await callOpenAI(handText);
+        } else if (CONFIG.AI_SERVICE === 'gemini') {
+          aiResponse = await callGeminiAI(handText);
+        } else if (CONFIG.AI_SERVICE === 'claude') {
+          aiResponse = await callClaudeAI(handText);
+        }
+        
+        return aiResponse || '분석 실패';
+      } catch (error) {
+        console.error('AI 분석 오류:', error);
+        return '분석 실패';
+      }
+    }
+    
+    // OpenAI API 호출
+    async function callOpenAI(handText) {
+      try {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${CONFIG.AI_API_KEY}`
+          },
+          body: JSON.stringify({
+            model: CONFIG.AI_MODEL.openai,
+            messages: [{
+              role: 'system',
+              content: '당신은 경험이 풍부한 포커 코치이자 분석가입니다. 핸드를 분석할 때 다음에 중점을 둡니다: 1) 핀 포인트와 전략적 의사결정 2) 베팅 패턴과 사이즈 3) 개선 가능한 부분. 3줄로 간결하게 요약하되, 각 줄은 40자 이내로 작성하세요.'
+            }, {
+              role: 'user',
+              content: handText + '\n\n위 핸드를 분석하여 3줄로 요약해주세요. 형식:\n1. [주요 의사결정/포인트]\n2. [베팅/플레이 패턴]\n3. [결과/개선점]'
+            }],
+            temperature: 0.3,
+            max_tokens: 150
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`OpenAI API 오류: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return data.choices[0].message.content.trim();
+      } catch (error) {
+        console.error('OpenAI API 호출 실패:', error);
+        return null;
+      }
+    }
+    
+    // Google Gemini API 호출
+    async function callGeminiAI(handText) {
+      try {
+        const prompt = `당신은 경험이 풍부한 포커 코치입니다. 다음 포커 핸드를 분석하고 중요한 포인트를 3줄로 요약해주세요.
+
+${handText}
+
+분석 결과를 다음 형식으로 3줄로 작성해주세요 (각 줄 40자 이내):
+1. [주요 의사결정 포인트]
+2. [베팅 패턴 분석]
+3. [결과 및 개선점]`;
+        
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${CONFIG.AI_MODEL.gemini}:generateContent?key=${CONFIG.AI_API_KEY}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: prompt
+              }]
+            }],
+            generationConfig: {
+              temperature: 0.3,
+              maxOutputTokens: 150,
+              topP: 0.8,
+              topK: 10
+            }
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Gemini API 오류: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return data.candidates[0].content.parts[0].text.trim();
+      } catch (error) {
+        console.error('Gemini API 호출 실패:', error);
+        return null;
+      }
+    }
+    
+    // 핸드에서 키 플레이어 찾기
+    async function getKeyPlayerFromHand(handData) {
+      try {
+        // Type 시트에서 Notable 플레이어 목록 가져오기
+        const TYPE_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=1127201192&single=true&output=csv';
+        
+        const response = await fetch(TYPE_CSV_URL + '&t=' + Date.now());
+        const text = await response.text();
+        const rows = parseCSV(text);
+        
+        const notablePlayers = [];
+        for (let i = 1; i < rows.length; i++) {
+          const playerName = rows[i][1]; // B열: Player
+          const isNotable = rows[i][3];  // D열: Notable
+          
+          if (isNotable === 'Y' || isNotable === 'y' || isNotable === '✓') {
+            notablePlayers.push(playerName);
+          }
+        }
+        
+        // 핸드에서 Notable 플레이어 찾기
+        for (const player of handData.players) {
+          if (notablePlayers.includes(player.name)) {
+            return player;
+          }
+        }
+        
+        // Notable 플레이어가 없으면 첫 번째 플레이어 반환
+        return handData.players[0];
+        
+      } catch (error) {
+        console.error('키 플레이어 검색 오류:', error);
+        // 오류 시 첫 번째 플레이어 반환
+        return handData.players[0];
+      }
+    }
+    
+    // Claude API 호출 (Anthropic)
+    async function callClaudeAI(handText) {
+      try {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': CONFIG.AI_API_KEY,
+            'anthropic-version': '2023-06-01'
+          },
+          body: JSON.stringify({
+            model: CONFIG.AI_MODEL.claude,
+            max_tokens: 150,
+            messages: [{
+              role: 'user',
+              content: `당신은 전문 포커 코치입니다. 다음 핸드를 분석하여 핵심 포인트를 3줄로 요약해주세요:\n\n${handText}\n\n형식 (40자 이내):\n1. [핀 포인트/의사결정]\n2. [베팅 패턴]\n3. [결과/개선점]`
+            }]
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Claude API 오류: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return data.content[0].text.trim();
+      } catch (error) {
+        console.error('Claude API 호출 실패:', error);
+        return null;
+      }
+    }
+    
+    // 완료 모달 표시
+    async function showCompletionModal(handNumber, timestamp, virtualSheetUrl) {
+      // 로그 모달 먼저 표시
+      showLogModal();
+      addLogMessage(`📝 핸드 #${handNumber} 편집 완료 처리 시작`, 'info');
+      
+      const modal = document.getElementById('completion-modal');
+      const timestampInput = document.getElementById('hand-timestamp');
+      const filenameInput = document.getElementById('final-filename');
+      const summaryTextarea = document.getElementById('ai-summary');
+      const matchedRowInput = document.getElementById('matched-row');
+      
+      // 시간 표시 (날짜 제외, 시간만)
+      const handDate = new Date(timestamp * 1000);
+      const timeString = `${handDate.getHours().toString().padStart(2, '0')}:${handDate.getMinutes().toString().padStart(2, '0')}:${handDate.getSeconds().toString().padStart(2, '0')}`;
+      
+      addLogMessage(`⏰ 핸드 시간: ${timeString}`, 'info');
+      
+      // 핸드 데이터 가져오기
+      addLogMessage('📊 핸드 데이터 로드 중...', 'info');
+      const handData = await loadHandData(handNumber);
+      
+      if (handData) {
+        addLogMessage(`✅ 핸드 데이터 로드 완료 (${handData.players.length}명 플레이어)`, 'success');
+      } else {
+        addLogMessage('⚠️ 핸드 데이터 로드 실패', 'warning');
+      }
+      
+      // 파일명 생성 (핸드번호_키플레이어_카드_상대_카드)
+      let filename = `${handNumber}`;
+      
+      if (handData && handData.players && handData.players.length > 0) {
+        // Notable 플레이어 찾기 (또는 첫 번째 플레이어)
+        const keyPlayer = await getKeyPlayerFromHand(handData);
+        
+        if (keyPlayer) {
+          // 키 플레이어 이름과 카드
+          filename += `_${keyPlayer.name}`;
+          if (keyPlayer.cards && keyPlayer.cards.length > 0) {
+            filename += `_${keyPlayer.cards.join('').replace(/[\s]/g, '')}`;
+          }
+          
+          // 상대 플레이어 (첫 번째 상대)
+          const opponent = handData.players.find(p => p.name !== keyPlayer.name);
+          if (opponent) {
+            filename += `_${opponent.name}`;
+            if (opponent.cards && opponent.cards.length > 0) {
+              filename += `_${opponent.cards.join('').replace(/[\s]/g, '')}`;
+            }
+          }
+          
+          addLogMessage(`🎯 키 플레이어: ${keyPlayer.name}`, 'info');
+          if (opponent) {
+            addLogMessage(`🆚 상대: ${opponent.name}`, 'info');
+          }
+        }
+      }
+      
+      filename += '.mp4';
+      addLogMessage(`📁 생성된 파일명: ${filename}`, 'success');
+      
+      // 초기화
+      timestampInput.value = timeString; // 시간만 표시
+      filenameInput.value = filename;
+      summaryTextarea.value = '분석 중...';
+      matchedRowInput.value = '검색 중...';
+      
+      // Virtual 시트 매칭 및 AI 분석 비동기 실행
+      addLogMessage('🔄 Virtual 시트 매칭 및 AI 분석 시작...', 'info');
+      
+      Promise.all([
+        findClosestVirtualRow(timestamp, virtualSheetUrl).catch(error => {
+          console.error('Virtual 시트 매칭 오류:', error);
+          addLogMessage('❌ Virtual 시트 매칭 중 오류 발생: ' + error.message, 'error');
+          return null; // 오류 시 null 반환으로 계속 진행
+        }),
+        analyzeHandWithAI(handNumber).catch(error => {
+          console.error('AI 분석 오류:', error);
+          addLogMessage('❌ AI 분석 중 오류 발생: ' + error.message, 'error');
+          return '분석 실패'; // 오류 시 기본값 반환으로 계속 진행
+        })
+      ]).then(([virtualMatch, aiSummary]) => {
+        if (virtualMatch && virtualMatch.success) {
+          addLogMessage(`${virtualMatch.timeDiff === 0 ? '🎉' : '✅'} Virtual 시트 매칭: 행 ${virtualMatch.rowIndex} (${virtualMatch.timeDiffStr})`, 
+            virtualMatch.timeDiff === 0 ? 'success' : 'warning');
+          
+          // 후보 정보가 있으면 표시
+          if (virtualMatch.candidates && virtualMatch.candidates.length > 1) {
+            const otherCandidates = virtualMatch.candidates.slice(1, 3);
+            if (otherCandidates.length > 0) {
+              const candidateStr = otherCandidates.map(c => 
+                `행${c.rowIndex}(${c.diffSeconds}초차이)`
+              ).join(', ');
+              addLogMessage(`🔍 다른 후보: ${candidateStr}`, 'info');
+            }
+          }
+          
+          matchedRowInput.value = `Row ${virtualMatch.rowIndex} [타겟: ${virtualMatch.targetTime} ↔ 매칭: ${virtualMatch.matchedTime}] (차이: ${virtualMatch.timeDiffStr})`;
+        } else if (virtualMatch && !virtualMatch.success) {
+          matchedRowInput.value = `매칭 실패: ${virtualMatch.reason || '알 수 없는 오류'}`;
+          addLogMessage(`❌ Virtual 시트 매칭 실패: ${virtualMatch.reason}`, 'error');
+        } else {
+          matchedRowInput.value = 'Virtual 시트 접근 오류';
+          addLogMessage('❌ Virtual 시트 접근 중 오류 발생', 'error');
+        }
+        
+        if (aiSummary && aiSummary !== '분석 실패') {
+          addLogMessage('✅ AI 분석 완료', 'success');
+        } else {
+          addLogMessage('⚠️ AI 분석 실패 또는 비활성화', 'warning');
+        }
+        
+        summaryTextarea.value = aiSummary || '분석 실패';
+        
+        // 로그 창은 열어둔 상태로 완료 모달 표시
+        addLogMessage('📋 완료 모달 표시됨', 'info');
+        addLogMessage('💡 로그 창을 닫고 완료 모달에서 정보를 확인하세요', 'info');
+        
+        // 모달 표시
+        modal.classList.remove('hidden');
+      });
+    }
+    
+    // 완료 모달 닫기
+    document.getElementById('cancel-completion').addEventListener('click', () => {
+      document.getElementById('completion-modal').classList.add('hidden');
+    });
+    
+    // 완료 처리 확인
+    document.getElementById('confirm-completion').addEventListener('click', async () => {
+      const handNumber = currentHand;
+      const filename = document.getElementById('final-filename').value;
+      const summary = document.getElementById('ai-summary').value;
+      const virtualSheetUrl = document.getElementById('virtual-sheet-url').value;
+      const timestamp = parseInt(document.getElementById('hand-timestamp').value);
+      
+      if (!filename) {
+        alert('파일명을 입력해주세요.');
+        return;
+      }
+      
+      try {
+        // Virtual 시트 업데이트 (이 부분은 Google Apps Script에 추가 기능 필요)
+        // 일단 기본 handEdit 상태만 업데이트
+        await updateHandEditStatus(handNumber, true);
+        
+        // 모달 닫기
+        document.getElementById('completion-modal').classList.add('hidden');
+        
+        alert(`✅ 핸드 #${handNumber} 편집 완료\n\n파일명: ${filename}\n요약: ${summary.substring(0, 50)}...`);
+      } catch (error) {
+        console.error('완료 처리 오류:', error);
+        alert('완료 처리 중 오류가 발생했습니다.');
+      }
+    });
+    
+    async function updateHandEditStatus(handNumber, checked) {
+      const completeBtn = document.getElementById('complete-btn');
+      const editBtn = document.getElementById('edit-btn');
+      
+      // 버튼 상태 업데이트
+      completeBtn.disabled = true;
+      editBtn.disabled = true;
+      completeBtn.textContent = checked ? '완료 중...' : '취소 중...';
+      
+      try {
+        const payload = {
+          action: 'updateHandEdit',
+          handNumber: handNumber,
+          checked: checked
+        };
+        
+        console.log('🔧 완료 버튼 클릭 - 전송할 데이터:', payload);
+        console.log('🔧 현재 CONFIG.APPS_SCRIPT_URL:', CONFIG.APPS_SCRIPT_URL);
+        
+        const formData = new FormData();
+        formData.append('payload', JSON.stringify(payload));
+        
+        console.log('📤 Google Apps Script 요청 전송 중...');
+        console.log('📤 사용 중인 URL:', CONFIG.APPS_SCRIPT_URL);
+        const response = await fetch(CONFIG.APPS_SCRIPT_URL + '?_t=' + Date.now(), {
+          method: 'POST',
+          body: formData,
+          cache: 'no-cache'
+        });
+        
+        console.log('📨 응답 상태:', response.status, response.statusText);
+        console.log('📨 응답 헤더:', Object.fromEntries(response.headers.entries()));
+        
+        const responseText = await response.text();
+        console.log('📨 응답 원본 텍스트:', responseText);
+        
+        let result;
+        try {
+          result = JSON.parse(responseText);
+          console.log('📨 파싱된 결과:', result);
+        } catch (parseError) {
+          console.error('❌ JSON 파싱 실패:', parseError);
+          console.error('❌ 응답이 JSON이 아님:', responseText);
+          throw new Error('서버 응답을 파싱할 수 없습니다: ' + responseText);
+        }
+        
+        if (result.success === true || result.status === 'success') {
+          console.log('핸드 편집 상태 업데이트 성공:', result);
+          
+          // 로컬 완료 상태 저장 (새로고침되어도 유지하기 위해)
+          const hand = masterHandList.get(handNumber);
+          if (hand) {
+            hand.handEdit = checked;
+            hand.handEditTime = checked ? new Date().toISOString() : null;
+            hand.isLocallyCompleted = checked;
+            masterHandList.set(handNumber, hand);
+            saveMasterHandList();
+            console.log(`💾 핸드 ${handNumber} 로컬 완료 상태 저장: ${checked}`);
+          }
+          
+          // 성공 알림
+          showNotification(
+            checked ? '✅ 핸드 편집이 완료되었습니다!' : '📝 핸드가 편집 대기 상태로 변경되었습니다!',
+            'success'
+          );
+          
+          // 성공 소리 재생
+          playSound('success');
+          
+          // 데이터 새로고침 (알림 억제)
+          await loadIndexData(true);
+          
+          // 현재 선택된 핸드 업데이트
+          if (currentHand === handNumber) {
+            updateHandStatus(checked);
+          }
+        } else if (result.status === 'error') {
+          console.error('핸드 편집 상태 업데이트 에러:', result);
+          showNotification('❌ 업데이트 실패: ' + (result.message || '알 수 없는 오류'), 'error');
+        } else {
+          console.error('핸드 편집 상태 업데이트 실패 - 예상치 못한 응답:', result);
+          showNotification('❌ 업데이트 실패: 서버 응답 형식 오류', 'error');
+        }
+      } catch (error) {
+        console.error('API 오류:', error);
+        showNotification('❌ 네트워크 오류가 발생했습니다.', 'error');
+      } finally {
+        // 버튼 상태 복구
+        completeBtn.disabled = false;
+        editBtn.disabled = false;
+        completeBtn.textContent = '완료';
+      }
+    }
+    
+    // 현재 핸드의 상태 표시 업데이트
+    function updateHandStatus(isCompleted) {
+      const completeBtn = document.getElementById('complete-btn');
+      const editBtn = document.getElementById('edit-btn');
+      
+      if (isCompleted) {
+        completeBtn.classList.add('bg-gray-600');
+        completeBtn.classList.remove('bg-green-600');
+        completeBtn.textContent = '완료됨';
+        completeBtn.disabled = true;
+        
+        editBtn.classList.remove('bg-gray-600');
+        editBtn.classList.add('bg-yellow-600');
+        editBtn.disabled = false;
+      } else {
+        completeBtn.classList.remove('bg-gray-600');
+        completeBtn.classList.add('bg-green-600');
+        completeBtn.textContent = '완료';
+        completeBtn.disabled = false;
+        
+        editBtn.classList.add('bg-gray-600');
+        editBtn.classList.remove('bg-yellow-600');
+        editBtn.disabled = true;
+      }
+    }
+    
+    // ====================================
+    // 이벤트 리스너
+    // ====================================
+    
+    document.getElementById('refresh-btn').addEventListener('click', () => {
+      console.log('🔄 수동 새로고침');
+      loadIndexData(false); // 수동 새로고침은 알림 허용
+    });
+    
+    document.getElementById('settings-btn').addEventListener('click', () => {
+      document.getElementById('settings-modal').classList.remove('hidden');
+    });
+    
+    document.getElementById('cancel-settings').addEventListener('click', () => {
+      document.getElementById('settings-modal').classList.add('hidden');
+    });
+    
+    document.getElementById('save-settings').addEventListener('click', () => {
+      CONFIG.REFRESH_INTERVAL = parseInt(document.getElementById('refresh-interval').value);
+      CONFIG.ENABLE_NOTIFICATIONS = document.getElementById('enable-notifications').checked;
+      CONFIG.ENABLE_SOUND = document.getElementById('enable-sound').checked;
+      CONFIG.AI_SERVICE = document.getElementById('ai-service').value;
+      CONFIG.AI_API_KEY = document.getElementById('ai-api-key').value;
+      
+      // localStorage에 저장
+      localStorage.setItem('ai_service', CONFIG.AI_SERVICE);
+      if (CONFIG.AI_API_KEY) {
+        localStorage.setItem('ai_api_key', CONFIG.AI_API_KEY);
+      }
+      
+      // 모든 타이머 정리
+      if (refreshTimerInitial) {
+        clearTimeout(refreshTimerInitial);
+        refreshTimerInitial = null;
+      }
+      if (refreshTimerInterval) {
+        clearInterval(refreshTimerInterval);
+        refreshTimerInterval = null;
+      }
+      
+      // 새로운 타이머 설정
+      refreshTimerInterval = setInterval(() => loadIndexData(true), CONFIG.REFRESH_INTERVAL);
+      
+      document.getElementById('settings-modal').classList.add('hidden');
+    });
+    
+    // 버퍼 초기화 버튼
+    document.getElementById('clear-notification-history').addEventListener('click', () => {
+      if (confirm('정말로 최근 핸드 버퍼를 초기화하시겠습니까?\n\n⚠️ 주의:\n- 최근 핸드 버퍼가 초기화됩니다\n- 다음 로드시 기존 핸드도 새 핸드로 인식될 수 있습니다')) {
+        // 모든 데이터 초기화
+        recentHandsBuffer.clear();
+        masterHandList.clear();
+        saveMasterHandList();
+        
+        // 기존 알림 기록도 초기화
+        notifiedHands = {};
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(MASTER_LIST_KEY);
+        
+        showNotification('✅ 최근 핸드 버퍼가 초기화되었습니다.', 'success');
+        console.log('🔄 버퍼 초기화 완료');
+        
+        // 설정 창 닫기
+        document.getElementById('settings-modal').classList.add('hidden');
+      }
+    });
+    
+    document.getElementById('table-filter').addEventListener('change', updateHandList);
+    document.getElementById('status-filter').addEventListener('change', updateHandList);
+    
+    document.getElementById('edit-btn').addEventListener('click', () => {
+      if (currentHand) {
+        const confirmed = confirm('이 핸드를 편집 대기 상태로 되돌리시겠습니까?');
+        if (confirmed) {
+          updateHandEditStatus(currentHand, false);
+        }
+      }
+    });
+    
+    document.getElementById('complete-btn').addEventListener('click', async () => {
+      if (currentHand) {
+        // Virtual 시트 URL 확인
+        const virtualSheetUrl = document.getElementById('virtual-sheet-url').value;
+        if (!virtualSheetUrl) {
+          alert('먼저 Virtual 시트 URL을 상단에 입력해주세요.');
+          document.getElementById('virtual-sheet-url').focus();
+          return;
+        }
+        
+        // 핸드 시간 가져오기
+        const handTime = await getHandTimestamp(currentHand);
+        if (handTime) {
+          // 모달 표시
+          showCompletionModal(currentHand, handTime, virtualSheetUrl);
+        } else {
+          alert('핸드 시간 정보를 가져올 수 없습니다.');
+        }
+      }
+    });
+    
+    // ====================================
+    // 초기화
+    // ====================================
+    
+    // 마스터 핸드 목록 로드
+    function loadMasterHandList() {
+      try {
+        const stored = localStorage.getItem(MASTER_LIST_KEY);
+        if (stored) {
+          const data = JSON.parse(stored);
+          masterHandList.clear();
+          for (const [handNumber, hand] of Object.entries(data)) {
+            masterHandList.set(handNumber, hand);
+          }
+          console.log(`📁 마스터 핸드 목록 로드: ${masterHandList.size}개`);
+        }
+      } catch (e) {
+        console.error('마스터 핸드 목록 로드 실패:', e);
+      }
+    }
+    
+    // 마스터 핸드 목록 저장
+    function saveMasterHandList() {
+      try {
+        const data = {};
+        for (const [handNumber, hand] of masterHandList.entries()) {
+          data[handNumber] = hand;
+        }
+        localStorage.setItem(MASTER_LIST_KEY, JSON.stringify(data));
+      } catch (e) {
+        console.error('마스터 핸드 목록 저장 실패:', e);
+      }
+    }
+    
+    // Virtual 시트 URL 저장 및 로드
+    document.getElementById('virtual-sheet-url').addEventListener('change', (e) => {
+      localStorage.setItem('virtual_sheet_url', e.target.value);
+      console.log('💾 Virtual 시트 URL 저장됨');
+    });
+    
+    async function init() {
+      console.log('='.repeat(60));
+      console.log(`🚀 포커 핸드 모니터링 시스템 v${VERSION}`);
+      console.log(`📋 주요 기능: 키 플레이어 분석 + 개선된 Virtual 시트 매칭`);
+      console.log(`📅 업데이트: 2025-09-06`);
+      console.log(`🔗 대시보드 버전: v${VERSION} (일치)`);
+      console.log('='.repeat(60));
+      
+      // 마스터 핸드 목록 로드
+      loadMasterHandList();
+      console.log(`📁 기존 마스터 핸드: ${masterHandList.size}개`);
+      
+      // Virtual 시트 URL 로드
+      const savedVirtualUrl = localStorage.getItem('virtual_sheet_url');
+      if (savedVirtualUrl) {
+        document.getElementById('virtual-sheet-url').value = savedVirtualUrl;
+        console.log(`💾 Virtual 시트 URL 로드: ${savedVirtualUrl.substring(0, 50)}...`);
+      }
+      
+      // AI 설정 로드
+      const savedAiService = localStorage.getItem('ai_service');
+      const savedAiKey = localStorage.getItem('ai_api_key');
+      if (savedAiService) {
+        CONFIG.AI_SERVICE = savedAiService;
+        document.getElementById('ai-service').value = savedAiService;
+        console.log(`🤖 AI 서비스: ${savedAiService}`);
+      }
+      if (savedAiKey) {
+        CONFIG.AI_API_KEY = savedAiKey;
+        document.getElementById('ai-api-key').value = savedAiKey;
+        console.log(`🔑 AI API 키 로드됨`);
+      }
+      
+      // 최근 핸드 버퍼 상태 확인
+      const bufferStatus = recentHandsBuffer.getStatus();
+      console.log(`💾 최근 핸드 버퍼: ${bufferStatus.size}/${bufferStatus.maxSize}개 (최대 100개 저장)`);
+      
+      // 콘솔 명령어 안내
+      console.log('');
+      console.log('📋 콘솔 명령어:');
+      console.log('• window.getVersion() - 현재 버전 정보');
+      console.log('• window.getStats() - 시스템 상태');
+      console.log('');
+      if (bufferStatus.size > 0) {
+        console.log(`💾 버퍼 내용:`, bufferStatus.buffer);
+      }
+      
+      console.log('🔔 알림 권한 요청 중...');
+      if ('Notification' in window && Notification.permission === 'default') {
+        await Notification.requestPermission();
+      }
+      
+      console.log('📄 초기 데이터 로딩 시작...');
+      await loadIndexData();
+      
+      if (allHands.length > 0) {
+        selectHand(allHands[0].handNumber);
+      }
+      
+      // 자동 새로고침 - 초기 로드 직후가 아닌 REFRESH_INTERVAL 후에 시작
+      // 이렇게 하면 페이지 로드 시 중복 호출 방지
+      refreshTimerInitial = setTimeout(() => {
+        // 첫 새로고침 실행
+        if (DEBUG_MODE) {
+          console.log('⏰ 첫 자동 새로고침 실행 (새 핸드 감지 포함)');
+        }
+        loadIndexData(false);
+        
+        // 초기 타이머 정리
+        refreshTimerInitial = null;
+        
+        // 이후 정기적인 새로고침 설정
+        refreshTimerInterval = setInterval(() => {
+          if (DEBUG_MODE) {
+            console.log('⏰ 자동 새로고침 실행 (새 핸드 감지 포함)');
+          }
+          loadIndexData(false); // false = 새로운 핸드에 대해서는 알림 허용
+        }, CONFIG.REFRESH_INTERVAL);
+      }, CONFIG.REFRESH_INTERVAL); // 첫 실행도 REFRESH_INTERVAL 후에
+      
+      console.log('초기화 완료');
+    }
+    
+    // 전역 콘솔 명령어 함수들
+    window.getVersion = function() {
+      const info = {
+        version: VERSION,
+        title: '포커 핸드 모니터링 시스템',
+        features: [
+          '키 플레이어 분석',
+          '개선된 Virtual 시트 매칭',
+          'AI 핸드 분석',
+          '실시간 모니터링'
+        ],
+        lastUpdated: '2025-09-06',
+        improvements: [
+          '±3분 범위 검색',
+          'KST 시간대 변환',
+          '후보 분석 시스템',
+          '강화된 에러 처리'
+        ]
+      };
+      console.log('='.repeat(50));
+      console.log(`🚀 ${info.title} v${info.version}`);
+      console.log('='.repeat(50));
+      console.log(`📅 업데이트: ${info.lastUpdated}`);
+      console.log(`📋 주요 기능:`);
+      info.features.forEach(feature => console.log(`  • ${feature}`));
+      console.log(`🔧 v8.7.0 개선사항:`);
+      info.improvements.forEach(improvement => console.log(`  • ${improvement}`));
+      console.log('='.repeat(50));
+      return info;
+    };
+    
+    window.getStats = function() {
+      const bufferStatus = recentHandsBuffer.getStatus();
+      const stats = {
+        '시스템 버전': VERSION,
+        '대시보드 버전': VERSION,
+        '버전 일치': '✅ 완벽 일치',
+        '전체 핸드': allHands.length,
+        '완료된 핸드': allHands.filter(h => h.handEdit || h.isLocallyCompleted).length,
+        '마스터 목록': masterHandList.size,
+        '최근 버퍼': `${bufferStatus.size}/${bufferStatus.maxSize}개`
+      };
+      console.log('📊 시스템 현황');
+      console.table(stats);
+      return stats;
+    };
+    
+    // 앱 시작
+    init();
+    
+    // 페이지 종료 시 타이머 정리
+    window.addEventListener('beforeunload', () => {
+      if (refreshTimerInitial) {
+        clearTimeout(refreshTimerInitial);
+      }
+      if (refreshTimerInterval) {
+        clearInterval(refreshTimerInterval);
+      }
+    });
+  </script>
+</body>
+</html>
