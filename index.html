@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - 키 플레이어 분석
-  Version: 8.7.0
+  Version: 8.7.1
   Last Updated: 2025-09-06
-  Description: 키 플레이어 식별 및 자동 파일명 생성 + 개선된 Virtual 시트 매칭
+  Description: 키 플레이어 식별 및 자동 파일명 생성 + 개선된 Virtual 시트 매칭 + 카드 파싱 안정성 향상
 -->
 <html lang="ko">
 <head>
@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>포커 핸드 모니터링 v8.7.0 - 키 플레이어 분석</title>
+  <title>포커 핸드 모니터링 v8.7.1 - 키 플레이어 분석</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -491,8 +491,8 @@
 
   <script>
     // ====================================
-    // 포커 핸드 모니터링 시스템 v8.7.0 - 개선된 Virtual 시트 매칭
-    const VERSION = '8.7.0';
+    // 포커 핸드 모니터링 시스템 v8.7.1 - 개선된 Virtual 시트 매칭 + 카드 파싱 안정성 향상
+    const VERSION = '8.7.1';
     // ====================================
     
     const CONFIG = {
@@ -713,11 +713,22 @@
     // 나머지 기존 함수들... (parseCSV, formatNumber, loadIndexData 등)
     
     function parseCSV(text) {
+      console.log('🔍 CSV 파싱 시작, 원본 데이터 길이:', text.length);
+      
+      if (!text || text.trim().length === 0) {
+        console.error('❌ 빈 CSV 데이터');
+        return [];
+      }
+      
       const lines = text.trim().split('\n');
+      console.log('📄 총 라인 수:', lines.length);
+      
       const rows = [];
       
       for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
+        const line = lines[i].trim();
+        if (!line) continue; // 빈 라인 스킵
+        
         const row = [];
         let inQuotes = false;
         let currentField = '';
@@ -725,7 +736,13 @@
         for (let j = 0; j < line.length; j++) {
           const char = line[j];
           if (char === '"') {
-            inQuotes = !inQuotes;
+            if (inQuotes && j + 1 < line.length && line[j + 1] === '"') {
+              // 이스케이프된 인용부호
+              currentField += '"';
+              j++; // 다음 인용부호 스킵
+            } else {
+              inQuotes = !inQuotes;
+            }
           } else if (char === ',' && !inQuotes) {
             row.push(currentField.trim());
             currentField = '';
@@ -735,6 +752,14 @@
         }
         row.push(currentField.trim());
         rows.push(row);
+      }
+      
+      console.log('✅ CSV 파싱 완료, 파싱된 행 수:', rows.length);
+      if (rows.length > 0) {
+        console.log('📊 첫 번째 행 (헤더):', rows[0]);
+        if (rows.length > 1) {
+          console.log('📊 두 번째 행 (샘플 데이터):', rows[1]);
+        }
       }
       
       return rows;
@@ -775,6 +800,12 @@
       console.log(`📋 주요 기능: 키 플레이어 분석 + 개선된 Virtual 시트 매칭`);
       console.log(`📅 업데이트: 2025-09-06`);
       console.log(`🔗 대시보드 버전: v${VERSION} (일치)`);
+      console.log('='.repeat(60));
+      console.log('🔧 설정 정보:');
+      console.log('  • 핸드 데이터 URL:', CONFIG.CSV_HAND_URL);
+      console.log('  • 인덱스 데이터 URL:', CONFIG.CSV_INDEX_URL);
+      console.log('  • 새로고침 간격:', CONFIG.REFRESH_INTERVAL/1000, '초');
+      console.log('  • 알림 활성화:', CONFIG.ENABLE_NOTIFICATIONS);
       console.log('='.repeat(60));
       
       loadMasterHandList();
@@ -851,9 +882,30 @@
     // 핸드 데이터 로드
     async function loadHandData() {
       try {
-        const response = await fetch(CONFIG.CSV_HAND_URL + '&t=' + Date.now());
+        console.log('📡 핸드 데이터 로딩 시작...');
+        const response = await fetch(CONFIG.CSV_HAND_URL + '&t=' + Date.now(), {
+          method: 'GET',
+          mode: 'cors',
+          cache: 'no-cache',
+          redirect: 'follow'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const text = await response.text();
+        console.log('📊 받은 데이터 크기:', text.length, 'bytes');
+        
+        if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+          throw new Error('시트가 비공개 상태이거나 접근할 수 없습니다');
+        }
         const rows = parseCSV(text);
+        console.log('📝 파싱된 행 수:', rows.length);
+        
+        if (rows.length <= 1) {
+          throw new Error('유효한 데이터가 없습니다. 헤더만 존재합니다.');
+        }
         
         const hands = [];
         
@@ -905,10 +957,16 @@
         lastHandCount = hands.length;
         isInitialLoad = false;
         
+        console.log('✅ 핸드 데이터 로딩 완료:', hands.length, '개');
         saveMasterHandList();
       } catch (error) {
-        console.error('핸드 데이터 로드 오류:', error);
-        showNotification('데이터 로드 오류', error.message);
+        console.error('❌ 핸드 데이터 로드 오류:', error);
+        console.error('오류 세부사항:', {
+          message: error.message,
+          stack: error.stack,
+          csvUrl: CONFIG.CSV_HAND_URL
+        });
+        showNotification('데이터 로드 오류', `${error.message}\n\nConsole에서 자세한 오류를 확인하세요.`);
       }
     }
     
@@ -1017,12 +1075,33 @@
       // 보드 카드 표시
       const boardContainer = document.getElementById('board-cards');
       boardContainer.innerHTML = '';
-      if (hand.boardCards) {
-        const cards = hand.boardCards.split(' ').filter(c => c.length >= 2);
-        cards.forEach(card => {
-          const cardElement = createCardElement(card, 'board-card');
-          boardContainer.appendChild(cardElement);
-        });
+      
+      if (hand.boardCards && typeof hand.boardCards === 'string') {
+        console.log('📋 보드 카드 원본 데이터:', hand.boardCards);
+        
+        // 다양한 구분자로 분리 시도 (공백, 쉼표, 슬래시 등)
+        const cards = hand.boardCards
+          .replace(/[,/\-_]/g, ' ')  // 쉼표, 슬래시, 하이픈, 언더스코어를 공백으로 치환
+          .split(/\s+/)              // 공백으로 분리
+          .map(card => card.trim())  // 공백 제거
+          .filter(card => card && card.length >= 2); // 유효한 카드만 필터링
+        
+        console.log('📋 파싱된 보드 카드:', cards);
+        
+        if (cards.length > 0) {
+          cards.forEach(card => {
+            try {
+              const cardElement = createCardElement(card, 'board-card');
+              boardContainer.appendChild(cardElement);
+            } catch (error) {
+              console.error('❌ 보드 카드 생성 오류:', error, '카드 데이터:', card);
+            }
+          });
+        } else {
+          console.warn('⚠️ 유효한 보드 카드가 없습니다:', hand.boardCards);
+        }
+      } else if (hand.boardCards) {
+        console.warn('⚠️ 보드 카드 데이터가 문자열이 아닙니다:', typeof hand.boardCards, hand.boardCards);
       }
       
       // 노트 로드
@@ -1034,26 +1113,40 @@
       const div = document.createElement('div');
       div.className = className;
       
-      if (card.length >= 2) {
-        const rank = card[0];
-        const suit = card[1];
-        
-        let suitClass = '';
-        let suitSymbol = '';
-        
-        switch (suit.toLowerCase()) {
-          case 's': suitClass = 'spade'; suitSymbol = '♠'; break;
-          case 'h': suitClass = 'heart'; suitSymbol = '♥'; break;
-          case 'd': suitClass = 'diamond'; suitSymbol = '♦'; break;
-          case 'c': suitClass = 'club'; suitSymbol = '♣'; break;
-        }
-        
-        div.classList.add(suitClass);
-        div.innerHTML = `
-          <div>${rank}</div>
-          <div>${suitSymbol}</div>
-        `;
+      // 카드 데이터 검증
+      if (!card || card.length < 2) {
+        console.warn('⚠️ 유효하지 않은 카드 데이터:', card);
+        div.innerHTML = '<div style="color: red;">?</div><div>?</div>';
+        return div;
       }
+      
+      const rank = card[0];
+      const suit = card[1];
+      
+      let suitClass = '';
+      let suitSymbol = '';
+      
+      switch (suit.toLowerCase()) {
+        case 's': suitClass = 'spade'; suitSymbol = '♠'; break;
+        case 'h': suitClass = 'heart'; suitSymbol = '♥'; break;
+        case 'd': suitClass = 'diamond'; suitSymbol = '♦'; break;
+        case 'c': suitClass = 'club'; suitSymbol = '♣'; break;
+        default: 
+          console.warn('⚠️ 알 수 없는 카드 슈트:', suit);
+          suitClass = 'unknown'; 
+          suitSymbol = '?'; 
+          break;
+      }
+      
+      // suitClass가 비어있지 않을 때만 추가
+      if (suitClass && suitClass !== '') {
+        div.classList.add(suitClass);
+      }
+      
+      div.innerHTML = `
+        <div>${rank}</div>
+        <div>${suitSymbol}</div>
+      `;
       
       return div;
     }
@@ -1061,9 +1154,22 @@
     // 핸드 상세 데이터 로드
     async function loadHandDetails(handNumber) {
       try {
-        const response = await fetch(CONFIG.CSV_INDEX_URL + '&t=' + Date.now());
+        console.log('📡 핸드 상세 데이터 로딩:', handNumber);
+        const response = await fetch(CONFIG.CSV_INDEX_URL + '&t=' + Date.now(), {
+          method: 'GET',
+          mode: 'cors',
+          cache: 'no-cache',
+          redirect: 'follow'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const text = await response.text();
+        console.log('📊 플레이어 인덱스 데이터 크기:', text.length, 'bytes');
         const rows = parseCSV(text);
+        console.log('📝 플레이어 인덱스 파싱된 행 수:', rows.length);
         
         handData = {};
         
@@ -1086,12 +1192,19 @@
           }
         }
         
+        console.log('✅ 핸드 상세 데이터 로딩 완료:', handNumber);
         updatePlayersSection();
         updateActionHistory();
         updateHandResult();
         
       } catch (error) {
-        console.error('핸드 상세 데이터 로드 오류:', error);
+        console.error('❌ 핸드 상세 데이터 로드 오류:', error);
+        console.error('오류 세부사항:', {
+          handNumber: handNumber,
+          message: error.message,
+          stack: error.stack,
+          csvIndexUrl: CONFIG.CSV_INDEX_URL
+        });
       }
     }
     
