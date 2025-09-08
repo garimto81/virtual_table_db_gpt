@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>포커 핸드 모니터링 v8.7.0 - 로그 시스템 추가</title>
+  <title>포커 핸드 모니터링 v8.8.0 - Virtual 시트 기본 URL 설정</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -417,6 +417,20 @@
           <input type="text" id="matched-row" 
                  class="w-full bg-gray-700 rounded px-3 py-2 text-sm" 
                  readonly>
+          
+          <!-- Virtual 시트 매칭 진행 상황 표시 -->
+          <div id="virtual-matching-progress" class="mt-2 hidden">
+            <div class="flex items-center justify-between text-xs text-gray-300 mb-1">
+              <span id="progress-status">Virtual 시트 매칭 중...</span>
+              <span id="progress-percentage">0%</span>
+            </div>
+            <div class="w-full bg-gray-600 rounded-full h-2">
+              <div id="progress-bar" class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <div class="text-xs text-gray-400 mt-1">
+              <span id="progress-details">준비 중...</span>
+            </div>
+          </div>
         </div>
         <div>
           <label class="block text-sm mb-2">AI 분석 요약 (3줄)</label>
@@ -499,7 +513,7 @@
 
   <script>
     // ====================================
-    // 포커 핸드 모니터링 시스템 v8.2.0 - MasterHandList + RecentHandsBuffer
+    // 포커 핸드 모니터링 시스템 v8.8.0 - Virtual 시트 기본 URL 설정
     // ====================================
     
     const CONFIG = {
@@ -507,6 +521,9 @@
       CSV_HAND_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=1906746276&single=true&output=csv',
       CSV_INDEX_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=1354012271&single=true&output=csv',
       APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzWfe_4CAKcMAzzoHzJBstQIC7jQxSVC1BO23nYwlU23Pd5vLPLjfUi-gKyqzDYvPRT/exec',
+      
+      // 기본 Virtual 시트 URL (CSV 형식)
+      DEFAULT_VIRTUAL_SHEET_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=0&single=true&output=csv',
       
       // 설정
       REFRESH_INTERVAL: 10000,
@@ -1604,48 +1621,93 @@
     
     window.closeLogModal = closeLogModal;
     
+    // Progress Bar 제어 함수들
+    function showVirtualMatchingProgress() {
+      const progressDiv = document.getElementById('virtual-matching-progress');
+      if (progressDiv) {
+        progressDiv.classList.remove('hidden');
+      }
+    }
+    
+    function hideVirtualMatchingProgress() {
+      const progressDiv = document.getElementById('virtual-matching-progress');
+      if (progressDiv) {
+        progressDiv.classList.add('hidden');
+      }
+    }
+    
+    function updateProgress(percentage, status, details) {
+      const progressBar = document.getElementById('progress-bar');
+      const progressPercentage = document.getElementById('progress-percentage');
+      const progressStatus = document.getElementById('progress-status');
+      const progressDetails = document.getElementById('progress-details');
+      
+      if (progressBar) progressBar.style.width = `${percentage}%`;
+      if (progressPercentage) progressPercentage.textContent = `${percentage}%`;
+      if (progressStatus && status) progressStatus.textContent = status;
+      if (progressDetails && details) progressDetails.textContent = details;
+    }
+    
     // Virtual 시트에서 가장 비슷한 시간 찾기 (날짜 제외, 시간만 비교)
     async function findClosestVirtualRow(targetTime, virtualSheetUrl) {
+      // Progress Bar 표시 시작
+      showVirtualMatchingProgress();
+      updateProgress(0, 'Virtual 시트 매칭 시작', '초기화 중...');
+      
+      // 타임아웃 설정 (30초)
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('Virtual 시트 매칭 시간 초과 (30초)'));
+        }, 30000);
+      });
+      
       try {
-        addLogMessage('📋 Virtual 시트 매칭 시작', 'info');
-        addLogMessage(`대상 시간: ${new Date(targetTime * 1000).toLocaleTimeString('ko-KR')}`, 'info');
+        // 실제 매칭 로직을 Promise로 감싸기
+        const matchingPromise = (async () => {
+          addLogMessage('📋 Virtual 시트 매칭 시작', 'info');
+          addLogMessage(`대상 시간: ${new Date(targetTime * 1000).toLocaleTimeString('ko-KR')}`, 'info');
+          updateProgress(10, 'Virtual 시트 매칭 시작', `대상 시간: ${new Date(targetTime * 1000).toLocaleTimeString('ko-KR')}`);
         
-        // URL 형식 확인 및 변환
-        let csvUrl;
-        if (virtualSheetUrl.includes('/pub?')) {
-          // 이미 CSV 게시 URL인 경우
-          csvUrl = virtualSheetUrl;
-          addLogMessage('✅ CSV 게시 URL 사용', 'success');
-        } else {
-          // 일반 Google Sheets URL인 경우
-          const sheetIdMatch = virtualSheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-          if (!sheetIdMatch) {
-            addLogMessage('❌ 올바른 Google Sheets URL이 아닙니다', 'error');
-            throw new Error('올바른 Google Sheets URL이 아닙니다');
+          // URL 형식 확인 및 변환
+          updateProgress(20, 'URL 처리 중', 'Google Sheets URL 분석 중...');
+          let csvUrl;
+          if (virtualSheetUrl.includes('/pub?')) {
+            // 이미 CSV 게시 URL인 경우
+            csvUrl = virtualSheetUrl;
+            addLogMessage('✅ CSV 게시 URL 사용', 'success');
+          } else {
+            // 일반 Google Sheets URL인 경우
+            const sheetIdMatch = virtualSheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+            if (!sheetIdMatch) {
+              addLogMessage('❌ 올바른 Google Sheets URL이 아닙니다', 'error');
+              throw new Error('올바른 Google Sheets URL이 아닙니다');
+            }
+            const sheetId = sheetIdMatch[1];
+            
+            // gid 추출 시도
+            const gidMatch = virtualSheetUrl.match(/[#&]gid=(\d+)/);
+            const gid = gidMatch ? gidMatch[1] : '561799849'; // Virtual 시트 기본 gid
+            
+            csvUrl = `https://docs.google.com/spreadsheets/d/e/2PACX-1vTq3wrZNUASAMxl9A6VvJxTT6DKj40xp0R2xcIGfeji6MxQ8wi6Zbu_FWPmxKkmJdPHYgMC6UIT9tvv/pub?gid=${gid}&single=true&output=csv`;
+            addLogMessage(`Sheet ID: ${sheetId}`, 'info');
+            addLogMessage(`GID: ${gid}`, 'info');
           }
-          const sheetId = sheetIdMatch[1];
           
-          // gid 추출 시도
-          const gidMatch = virtualSheetUrl.match(/[#&]gid=(\d+)/);
-          const gid = gidMatch ? gidMatch[1] : '561799849'; // Virtual 시트 기본 gid
+          updateProgress(30, 'CSV 데이터 로드 중', 'Google Sheets에서 데이터 다운로드 중...');
+          addLogMessage('🌐 CSV 데이터 가져오는 중...', 'info');
+          const response = await fetch(csvUrl);
+          const text = await response.text();
           
-          csvUrl = `https://docs.google.com/spreadsheets/d/e/2PACX-1vTq3wrZNUASAMxl9A6VvJxTT6DKj40xp0R2xcIGfeji6MxQ8wi6Zbu_FWPmxKkmJdPHYgMC6UIT9tvv/pub?gid=${gid}&single=true&output=csv`;
-          addLogMessage(`Sheet ID: ${sheetId}`, 'info');
-          addLogMessage(`GID: ${gid}`, 'info');
-        }
-        
-        addLogMessage('🌐 CSV 데이터 가져오는 중...', 'info');
-        const response = await fetch(csvUrl);
-        const text = await response.text();
-        
-        // HTML 응답 체크
-        if (text.includes('<!DOCTYPE') || text.includes('<html')) {
-          addLogMessage('⚠️ HTML 응답 받음 - 시트가 비공개 상태일 수 있습니다', 'warning');
-          throw new Error('Virtual 시트가 비공개 상태입니다');
-        }
-        
-        const rows = parseCSV(text);
-        addLogMessage(`✅ ${rows.length}개 행 로드됨`, 'success');
+          // HTML 응답 체크
+          if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+            addLogMessage('⚠️ HTML 응답 받음 - 시트가 비공개 상태일 수 있습니다', 'warning');
+            throw new Error('Virtual 시트가 비공개 상태입니다');
+          }
+          
+          updateProgress(40, 'CSV 파싱 중', 'CSV 데이터 파싱 중...');
+          const rows = parseCSV(text);
+          addLogMessage(`✅ ${rows.length}개 행 로드됨`, 'success');
+          updateProgress(50, '데이터 로드 완료', `${rows.length}개 행 로드 완료`);
         
         // 타겟 시간에서 시간 부분만 추출 (HH:MM만 사용, 초 제외)
         const targetDate = new Date(targetTime * 1000);
@@ -1661,39 +1723,47 @@
         let matchedTime = '';
         let checkedCount = 0;
         
-        // C열(Seoul 시간)에서만 검색 - 최적화된 로직
-        addLogMessage('🔍 C열(Seoul 시간)에서 검색 중...', 'info');
-        
-        // C열(index 2)만 검색
-        for (let i = 0; i < rows.length; i++) {
-          const cellValue = rows[i][2]; // C열만 확인
-          if (!cellValue || !cellValue.trim()) continue;
+          // C열(Seoul 시간)에서만 검색 - 최적화된 로직
+          updateProgress(60, '시간 매칭 시작', `대상 시간: ${targetTimeStr}`);
+          addLogMessage('🔍 C열(Seoul 시간)에서 검색 중...', 'info');
           
-          checkedCount++;
-          
-          // HH:MM 형식 파싱
-          const timeMatch = cellValue.match(/(\d{1,2}):(\d{2})/);
-          if (timeMatch) {
-            const hours = parseInt(timeMatch[1]);
-            const minutes = parseInt(timeMatch[2]);
+          // C열(index 2)만 검색
+          for (let i = 0; i < rows.length; i++) {
+            const cellValue = rows[i][2]; // C열만 확인
+            if (!cellValue || !cellValue.trim()) continue;
             
-            // 시간값을 분 단위로 변환하여 비교
-            const cellMinutes = hours * 60 + minutes;
-            const targetMinutesTotal = targetHours * 60 + targetMinutes;
-            const diff = Math.abs(cellMinutes - targetMinutesTotal);
+            checkedCount++;
             
-            // 가장 가까운 시간 업데이트
-            if (diff < minDiff) {
-              minDiff = diff;
-              closestRow = rows[i];
-              rowIndex = i + 1;
-              matchedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+            // 10행마다 진행률 업데이트
+            if (checkedCount % 10 === 0) {
+              const progressPercent = Math.min(60 + (checkedCount / rows.length) * 35, 95);
+              updateProgress(Math.floor(progressPercent), '시간 매칭 중', `처리 중: ${checkedCount}/${rows.length} 행 (현재 행: ${i + 1})`);
+            }
+            
+            // HH:MM 형식 파싱
+            const timeMatch = cellValue.match(/(\d{1,2}):(\d{2})/);
+            if (timeMatch) {
+              const hours = parseInt(timeMatch[1]);
+              const minutes = parseInt(timeMatch[2]);
               
-              // 정확히 일치하면 즉시 종료
-              if (diff === 0) {
-                addLogMessage(`✅ 정확한 매칭 발견!`, 'success');
-                addLogMessage(`📍 위치: 행 ${rowIndex}, C열`, 'success');
-                addLogMessage(`🕐 매칭 시간: ${matchedTime}`, 'success');
+              // 시간값을 분 단위로 변환하여 비교
+              const cellMinutes = hours * 60 + minutes;
+              const targetMinutesTotal = targetHours * 60 + targetMinutes;
+              const diff = Math.abs(cellMinutes - targetMinutesTotal);
+              
+              // 가장 가까운 시간 업데이트
+              if (diff < minDiff) {
+                minDiff = diff;
+                closestRow = rows[i];
+                rowIndex = i + 1;
+                matchedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                
+                // 정확히 일치하면 즉시 종료
+                if (diff === 0) {
+                  updateProgress(95, '정확한 매치 발견!', `행 ${rowIndex}에서 완벽 일치`);
+                  addLogMessage(`✅ 정확한 매칭 발견!`, 'success');
+                  addLogMessage(`📍 위치: 행 ${rowIndex}, C열`, 'success');
+                  addLogMessage(`🕐 매칭 시간: ${matchedTime}`, 'success');
                 
                 // 행 데이터 표시
                 if (rows[i][0]) addLogMessage(`A열(Blinds): ${rows[i][0]}`, 'info');
@@ -1709,29 +1779,51 @@
           }
         }
         
-        addLogMessage(`총 ${checkedCount}개 셀 검색 완료`, 'info');
-        
-        // 정확한 매치가 없으면 가장 가까운 시간 표시
-        if (minDiff > 0) {
-          addLogMessage(`⚠️ 정확한 매치 없음`, 'warning');
-          addLogMessage(`📍 가장 가까운 시간: 행 ${rowIndex}, C열`, 'warning');
-          addLogMessage(`🕐 ${matchedTime} (${minDiff}분 차이)`, 'warning');
+          updateProgress(95, '검색 완료', `총 ${checkedCount}개 셀 검색 완료`);
+          addLogMessage(`총 ${checkedCount}개 셀 검색 완료`, 'info');
           
-          console.log(`⚠️ 정확한 매치 없음. 가장 가까운 시간:`);
-          console.log(`   📍 행 ${rowIndex}, C열: ${matchedTime} (${minDiff}분 차이)`);
-        }
+          // 정확한 매치가 없으면 가장 가까운 시간 표시
+          if (minDiff > 0) {
+            updateProgress(98, '가장 가까운 매치', `${minDiff}분 차이로 매칭 완료`);
+            addLogMessage(`⚠️ 정확한 매치 없음`, 'warning');
+            addLogMessage(`📍 가장 가까운 시간: 행 ${rowIndex}, C열`, 'warning');
+            addLogMessage(`🕐 ${matchedTime} (${minDiff}분 차이)`, 'warning');
+            
+            console.log(`⚠️ 정확한 매치 없음. 가장 가까운 시간:`);
+            console.log(`   📍 행 ${rowIndex}, C열: ${matchedTime} (${minDiff}분 차이)`);
+          }
+          
+          updateProgress(100, '매칭 완료', closestRow ? `행 ${rowIndex} 매칭 성공` : '매칭 실패');
+          
+          return {
+            row: closestRow,
+            rowIndex: rowIndex,
+            timeDiff: minDiff,
+            targetTime: targetTimeStr,
+            matchedTime: matchedTime
+          };
+        })();
         
-        return {
-          row: closestRow,
-          rowIndex: rowIndex,
-          timeDiff: minDiff,
-          targetTime: targetTimeStr,
-          matchedTime: matchedTime
-        };
+        // 타임아웃과 실제 작업을 경쟁시킴
+        return await Promise.race([matchingPromise, timeoutPromise]);
+        
       } catch (error) {
+        // 에러 상황 처리
+        updateProgress(100, '오류 발생', error.message);
         addLogMessage(`❌ 오류: ${error.message}`, 'error');
         console.error('Virtual 시트 접근 오류:', error);
+        
+        // 3초 후 progress bar 숨기기
+        setTimeout(() => {
+          hideVirtualMatchingProgress();
+        }, 3000);
+        
         return null;
+      } finally {
+        // 성공적인 경우 2초 후 progress bar 숨기기
+        setTimeout(() => {
+          hideVirtualMatchingProgress();
+        }, 2000);
       }
     }
     
@@ -2272,12 +2364,13 @@ ${handText}
     
     document.getElementById('complete-btn').addEventListener('click', async () => {
       if (currentHand) {
-        // Virtual 시트 URL 확인
-        const virtualSheetUrl = document.getElementById('virtual-sheet-url').value;
+        // Virtual 시트 URL 확인 (없으면 기본값 사용)
+        let virtualSheetUrl = document.getElementById('virtual-sheet-url').value;
         if (!virtualSheetUrl) {
-          alert('먼저 Virtual 시트 URL을 상단에 입력해주세요.');
-          document.getElementById('virtual-sheet-url').focus();
-          return;
+          virtualSheetUrl = CONFIG.DEFAULT_VIRTUAL_SHEET_URL;
+          document.getElementById('virtual-sheet-url').value = virtualSheetUrl;
+          localStorage.setItem('virtual_sheet_url', virtualSheetUrl);
+          console.log('🔄 기본 Virtual 시트 URL을 사용합니다.');
         }
         
         // 핸드 시간 가져오기
@@ -2340,11 +2433,15 @@ ${handText}
       loadMasterHandList();
       console.log(`📁 기존 마스터 핸드: ${masterHandList.size}개`);
       
-      // Virtual 시트 URL 로드
-      const savedVirtualUrl = localStorage.getItem('virtual_sheet_url');
-      if (savedVirtualUrl) {
-        document.getElementById('virtual-sheet-url').value = savedVirtualUrl;
-        console.log(`💾 Virtual 시트 URL 로드: ${savedVirtualUrl.substring(0, 50)}...`);
+      // Virtual 시트 URL 로드 (저장된 값이 없으면 기본값 사용)
+      const savedVirtualUrl = localStorage.getItem('virtual_sheet_url') || CONFIG.DEFAULT_VIRTUAL_SHEET_URL;
+      document.getElementById('virtual-sheet-url').value = savedVirtualUrl;
+      console.log(`💾 Virtual 시트 URL 로드: ${savedVirtualUrl.substring(0, 50)}...`);
+      
+      // 처음 실행 시 기본값을 localStorage에 저장
+      if (!localStorage.getItem('virtual_sheet_url')) {
+        localStorage.setItem('virtual_sheet_url', CONFIG.DEFAULT_VIRTUAL_SHEET_URL);
+        console.log('📝 기본 Virtual 시트 URL을 localStorage에 저장했습니다.');
       }
       
       // AI 설정 로드
