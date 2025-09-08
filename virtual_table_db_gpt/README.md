@@ -2,7 +2,7 @@
 
 온라인 포커 게임의 핸드 히스토리를 체계적으로 관리하고 분석하는 통합 웹 애플리케이션입니다.
 
-[![Version](https://img.shields.io/badge/Version-8.7.0-blue)](https://garimto81.github.io/virtual_table_db_gpt/)
+[![Version](https://img.shields.io/badge/Version-8.9.0-blue)](https://garimto81.github.io/virtual_table_db_gpt/)
 [![License](https://img.shields.io/badge/License-Private-red)](LICENSE)
 [![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Active-green)](https://garimto81.github.io/virtual_table_db_gpt/)
 
@@ -12,7 +12,7 @@
 ## 🎯 주요 기능
 
 ### 📊 **포커 핸드 모니터링 시스템** (`poker-monitor.html`)
-- **v8.7.0 최신 버전** - 로그 시스템 추가
+- **v8.9.0 최신 버전** - Virtual 시트 매칭 개선
 - 실시간 핸드 모니터링 및 편집
 - Virtual 시트와 자동 시간 매칭
 - AI 기반 핸드 분석 (Gemini/OpenAI/Claude)
