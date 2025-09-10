@@ -1954,14 +1954,31 @@
         
         // 다양한 시간 형식 지원을 위한 정규식들
         const timePatterns = [
+          // 표준 시간 형식
           { pattern: /(\d{1,2}):(\d{2}):(\d{2})/, name: 'HH:MM:SS' },
           { pattern: /(\d{1,2}):(\d{2})/, name: 'HH:MM' },
+          // 한국어 형식
           { pattern: /(\d{1,2})시\s*(\d{2})분\s*(\d{2})초/, name: '한국어 시분초' },
-          { pattern: /(\d{1,2})시\s*(\d{2})분/, name: '한국어 시분' }
+          { pattern: /(\d{1,2})시\s*(\d{2})분/, name: '한국어 시분' },
+          // 추가 형식들 (공백, 점, AM/PM)
+          { pattern: /(\d{1,2})\s*:\s*(\d{2})\s*:\s*(\d{2})/, name: 'HH : MM : SS (공백)' },
+          { pattern: /(\d{1,2})\s*:\s*(\d{2})/, name: 'HH : MM (공백)' },
+          { pattern: /(\d{1,2})\.(\d{2})\.(\d{2})/, name: 'HH.MM.SS' },
+          { pattern: /(\d{1,2})\.(\d{2})/, name: 'HH.MM' },
+          // 날짜-시간 혼합 형식 (일부 시트에서 사용)
+          { pattern: /\d{1,2}\/\d{1,2}\s+(\d{1,2}):(\d{2})/, name: 'M/D HH:MM' },
+          { pattern: /\d{4}-\d{2}-\d{2}\s+(\d{1,2}):(\d{2}):(\d{2})/, name: 'YYYY-MM-DD HH:MM:SS' }
         ];
         
         console.log(`🔍 === B열 시간 데이터 매칭 시작 ===`);
         console.log(`🔍 총 ${rows.length}개 행에서 검색 중...`);
+        console.log(`🔍 타겟 시간: ${targetHours}:${targetMinutes}:${targetSeconds} (총 ${targetTotalSeconds}초)`);
+        
+        // 디버깅: 처음 5개 행의 B열 데이터 확인
+        console.log(`📋 처음 5개 행의 B열 데이터 샘플:`);
+        for (let i = 0; i < Math.min(5, rows.length); i++) {
+          console.log(`   행 ${i+1}: "${rows[i][1] || '(비어있음)'}"`);
+        }
         
         // 진행률 업데이트 - 총 행 수 설정
         updateProgress(0, rows.length, 0, '시간 데이터 검색 중...');
@@ -2093,15 +2110,31 @@
           console.error(`❌ === Virtual 시트 매칭 실패 ===`);
           console.error(`❌ 매칭할 수 있는 시간 데이터를 찾지 못했습니다.`);
           console.error(`❌ 유효한 시간 데이터: ${validTimeFoundCount}개`);
+          console.error(`❌ 검사한 행 수: ${rows.length}개`);
+          console.error(`❌ 타겟 시간: ${targetHours}:${targetMinutes}:${targetSeconds}`);
+          
+          // B열 데이터 샘플 표시
+          console.error(`📋 B열 데이터 샘플 (처음 10개):`);
+          for (let i = 0; i < Math.min(10, rows.length); i++) {
+            const value = rows[i][1];
+            if (value && value.trim()) {
+              console.error(`   행 ${i+1}: "${value}"`);
+            }
+          }
+          
           console.error(`❌ 가능한 원인:`);
           console.error(`   - B열에 올바른 시간 형식의 데이터가 없음`);
-          console.error(`   - 지원되는 형식: HH:MM, HH:MM:SS, N시 N분, N시 N분 N초`);
+          console.error(`   - 지원되는 형식: HH:MM, HH:MM:SS, N시 N분, N시 N분 N초, HH.MM, M/D HH:MM 등`);
           console.error(`   - 시트가 비어있거나 잘못된 열을 참조하고 있음`);
           
           if (validTimeFoundCount === 0) {
-            console.error(`💡 해결책: B열에 "14:35" 또는 "14시 35분" 형식의 시간 데이터를 입력하세요.`);
+            console.error(`💡 해결책:`);
+            console.error(`   1. B열에 시간 데이터가 있는지 확인하세요`);
+            console.error(`   2. Virtual 시트 URL이 올바른지 확인하세요`);
+            console.error(`   3. 시트가 공개되어 있는지 확인하세요`);
+            console.error(`   4. B열에 "14:35" 또는 "14시 35분" 형식의 시간 데이터를 입력하세요`);
           } else {
-            console.error(`💡 해결책: 타겟 시간과 유사한 시간대의 데이터를 B열에 추가하세요.`);
+            console.error(`💡 해결책: 타겟 시간(${targetHours}:${targetMinutes})과 유사한 시간대의 데이터를 B열에 추가하세요.`);
           }
           
           return null;
