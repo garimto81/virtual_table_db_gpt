@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 9.4.1
-  Last Updated: 2025-01-09
-  Description: BB 및 팟 계산 로직 개선 - 초기 블라인드 포함
+  Version: 9.5.0
+  Last Updated: 2025-01-10
+  Description: Virtual 시트 매칭 개선 - CSV 파싱 강화 및 자동 열 감지
 -->
 <html lang="ko">
 <head>
@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>포커 핸드 모니터링 v9.4.1 - AI 분석 시스템</title>
+  <title>포커 핸드 모니터링 v9.5.0 - AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -248,7 +248,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span class="text-xs text-gray-500">v9.4.1</span>
+        <span class="text-xs text-gray-500">v9.5.0</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
@@ -611,7 +611,7 @@
 
   <script>
     // ====================================
-    // 포커 핸드 모니터링 시스템 v9.2.0 - Gemini AI 분석 시스템
+    // 포커 핸드 모니터링 시스템 v9.5.0 - Gemini AI 분석 시스템
     // ====================================
     
     const CONFIG = {
@@ -4051,7 +4051,7 @@
 
     async function init() {
       console.log('='.repeat(60));
-      console.log('🚀 포커 핸드 모니터링 시스템 v9.2.0 - Gemini AI 분석 시스템');
+      console.log('🚀 포커 핸드 모니터링 시스템 v9.5.0 - Gemini AI 분석 시스템');
       
       // 초기화 시 AI 키 로드
       loadAPIKeys();
