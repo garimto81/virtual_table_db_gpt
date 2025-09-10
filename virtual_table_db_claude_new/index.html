@@ -1279,13 +1279,13 @@
             const playerName = row[2];
             const seat = parseInt(row[3]) || 0;
             const chips = parseInt(row[5]) || parseInt(row[6]) || 0;
-            const cards = row[7] ? row[7].split(' ') : ['?', '?'];
+            const cards = row[7] ? row[7].split(' ') : null;
             
             hand.players.push({
               seat: seat,
               name: playerName,
               chips: chips,
-              cards: cards.length >= 2 ? cards : [cards[0] || '?', cards[1] || '?'],
+              cards: cards && cards.length >= 2 ? cards : (cards && cards.length === 1 ? [cards[0], '?'] : null),
               position: '',
               status: 'active'
             });
@@ -1612,7 +1612,9 @@
             <span class="text-xs font-semibold">${player.name}</span>
           </div>
           <div class="flex items-center gap-2">
-            ${player.cards.map(card => createCardElement(card)).join('')}
+            ${player.cards && player.cards.length > 0 
+              ? player.cards.map(card => createCardElement(card)).join('') 
+              : '<span class="text-xs text-gray-500">카드 정보 없음</span>'}
             <span class="text-xs text-gray-400">${formatNumber(player.chips)}</span>
           </div>
         </div>
