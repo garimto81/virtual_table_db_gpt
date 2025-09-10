@@ -927,15 +927,25 @@
       const rows = [];
       
       for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
+        const line = lines[i].replace(/\r/g, ''); // 캐리지 리턴 제거
+        if (!line.trim()) continue; // 빈 줄 건너뛰기
+        
         const row = [];
         let inQuotes = false;
         let currentField = '';
         
         for (let j = 0; j < line.length; j++) {
           const char = line[j];
+          const nextChar = line[j + 1];
+          
           if (char === '"') {
-            inQuotes = !inQuotes;
+            if (inQuotes && nextChar === '"') {
+              // 이스케이프된 따옴표 처리
+              currentField += '"';
+              j++; // 다음 따옴표 건너뛰기
+            } else {
+              inQuotes = !inQuotes;
+            }
           } else if (char === ',' && !inQuotes) {
             row.push(currentField.trim());
             currentField = '';
@@ -943,6 +953,7 @@
             currentField += char;
           }
         }
+        // 마지막 필드 추가
         row.push(currentField.trim());
         rows.push(row);
       }
@@ -1974,17 +1985,52 @@
         console.log(`🔍 총 ${rows.length}개 행에서 검색 중...`);
         console.log(`🔍 타겟 시간: ${targetHours}:${targetMinutes}:${targetSeconds} (총 ${targetTotalSeconds}초)`);
         
-        // 디버깅: 처음 5개 행의 B열 데이터 확인
-        console.log(`📋 처음 5개 행의 B열 데이터 샘플:`);
+        // 디버깅: 처음 5개 행의 전체 데이터 확인
+        console.log(`📋 처음 5개 행의 전체 데이터 샘플:`);
         for (let i = 0; i < Math.min(5, rows.length); i++) {
-          console.log(`   행 ${i+1}: "${rows[i][1] || '(비어있음)'}"`);
+          console.log(`   행 ${i+1}:`);
+          console.log(`      A열: "${rows[i][0] || '(비어있음)'}"`);
+          console.log(`      B열: "${rows[i][1] || '(비어있음)'}"`);
+          console.log(`      C열: "${rows[i][2] || '(비어있음)'}"`);
+          console.log(`      D열: "${rows[i][3] || '(비어있음)'}"`);
+          
+          // 각 열에서 시간 형식 찾기
+          for (let j = 0; j < Math.min(4, rows[i].length); j++) {
+            const value = rows[i][j];
+            if (value && value.match(/\d{1,2}:\d{2}/)) {
+              console.log(`      🕐 ${String.fromCharCode(65+j)}열에 시간 형식 발견: "${value}"`);
+            }
+          }
         }
         
         // 진행률 업데이트 - 총 행 수 설정
         updateProgress(0, rows.length, 0, '시간 데이터 검색 중...');
         const startTime = Date.now();
         
-        // B열(index 1)만 검색
+        // 먼저 B열을 확인하고, 없으면 다른 열도 확인
+        let columnToCheck = 1; // 기본값: B열 (index 1)
+        let columnName = 'B';
+        
+        // 처음 몇 행을 확인하여 시간 데이터가 있는 열 찾기
+        for (let col = 0; col < Math.min(4, rows[0].length); col++) {
+          let timeFoundInColumn = 0;
+          for (let row = 0; row < Math.min(10, rows.length); row++) {
+            const value = rows[row][col];
+            if (value && value.match(/\d{1,2}:\d{2}/)) {
+              timeFoundInColumn++;
+            }
+          }
+          if (timeFoundInColumn > 3) { // 10개 중 3개 이상 시간 형식이면 해당 열 사용
+            columnToCheck = col;
+            columnName = String.fromCharCode(65 + col);
+            console.log(`🎯 시간 데이터가 ${columnName}열(index ${col})에서 발견됨 (${timeFoundInColumn}/10개)`);
+            break;
+          }
+        }
+        
+        console.log(`📍 ${columnName}열(index ${columnToCheck})에서 시간 데이터 검색 시작`);
+        
+        // 선택된 열에서 검색
         for (let i = 0; i < rows.length; i++) {
           // 중단 신호 확인
           if (isAborted) {
@@ -2000,13 +2046,13 @@
             updateProgress(i, rows.length, remaining, `행 ${i+1}/${rows.length} 검사 중...`);
           }
           
-          const cellValue = rows[i][1]; // B열만 확인
+          const cellValue = rows[i][columnToCheck]; // 선택된 열 확인
           if (!cellValue || !cellValue.trim()) {
             // 빈 셀은 로그 생략
             continue;
           }
           
-          console.log(`🔍 행 ${i+1} B열 검사: "${cellValue}"`);
+          console.log(`🔍 행 ${i+1} ${columnName}열 검사: "${cellValue}"`);
           
           let hours, minutes, seconds = 0;
           let timeMatch = null;
