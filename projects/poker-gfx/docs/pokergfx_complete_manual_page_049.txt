@@ -1,0 +1,27 @@
+PokerGFX
+ 
+User
+ 
+Manual
+                                                               
+©
+ 
+PokerGFX
+ 
+LLC
+ 
+2011-2025  Heads Up custom Y-position Use this to specify the vertical position of player graphics when Heads Up layout is active. Handy for productions that use a triple panel view with Heads Up players in the top half of the display and the flop underneath.  
+Leaderboard Position Selects the position of the Leaderboard graphic. 
+  Reveal Players Determines when players are shown:  Setting Auto Mode Action Tracker Mode Immediate Players are shown as cards are dealt. Players are shown as cards are dealt. 
+On Action Players are shown as cards are dealt. Players are shown only when it is their first turn to act. 
+After Bet Players are shown after the flop. Players are shown only after their first bet or call. A player that folds pre-flop will not be shown. On Action + Next Players are shown as cards are dealt. Same as ‘On Action’, with the addition that the next player to act is also shown.    Skin Editor Open the Skin Editor (see the ‘Skins’ section for more information).   Media Folder Configures the location of the Media folder, which contains player photos and other videos.   X Margin This setting controls the size of the horizontal margins. Valid values are between 0 and 1. When in any vertical layout mode, larger values cause all graphics to move towards the centre of the display. This is useful for cropping the entire layout into a smaller zone in the centre of the video.   Y Margin (Top & Bottom) This setting controls the size of the vertical margins. Valid values are between 0 and 1. Larger values cause all graphics to move towards the centre of the display.   
+Version
+ 
+3.2.0
+ 
+www.pokergfx.io
+ 
+Page
+ 
+49
+  

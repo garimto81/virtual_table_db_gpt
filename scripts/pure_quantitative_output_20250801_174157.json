@@ -1,0 +1,63 @@
+{
+  "timestamp": "2025-08-01T17:41:57.467072",
+  "youtube": {
+    "view_count_sum": 254000.0,
+    "view_count_mean": 84666.66666666667,
+    "view_count_std": 33924.7533357118,
+    "view_count_min": 42000.0,
+    "view_count_max": 125000.0,
+    "like_count_sum": 22400.0,
+    "comment_count_sum": 2540.0,
+    "like_per_view": 0.08818897637795275,
+    "wsop_count": 1.0,
+    "gto_count": 1.0,
+    "poker_count": 2.0,
+    "total_videos": 3.0
+  },
+  "poker_sites": {
+    "total_players": 12500.0,
+    "mean_players_per_site": 12500.0,
+    "std_players": 0.0,
+    "min_players": 12500.0,
+    "max_players": 12500.0,
+    "site_count": 1.0,
+    "gg_network_site_count": 0.0,
+    "gg_network_total_players": 0.0
+  },
+  "time_series": {
+    "Site_A_diff_sum": 1000.0,
+    "Site_A_diff_mean": 333.3333333333333,
+    "Site_A_diff_positive_count": 2,
+    "Site_A_diff_negative_count": 0,
+    "Site_A_diff_zero_count": 1,
+    "Site_A_first_value": 11500.0,
+    "Site_A_last_value": 12500.0,
+    "Site_A_total_change": 1000.0,
+    "Site_B_diff_sum": 600.0,
+    "Site_B_diff_mean": 200.0,
+    "Site_B_diff_positive_count": 2,
+    "Site_B_diff_negative_count": 0,
+    "Site_B_diff_zero_count": 1,
+    "Site_B_first_value": 7600.0,
+    "Site_B_last_value": 8200.0,
+    "Site_B_total_change": 600.0
+  },
+  "percentiles": {
+    "youtube_views_p25": 64500.0,
+    "youtube_views_p50": 87000.0,
+    "youtube_views_p75": 106000.0,
+    "youtube_views_p90": 117400.0,
+    "youtube_views_p95": 121200.0,
+    "youtube_views_p99": 124240.0,
+    "poker_players_p25": 12500.0,
+    "poker_players_p50": 12500.0,
+    "poker_players_p75": 12500.0,
+    "poker_players_p90": 12500.0,
+    "poker_players_p95": 12500.0,
+    "poker_players_p99": 12500.0
+  },
+  "raw_data_counts": {
+    "youtube_videos": 3,
+    "poker_measurements": 8
+  }
+}

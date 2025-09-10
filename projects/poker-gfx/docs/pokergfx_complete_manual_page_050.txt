@@ -1,0 +1,25 @@
+PokerGFX
+ 
+User
+ 
+Manual
+                                                               
+©
+ 
+PokerGFX
+ 
+LLC
+ 
+2011-2025  Transition In Animation Method and speed used to transition players on to the display. Select from Slide, Fade, Pop and Expand.   Transition Out Animation Method and speed used to transition players off the display. Select from Slide, Fade, Pop and Expand. 
+  Vanity  Custom text displayed on the Board Card / Pot graphic.   Replace Vanity When this option is enabled, the name of the currently active game variant will be displayed instead of the Vanity text. Useful in mixed games to remind viewers which game is being played.   Show Blinds Blinds and Antes will be displayed for 10 seconds: Never Never. Every Hand At the start of every hand. New Level Only when the blinds or antes change. With Strip Blinds and antes are displayed whenever the Strip is visible.    Show Hand # Blinds Whether to display the hand number when blinds are shown. 
+  Max BB multiple Whether to show Big Blind multiples in the chip count display. The amount is the maximum BB multiple to show + 1. For example, a value of 21 will cause the BB multiple to be displayed for players with fewer than 21 big blinds. A value of zero disables BB display.   
+Version
+ 
+3.2.0
+ 
+www.pokergfx.io
+ 
+Page
+ 
+50
+  

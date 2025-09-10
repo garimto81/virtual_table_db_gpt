@@ -1,0 +1,25 @@
+PokerGFX
+ 
+User
+ 
+Manual
+                                                               
+©
+ 
+PokerGFX
+ 
+LLC
+ 
+2011-2025   
+The actions available are: 
+Leaderboard Toggle display of the Leaderboard graphic. Drag the action to an unused button then select the type of Leaderboard to display from the selection box. Hide GFX Toggle all on-screen graphics ON / OFF. Camera Control Manually switch camera views. Works with both internally mixed sources (cameras connected directly to PokerGFX) and cameras connected via an ATEM switcher when ATEM control is active. Drag this action to an unused button multiple times and the source input names will be populated automatically.  When manually selecting a camera view, the FOLLOW PLAYERS, FOLLOW BOARD and CYCLE camera control features are all disabled and must be re-enabled manually using one of the below buttons. Follow Players Toggle the FOLLOW PLAYERS feature. Follow Board Toggle the FOLLOW BOARD feature. Cycle / Static Camera Switch between CYCLE and STATIC cameras. Heads-Up Layout Manually toggle Heads Up layout, where the heads up player graphics are moved to the far left and right of the display.   
+Version
+ 
+3.2.0
+ 
+www.pokergfx.io
+ 
+Page
+ 
+63
+  

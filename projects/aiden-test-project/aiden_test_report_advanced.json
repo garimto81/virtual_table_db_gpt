@@ -1,0 +1,132 @@
+{
+  "timestamp": "2025-07-31T16:43:43.684098",
+  "tests": [
+    {
+      "name": "Python Environment",
+      "category": "general",
+      "status": "PASSED",
+      "message": "Python 3.13.5",
+      "duration": 8.58306884765625e-06
+    },
+    {
+      "name": "Working Directory",
+      "category": "general",
+      "status": "PASSED",
+      "message": "Current dir: C:\\claude",
+      "duration": 7.62939453125e-06
+    },
+    {
+      "name": "Docker Configuration",
+      "category": "general",
+      "status": "PASSED",
+      "message": "Found 6 Docker-related files",
+      "duration": 0.8552429676055908
+    },
+    {
+      "name": "Git Repositories",
+      "category": "general",
+      "status": "PASSED",
+      "message": "Git repositories found: Archive-MAM, poker-trend, slack-report-automation, superclaude",
+      "duration": 6.031990051269531e-05
+    },
+    {
+      "name": "Executable Scripts",
+      "category": "general",
+      "status": "PASSED",
+      "message": "Found 12 .bat, 2270 .py, 5 .sh scripts",
+      "duration": 2.547658920288086
+    },
+    {
+      "name": "Archive-MAM - Directory Exists",
+      "category": "Archive-MAM",
+      "status": "PASSED",
+      "message": "Project directory exists at Archive-MAM",
+      "duration": 2.574920654296875e-05
+    },
+    {
+      "name": "Archive-MAM - Main Files",
+      "category": "Archive-MAM",
+      "status": "PASSED",
+      "message": "All main files present",
+      "duration": 3.1948089599609375e-05
+    },
+    {
+      "name": "Archive-MAM - Python Setup",
+      "category": "Archive-MAM",
+      "status": "PASSED",
+      "message": "requirements.txt found and readable",
+      "duration": 0.00026917457580566406
+    },
+    {
+      "name": "poker-trend - Directory Exists",
+      "category": "poker-trend",
+      "status": "PASSED",
+      "message": "Project directory exists at poker-trend",
+      "duration": 2.4318695068359375e-05
+    },
+    {
+      "name": "poker-trend - Main Files",
+      "category": "poker-trend",
+      "status": "PASSED",
+      "message": "All main files present",
+      "duration": 2.9325485229492188e-05
+    },
+    {
+      "name": "poker-trend - Python Setup",
+      "category": "poker-trend",
+      "status": "PASSED",
+      "message": "requirements.txt found and readable",
+      "duration": 0.00019311904907226562
+    },
+    {
+      "name": "slack-report-automation - Directory Exists",
+      "category": "slack-report-automation",
+      "status": "PASSED",
+      "message": "Project directory exists at slack-report-automation",
+      "duration": 2.1219253540039062e-05
+    },
+    {
+      "name": "slack-report-automation - Main Files",
+      "category": "slack-report-automation",
+      "status": "PASSED",
+      "message": "All main files present",
+      "duration": 2.6702880859375e-05
+    },
+    {
+      "name": "slack-report-automation - Node.js Setup",
+      "category": "slack-report-automation",
+      "status": "PASSED",
+      "message": "package.json valid and node_modules present",
+      "duration": 0.0002129077911376953
+    },
+    {
+      "name": "superclaude - Directory Exists",
+      "category": "superclaude",
+      "status": "PASSED",
+      "message": "Project directory exists at superclaude/SuperClaude",
+      "duration": 1.5020370483398438e-05
+    },
+    {
+      "name": "superclaude - Main Files",
+      "category": "superclaude",
+      "status": "PASSED",
+      "message": "All main files present",
+      "duration": 2.5987625122070312e-05
+    },
+    {
+      "name": "superclaude - Python Setup",
+      "category": "superclaude",
+      "status": "PASSED",
+      "message": "pyproject.toml found (modern Python packaging)",
+      "duration": 2.9325485229492188e-05
+    }
+  ],
+  "projects": {},
+  "summary": {
+    "total": 17,
+    "passed": 17,
+    "failed": 0,
+    "warnings": [],
+    "errors": []
+  }
+}

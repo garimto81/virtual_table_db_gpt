@@ -1,0 +1,26 @@
+PokerGFX
+ 
+User
+ 
+Manual
+                                                               
+©
+ 
+PokerGFX
+ 
+LLC
+ 
+2011-2025  System 
+Check for Updates Force the Server to check to see if there’s a software update available. 
+  Action Tracker Kiosk When the Server starts, Action Tracker is automatically started on the same PC on the secondary display in kiosk mode. In this mode, AT cannot be closed or minimised, and the Video and Delay Insert consoles are disabled.  When used in conjunction with a touch enabled display, this is a cost effective and secure way of making AT available without the need for a secondary PC, laptop or tablet.  All in one USB touchscreen displays are perfect for this application, such as the Mimo monitors available from:  http://www.mimomonitors.com   Auto Start Automatically start the PokerGFX Server when Windows starts. Useful for unattended installations.   Allow Action Tracker access ‘Track the action’ can only be started from Action Tracker if this option is enabled. When disabled, Action Tracker may still be used but only in Auto mode - player names can be edited but Action Tracking mode cannot be started.   MultiGFX Forces PokerGFX to sync to another primary PokerGFX running on a different, networked computer, making it possible to generate multiple live and delayed video streams with different graphics, from the same table. See the chapter on ‘MultiGFX’.   Sync Stream  When in MultiGFX mode, forces secure delay to start and stop in synchronization with the primary server. 
+  Sync Skin Causes the secondary MultiGFX server skin to auto update from the skin that is currently active on the primary server.   No Cards Enable this on the primary MultiGFX server as an additional layer of security. When enabled, no hole card information will be shared with any secondary server.   
+Version
+ 
+3.2.0
+ 
+www.pokergfx.io
+ 
+Page
+ 
+58
+  

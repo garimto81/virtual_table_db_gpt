@@ -1,0 +1,59 @@
+PokerGFX
+ 
+User
+ 
+Manual
+                                                               
+©
+ 
+PokerGFX
+ 
+LLC
+ 
+2011-2025  Common Usage Scenarios 
+A wide range of configurations are supported to suit many applications, however 
+there
+ 
+are
+ 
+3
+ 
+common
+ 
+scenarios
+ 
+for
+ 
+using
+ 
+PokerGFX:
+ 
+GFX + INTERNAL VIDEO MIX Up to 8 cameras are connected directly to the Server PC. PokerGFX automatically switches cameras to follow the action around the table and mixes video internally. No camera operators or external vision mixer required.  PokerGFX adds graphics, records & streams with an optional security delay.   GFX + EXTERNAL VIDEO MIX PokerGFX Server generates real time graphics which are keyed onto a live pre-mixed video feed from an external switcher.  PokerGFX can ingest the program feed for internal keying of graphics, or output graphics only for external keying using chroma key or separate key & fill outputs.  PokerGFX can record and stream with an optional security delay.  
+/g0
+ 
+PokerGFX
+ 
+can
+ 
+control
+ 
+an
+ 
+external
+ 
+Blackmagic
+ ATEM video switcher to automatically follow the action around the table (Pro license required). 
+  POST All cards and player actions for an entire game are recorded in a live database. The Studio feature is then used to fit the hands to the timeline of the final edit of the game video. When the timeline is finished, the graphics are automatically rendered onto the video to produce the final output in post-production. 
+/g0
+ (Pro license required) 
+ 
+Version
+ 
+3.2.0
+ 
+www.pokergfx.io
+ 
+Page
+ 
+12
+  

@@ -1,0 +1,48 @@
+PokerGFX
+ 
+User
+ 
+Manual
+                                                               
+©
+ 
+PokerGFX
+ 
+LLC
+ 
+2011-2025  Graphics (GFX 1, GFX 2 & GFX 3) 
+Use these settings to customize the graphic overlay. 
+Board Position Position of the Board graphic (shows community cards, pot size and optionally blind levels). Choices are LEFT, CENTRE and RIGHT. The Board is always positioned at the bottom of the display.   Player Layout Select one of 5 layout options, which determine the positioning of player graphics:  Horizontal – players are arranged horizontally along the bottom of the display, board cards centred above players. This setting is optimised for use with the split screen webcam mode.  Vert/Bot/Spill – Players are arranged vertically starting from the bottom left corner of the display. When the left side is full, players fill up from the bottom right corner.  Vert/Bot/Fit – Players are arranged vertically starting from the bottom left corner of the display. If necessary, players are reduced in size to ensure they all fit on the left hand side.  Vert/Top/Spill – Players are arranged vertically starting from the top left corner of the display. When the left side is full, players fill up from the top right corner.  Vert/Top/Fit – Players are arranged vertically starting from the top left corner of the display. If necessary, players are reduced in size to ensure they all fit on the left hand side.  
+/g0
+ 
+In
+ 
+all
+ 
+vertical
+ 
+layout
+ 
+modes,
+ 
+players
+ 
+are
+ 
+always
+ 
+displayed
+ 
+in
+ clockwise table order starting from the first player to act, provided the system is running in Action Tracker mode. 
+  Heads Up layout Left / Right Overrides the player layout when players are heads-up. In this mode, the board graphic is positioned at the bottom centre of the display with each player positioned either side. This layout is great for Heads Up tournaments or final tables where the final 2 heads-up players are relocated so they're on opposite sides of a single camera shot.   
+Version
+ 
+3.2.0
+ 
+www.pokergfx.io
+ 
+Page
+ 
+48
+  

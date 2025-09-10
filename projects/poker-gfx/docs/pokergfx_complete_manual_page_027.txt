@@ -1,0 +1,124 @@
+PokerGFX
+ 
+User
+ 
+Manual
+                                                               
+©
+ 
+PokerGFX
+ 
+LLC
+ 
+2011-2025  Switching between different games 
+PokerGFX supports a wide variety of poker variants. By default, the Server always 
+starts
+ 
+in
+ 
+Texas
+ 
+Hold’Em
+ 
+mode.
+ 
+There
+ 
+are
+ 
+two
+ 
+ways
+ 
+to
+ 
+switch
+ 
+between
+ 
+game
+ 
+variants:
+ 
+1.
+ 
+Touch
+ 
+the
+ 
+‘HOLDEM’
+ 
+button
+ 
+in
+ 
+Action
+ 
+Tracker,
+ 
+or
+  
+2.
+ 
+Follow
+ 
+the
+ 
+‘Tag
+ 
+Player’
+ 
+procedure
+ 
+to
+ 
+create
+ 
+special
+ 
+Player
+ 
+ID
+ 
+cards
+ 
+with
+ 
+specific
+ 
+names
+ 
+(see
+ 
+table
+ 
+below).
+  To switch to a game, place one of the ID cards on the muck antenna for a 
+second:
+  
+Player ID Tag Name Game Variant RED = Pro license only
+ 
+ Type Auto Mode 
+HOLDEM Texas Hold’Em FLOP YES 
+OMAHA Omaha FLOP YES 
+OMAHAHL Omaha Hi/Lo FLOP YES 
+6PHOLDEM 6-Plus (Short Deck) Hold’Em (Straight > Trips) FLOP YES 
+6THOLDEM 6-Plus (Short Deck) Hold’Em (Trips > Straight) FLOP YES 
+PINEAPPL Pineapple, Crazy Pineapple FLOP YES 
+OMAHA5 5 Card Omaha FLOP YES 
+OMAHA5HL 5 Card Omaha Hi/Lo 8 Or Better (Big O) FLOP YES 
+OMAHA6 6 Card Omaha FLOP YES 
+OMAHA6HL 6 Card Omaha Hi/Lo 8 Or Better FLOP YES 
+COUR Courchevel FLOP YES 
+COURHL Courchevel Hi/Lo 8 Or Better FLOP YES 
+5DRAW 5 Card Draw DRAW NO 
+Version
+ 
+3.2.0
+ 
+www.pokergfx.io
+ 
+Page
+ 
+27
+  
