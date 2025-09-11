@@ -194,6 +194,8 @@ function handleSheetUpdate(data) {
     
     // 데이터 업데이트
     const updates = [];
+    let finalAnalysis = aiAnalysis;  // finalAnalysis를 try 블록 밖에서 선언
+    const updateTime = new Date();   // updateTime도 try 블록 밖에서 선언
     
     try {
       // D열: 핸드 번호 (선택사항)
@@ -211,7 +213,6 @@ function handleSheetUpdate(data) {
       updates.push('파일명(F열)');
       
       // AI 분석 처리
-      let finalAnalysis = aiAnalysis;
       if (!finalAnalysis || finalAnalysis === '분석 실패' || finalAnalysis.trim() === '') {
         // AI 분석이 없으면 자동 생성
         finalAnalysis = generateDefaultAnalysis({
@@ -226,7 +227,6 @@ function handleSheetUpdate(data) {
       updates.push('AI분석(H열)');
       
       // I열: 업데이트 시간
-      const updateTime = new Date();
       sheet.getRange(targetRow, 9).setValue(updateTime);
       updates.push('업데이트시간(I열)');
       
