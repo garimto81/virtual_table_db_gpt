@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apps Script 연결 테스트</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-left: 4px solid #2196F3;
+            border-radius: 5px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .url-display {
+            background: #e8f5e9;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            word-break: break-all;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Apps Script 연결 테스트</h1>
+        
+        <div class="url-display">
+            <strong>현재 Apps Script URL:</strong><br>
+            <code id="current-url">https://script.google.com/macros/s/AKfycbxz6Vg7Hzb87PBDD2DcKwsRoN_MvzVa2BQpthLn6TTsdku-BSZcDdubXlD0h1KP9wEIEA/exec</code>
+        </div>
+
+        <div class="test-section">
+            <h2>1. GET 요청 테스트</h2>
+            <p>Apps Script가 활성화되어 있는지 확인합니다.</p>
+            <button onclick="testGet()">GET 테스트 실행</button>
+            <div id="get-result" class="result" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>2. POST 요청 테스트</h2>
+            <p>데이터 전송이 정상적으로 작동하는지 확인합니다.</p>
+            <button onclick="testPost()">POST 테스트 실행</button>
+            <div id="post-result" class="result" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>3. 시트 업데이트 테스트</h2>
+            <p>실제 시트 업데이트 기능을 테스트합니다.</p>
+            <button onclick="testSheetUpdate()">시트 업데이트 테스트</button>
+            <div id="sheet-result" class="result" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>4. CORS 헤더 확인</h2>
+            <p>CORS 설정이 올바른지 확인합니다.</p>
+            <button onclick="checkCORS()">CORS 확인</button>
+            <div id="cors-result" class="result" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxz6Vg7Hzb87PBDD2DcKwsRoN_MvzVa2BQpthLn6TTsdku-BSZcDdubXlD0h1KP9wEIEA/exec';
+
+        function showResult(elementId, content, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = `result ${type}`;
+            element.textContent = content;
+        }
+
+        async function testGet() {
+            try {
+                showResult('get-result', '요청 중...', 'info');
+                
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'GET'
+                });
+                
+                const data = await response.json();
+                showResult('get-result', 
+                    `✅ GET 요청 성공!\n\n응답 데이터:\n${JSON.stringify(data, null, 2)}`, 
+                    'success'
+                );
+            } catch (error) {
+                showResult('get-result', 
+                    `❌ GET 요청 실패\n\n오류: ${error.message}\n\n이것은 CORS 오류일 가능성이 높습니다.`, 
+                    'error'
+                );
+            }
+        }
+
+        async function testPost() {
+            try {
+                showResult('post-result', '요청 중...', 'info');
+                
+                const testData = {
+                    action: 'analyzeHand',
+                    handNumber: 'TEST_' + Date.now(),
+                    filename: 'test_file.mp4',
+                    timestamp: new Date().toISOString()
+                };
+
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                const data = await response.json();
+                showResult('post-result', 
+                    `✅ POST 요청 성공!\n\n전송 데이터:\n${JSON.stringify(testData, null, 2)}\n\n응답 데이터:\n${JSON.stringify(data, null, 2)}`, 
+                    'success'
+                );
+            } catch (error) {
+                showResult('post-result', 
+                    `❌ POST 요청 실패\n\n오류: ${error.message}\n\nCORS 정책 또는 배포 설정을 확인하세요.`, 
+                    'error'
+                );
+            }
+        }
+
+        async function testSheetUpdate() {
+            try {
+                showResult('sheet-result', '요청 중...', 'info');
+                
+                const updateData = {
+                    action: 'updateSheet',
+                    sheetUrl: 'https://docs.google.com/spreadsheets/d/1M-LM2KkwLNOTygtrPVdnYLqqBoz4MmZvbglUaptSYqE/edit?gid=561799849',
+                    rowNumber: 2,
+                    handNumber: 'TEST_' + Date.now(),
+                    filename: `test_${Date.now()}.mp4`,
+                    aiAnalysis: '테스트 AI 분석 결과',
+                    timestamp: new Date().toISOString()
+                };
+
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updateData)
+                });
+                
+                const data = await response.json();
+                showResult('sheet-result', 
+                    `✅ 시트 업데이트 요청 성공!\n\n전송 데이터:\n${JSON.stringify(updateData, null, 2)}\n\n응답:\n${JSON.stringify(data, null, 2)}`, 
+                    'success'
+                );
+            } catch (error) {
+                showResult('sheet-result', 
+                    `❌ 시트 업데이트 실패\n\n오류: ${error.message}`, 
+                    'error'
+                );
+            }
+        }
+
+        async function checkCORS() {
+            try {
+                showResult('cors-result', 'CORS 헤더 확인 중...', 'info');
+                
+                // OPTIONS 요청으로 CORS preflight 테스트
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'OPTIONS'
+                });
+                
+                const headers = {};
+                response.headers.forEach((value, key) => {
+                    headers[key] = value;
+                });
+                
+                const corsHeaders = {
+                    'Access-Control-Allow-Origin': headers['access-control-allow-origin'] || '없음',
+                    'Access-Control-Allow-Methods': headers['access-control-allow-methods'] || '없음',
+                    'Access-Control-Allow-Headers': headers['access-control-allow-headers'] || '없음'
+                };
+                
+                if (headers['access-control-allow-origin']) {
+                    showResult('cors-result', 
+                        `✅ CORS 헤더 확인됨!\n\n${JSON.stringify(corsHeaders, null, 2)}`, 
+                        'success'
+                    );
+                } else {
+                    showResult('cors-result', 
+                        `⚠️ CORS 헤더가 설정되지 않았습니다.\n\nApps Script 배포 설정을 확인하세요:\n- 액세스: "모든 사용자"\n- URL이 /exec로 끝나는지 확인\n\n현재 헤더:\n${JSON.stringify(corsHeaders, null, 2)}`, 
+                        'error'
+                    );
+                }
+            } catch (error) {
+                showResult('cors-result', 
+                    `❌ CORS 확인 실패\n\n오류: ${error.message}\n\n이것은 정상입니다. 브라우저가 OPTIONS 요청을 차단했을 수 있습니다.`, 
+                    'error'
+                );
+            }
+        }
+
+        // 페이지 로드 시 자동으로 GET 테스트 실행
+        window.onload = () => {
+            console.log('🔗 Apps Script URL:', SCRIPT_URL);
+            console.log('📝 테스트 준비 완료. 버튼을 클릭하여 테스트를 시작하세요.');
+        };
+    </script>
+</body>
+</html>
