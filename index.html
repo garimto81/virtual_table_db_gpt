@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 9.5.1
+  Version: 9.5.2
   Last Updated: 2025-01-11
-  Description: Apps Script URL 업데이트 및 CORS 문제 해결
+  Description: Apps Script URL 처리 로직 개선 - 실시간 입력 필드 값 사용
 -->
 <html lang="ko">
 <head>
@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>포커 핸드 모니터링 v9.5.1 - AI 분석 시스템</title>
+  <title>포커 핸드 모니터링 v9.5.2 - AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -248,7 +248,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span class="text-xs text-gray-500">v9.5.1</span>
+        <span class="text-xs text-gray-500">v9.5.2</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
@@ -611,7 +611,7 @@
 
   <script>
     // ====================================
-    // 포커 핸드 모니터링 시스템 v9.5.1 - Gemini AI 분석 시스템
+    // 포커 핸드 모니터링 시스템 v9.5.2 - Gemini AI 분석 시스템
     // ====================================
     
     const CONFIG = {
@@ -2428,10 +2428,14 @@
     
     // Apps Script 연결 테스트
     async function testAppsScriptConnection() {
-      const appsScriptUrl = CONFIG.SHEET_UPDATE_SCRIPT_URL;
+      // 실시간으로 입력 필드에서 URL 가져오기 (CONFIG 대신)
+      const appsScriptUrlInput = document.getElementById('apps-script-url');
+      const appsScriptUrl = appsScriptUrlInput ? appsScriptUrlInput.value : CONFIG.SHEET_UPDATE_SCRIPT_URL;
       
       console.log('🔍 Apps Script URL 디버깅:', appsScriptUrl);
-      console.log('🔍 전체 CONFIG:', CONFIG);
+      console.log('🔍 입력 필드 값:', appsScriptUrlInput ? appsScriptUrlInput.value : 'N/A');
+      console.log('🔍 CONFIG 값:', CONFIG.SHEET_UPDATE_SCRIPT_URL);
+      console.log('🔍 사용할 URL:', appsScriptUrl);
       
       if (!appsScriptUrl || appsScriptUrl.trim() === '') {
         alert('⚠️ Apps Script URL이 설정되지 않았습니다.\n\n설정 단계:\n1. 설정 버튼 클릭\n2. "Apps Script 시트 연동" 섹션 찾기\n3. "Apps Script Web App URL" 필드에 URL 입력\n4. 설정 저장 후 다시 테스트');
@@ -2584,7 +2588,9 @@
     
     // 시트에 데이터 업데이트 (F열: 파일명, H열: AI분석)
     async function updateSheetData(matchedRow, handNumber, filename, aiAnalysis) {
-      const appsScriptUrl = CONFIG.SHEET_UPDATE_SCRIPT_URL;
+      // 실시간으로 입력 필드에서 URL 가져오기
+      const appsScriptUrlInput = document.getElementById('apps-script-url');
+      const appsScriptUrl = appsScriptUrlInput ? appsScriptUrlInput.value : CONFIG.SHEET_UPDATE_SCRIPT_URL;
       const writeSheetUrl = CONFIG.WRITE_SHEET_URL;
       
       if (!appsScriptUrl) {
@@ -4132,7 +4138,7 @@
 
     async function init() {
       console.log('='.repeat(60));
-      console.log('🚀 포커 핸드 모니터링 시스템 v9.5.1 - Gemini AI 분석 시스템');
+      console.log('🚀 포커 핸드 모니터링 시스템 v9.5.2 - Gemini AI 분석 시스템');
       
       // 초기화 시 AI 키 로드
       loadAPIKeys();
@@ -4166,9 +4172,31 @@
         console.log(`✏️ 쓰기 시트 URL 로드됨`);
       }
       if (savedScriptUrl) {
-        CONFIG.SHEET_UPDATE_SCRIPT_URL = savedScriptUrl;
-        document.getElementById('apps-script-url').value = savedScriptUrl;
-        console.log(`🔗 Apps Script URL 로드됨`);
+        // 이전 URL이 저장되어 있으면 새 URL로 자동 교체
+        const oldUrl = 'AKfycbyiop6JQBJyRk2pNsPvrCo8Q2HJ2CB-tqwBeb17SYqrmz1C_xZWVi0wzXio2v3mzC76mQ';
+        const newUrl = 'https://script.google.com/macros/s/AKfycbxz6Vg7Hzb87PBDD2DcKwsRoN_MvzVa2BQpthLn6TTsdku-BSZcDdubXlD0h1KP9wEIEA/exec';
+        
+        if (savedScriptUrl.includes(oldUrl)) {
+          console.log('⚠️ 이전 URL 감지! 새 URL로 자동 교체');
+          CONFIG.SHEET_UPDATE_SCRIPT_URL = newUrl;
+          document.getElementById('apps-script-url').value = newUrl;
+          localStorage.setItem('sheet_update_script_url', newUrl);
+          console.log(`✅ Apps Script URL 자동 업데이트 완료`);
+        } else {
+          CONFIG.SHEET_UPDATE_SCRIPT_URL = savedScriptUrl;
+          document.getElementById('apps-script-url').value = savedScriptUrl;
+          console.log(`🔗 Apps Script URL 로드됨`);
+        }
+      } else if (CONFIG.SHEET_UPDATE_SCRIPT_URL) {
+        // 하드코딩된 URL도 체크
+        const oldUrl = 'AKfycbyiop6JQBJyRk2pNsPvrCo8Q2HJ2CB-tqwBeb17SYqrmz1C_xZWVi0wzXio2v3mzC76mQ';
+        if (CONFIG.SHEET_UPDATE_SCRIPT_URL.includes(oldUrl)) {
+          console.log('⚠️ CONFIG에 이전 URL 발견! 새 URL로 교체');
+          const newUrl = 'https://script.google.com/macros/s/AKfycbxz6Vg7Hzb87PBDD2DcKwsRoN_MvzVa2BQpthLn6TTsdku-BSZcDdubXlD0h1KP9wEIEA/exec';
+          CONFIG.SHEET_UPDATE_SCRIPT_URL = newUrl;
+          document.getElementById('apps-script-url').value = newUrl;
+          localStorage.setItem('sheet_update_script_url', newUrl);
+        }
       }
       
       // 최근 핸드 버퍼 상태 확인

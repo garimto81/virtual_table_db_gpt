@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Quick Apps Script Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 600px; 
+            margin: 50px auto; 
+            padding: 20px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <h1>Apps Script 직접 테스트</h1>
+    
+    <div>
+        <h3>이전 URL (작동 안 함)</h3>
+        <button onclick="testOldUrl()">이전 URL 테스트</button>
+        
+        <h3>새 URL (정상)</h3>
+        <button onclick="testNewUrl()">새 URL 테스트</button>
+    </div>
+    
+    <div id="result" class="result" style="display:none;"></div>
+    
+    <script>
+        const OLD_URL = 'https://script.google.com/macros/s/AKfycbyiop6JQBJyRk2pNsPvrCo8Q2HJ2CB-tqwBeb17SYqrmz1C_xZWVi0wzXio2v3mzC76mQ/exec';
+        const NEW_URL = 'https://script.google.com/macros/s/AKfycbxz6Vg7Hzb87PBDD2DcKwsRoN_MvzVa2BQpthLn6TTsdku-BSZcDdubXlD0h1KP9wEIEA/exec';
+        
+        function showResult(message, isSuccess) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result ' + (isSuccess ? 'success' : 'error');
+            resultDiv.textContent = message;
+        }
+        
+        async function testOldUrl() {
+            showResult('이전 URL 테스트 중...', true);
+            try {
+                const response = await fetch(OLD_URL);
+                const data = await response.json();
+                showResult('이전 URL 성공 (이상함): ' + JSON.stringify(data, null, 2), true);
+            } catch (error) {
+                showResult('이전 URL 실패 (예상됨): ' + error.message, false);
+            }
+        }
+        
+        async function testNewUrl() {
+            showResult('새 URL 테스트 중...', true);
+            try {
+                const response = await fetch(NEW_URL);
+                const data = await response.json();
+                showResult('✅ 새 URL 성공!\n\n' + JSON.stringify(data, null, 2), true);
+            } catch (error) {
+                showResult('❌ 새 URL도 실패: ' + error.message, false);
+            }
+        }
+        
+        // 페이지 로드 시 자동으로 새 URL 테스트
+        window.onload = () => {
+            console.log('테스트 준비 완료');
+            console.log('이전 URL:', OLD_URL);
+            console.log('새 URL:', NEW_URL);
+        };
+    </script>
+</body>
+</html>

@@ -135,6 +135,12 @@ D: 파일명      E: AI분석       F: 상태
 
 ## 📈 버전 히스토리
 
+### v9.5.2 (2025-01-11) - Apps Script URL 처리 로직 개선
+- **URL 처리 버그 수정**: 입력 필드에서 실시간으로 URL 가져오기
+- **이전 URL 자동 감지 및 교체**: localStorage에 저장된 이전 URL 자동 업데이트
+- **testAppsScriptConnection 함수 개선**: CONFIG 대신 입력 필드 값 직접 사용
+- **updateSheetData 함수 개선**: 실시간 URL 사용으로 캐시 문제 해결
+
 ### v9.5.1 (2025-01-11) - Apps Script URL 업데이트 및 CORS 해결
 - **Apps Script 새 배포 URL 적용**
 - **CORS 오류 완전 해결**
@@ -422,5 +428,5 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 ---
 
 **마지막 업데이트**: 2025-01-11  
-**문서 버전**: v9.5.1  
+**문서 버전**: v9.5.2  
 **프로젝트 상태**: 🟢 Active Development
