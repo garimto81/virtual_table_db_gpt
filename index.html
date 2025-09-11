@@ -1935,22 +1935,18 @@
           console.log(`   행 ${i+1}: A="${rows[i][0] || ''}", B="${rows[i][1] || ''}", C="${rows[i][2] || ''}", D="${rows[i][3] || ''}"`);
         }
         
-        // Seoul 시간대로 변환 (UTC+9)
-        console.log('⏰ === 시간대 변환 시작 ===');
+        // 타겟 시간 직접 사용 (시간대 변환 제거)
+        console.log('⏰ === 시간 분석 시작 ===');
         const targetDate = new Date(targetTime * 1000);
-        console.log(`📅 원본 시간 (로컬): ${targetDate.toLocaleString()}`);
+        console.log(`📅 타겟 시간: ${targetDate.toLocaleString()}`);
         
-        const seoulOffset = 9 * 60; // Seoul UTC+9 (분 단위)
-        const localOffset = targetDate.getTimezoneOffset(); // 로컬 시간대 offset (분 단위, UTC 기준)
-        console.log(`🌍 Seoul 오프셋: +${seoulOffset/60}시간 (${seoulOffset}분)`);
-        console.log(`🌍 로컬 오프셋: ${localOffset > 0 ? '-' : '+'}${Math.abs(localOffset/60)}시간 (${localOffset}분)`);
+        // 로컬 시간 직접 사용 (시간대 변환하지 않음)
+        // CSV 파일과 핸드 시간이 모두 동일한 시간대라고 가정
+        const targetHours = targetDate.getHours();
+        const targetMinutes = targetDate.getMinutes();
+        const targetSeconds = targetDate.getSeconds();
         
-        const seoulTime = new Date(targetTime * 1000 + (seoulOffset + localOffset) * 60 * 1000);
-        console.log(`🇰🇷 변환된 Seoul 시간: ${seoulTime.toLocaleString()}`);
-        
-        const targetHours = seoulTime.getHours();
-        const targetMinutes = seoulTime.getMinutes();
-        const targetSeconds = seoulTime.getSeconds();
+        console.log(`🎯 매칭할 시간: ${targetHours.toString().padStart(2, '0')}:${targetMinutes.toString().padStart(2, '0')}:${targetSeconds.toString().padStart(2, '0')}`);
         
         // 초 단위까지 정확한 타겟 시간 계산
         const targetTotalSeconds = targetHours * 3600 + targetMinutes * 60 + targetSeconds;
