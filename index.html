@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 9.6.2
-  Last Updated: 2025-01-11
-  Description: 행 번호 검증 강화 및 Apps Script 배포 가이드 추가
+  Version: 9.6.3
+  Last Updated: 2025-09-12
+  Description: Apps Script 통신 방식 통일 (JSON), POST 요청 일관성 개선
 -->
 <html lang="ko">
 <head>
@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>포커 핸드 모니터링 v9.6.2 - AI 분석 시스템</title>
+  <title>포커 핸드 모니터링 v9.6.3 - AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -2619,11 +2619,9 @@
         const response = await fetch(appsScriptUrl, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
+            'Content-Type': 'application/json',
           },
-          body: new URLSearchParams({
-            payload: JSON.stringify(updateData)
-          })
+          body: JSON.stringify(updateData)
         });
         
         console.log(`📊 응답 상태: ${response.status} ${response.statusText}`);
@@ -3278,13 +3276,12 @@
       console.log('📤 사용 중인 Apps Script URL:', scriptUrl);
       
       try {
-        const formData = new FormData();
-        formData.append('payload', JSON.stringify(payload));
-        
-        const response = await fetch(scriptUrl + '?_t=' + Date.now(), {
+        const response = await fetch(scriptUrl, {
           method: 'POST',
-          body: formData,
-          cache: 'no-cache'
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload)
         });
         
         console.log(`📊 응답 상태: ${response.status} ${response.statusText}`);
