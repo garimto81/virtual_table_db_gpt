@@ -48,8 +48,14 @@ virtual_table_db_claude/
 - **Hosting**: GitHub Pages
 
 ## 📊 버전
-- **현재 버전**: v9.7.3
+- **현재 버전**: v9.7.4
 - **최종 업데이트**: 2025-09-15
+
+### v9.7.4 업데이트 내용
+- Apps Script text/plain 파싱 로직 개선
+- CORS 회피용 text/plain Content-Type 지원
+- 요청 타입 및 action 필드 디버그 로그 추가
+- '알 수 없는 액션: unknown' 오류 해결
 
 ### v9.7.3 업데이트 내용
 - 노트 섹션 완전 제거

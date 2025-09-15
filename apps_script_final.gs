@@ -48,11 +48,22 @@ function doPost(e) {
     // 요청 데이터 파싱
     let requestData = {};
     
-    // 1. JSON 형식
+    // 1. JSON 형식 (application/json)
     if (e.postData && e.postData.type === 'application/json') {
       requestData = JSON.parse(e.postData.contents);
     }
-    // 2. Form 형식
+    // 2. Text/Plain 형식 (CORS 회피용)
+    else if (e.postData && e.postData.type === 'text/plain') {
+      try {
+        // text/plain으로 전송된 JSON 데이터 파싱
+        requestData = JSON.parse(e.postData.contents);
+        console.log('✅ text/plain JSON 파싱 성공');
+      } catch (error) {
+        console.error('❌ text/plain 파싱 실패:', error);
+        requestData = { raw: e.postData.contents };
+      }
+    }
+    // 3. Form 형식
     else if (e.parameter) {
       if (e.parameter.payload) {
         try {
@@ -64,7 +75,7 @@ function doPost(e) {
         requestData = e.parameter;
       }
     }
-    // 3. Text 형식
+    // 4. 기타 형식
     else if (e.postData && e.postData.contents) {
       try {
         requestData = JSON.parse(e.postData.contents);
@@ -73,7 +84,9 @@ function doPost(e) {
       }
     }
     
+    console.log('📋 요청 타입:', e.postData ? e.postData.type : 'unknown');
     console.log('📋 파싱된 데이터:', JSON.stringify(requestData));
+    console.log('📋 action 필드:', requestData.action || 'undefined');
     
     // 액션 라우팅
     const action = requestData.action || 'unknown';
