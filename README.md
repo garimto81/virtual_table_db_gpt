@@ -13,12 +13,19 @@
 ## 📁 프로젝트 구조
 ```
 virtual_table_db_claude/
-├── index.html              # 메인 웹 애플리케이션 (v9.6.0)
-├── apps_script_final.gs    # Google Apps Script (최종 버전)
-├── PROJECT_DOCUMENTATION.md # 통합 문서
-├── README.md               # 프로젝트 개요
-├── test_connection.html    # 연결 테스트 도구
-└── quick_test.html        # 빠른 테스트 도구
+├── index.html         # 메인 웹 애플리케이션 (v9.7.6)
+├── apps_script.gs     # Google Apps Script (v3.1)
+├── README.md          # 프로젝트 개요
+├── _config.yml        # GitHub Pages 설정
+├── docs/              # 문서 모음
+│   ├── PROJECT_DOCUMENTATION.md
+│   ├── SHEET_UPDATE_DEBUG.md
+│   └── ...
+├── scripts/           # 스크립트 아카이브
+│   └── archive/
+└── tools/             # 테스트 도구
+    ├── quick_test.html
+    └── test_connection.html
 ```
 
 ## 🛠️ 빠른 시작
@@ -36,6 +43,7 @@ virtual_table_db_claude/
 2. 설정 버튼 클릭
 3. Apps Script URL 입력
 4. 저장 및 테스트
+5. 🔍 디버그 버튼으로 실시간 검증
 
 ## 📖 문서
 자세한 설정, 문제 해결, API 정보는 [PROJECT_DOCUMENTATION.md](PROJECT_DOCUMENTATION.md)를 참조하세요.
@@ -49,6 +57,7 @@ virtual_table_db_claude/
 
 ## 📊 버전
 - **현재 버전**: v9.7.6
+- **Apps Script**: v3.1
 - **최종 업데이트**: 2025-09-15
 
 ### v9.7.6 업데이트 내용
