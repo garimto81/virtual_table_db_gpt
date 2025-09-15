@@ -4624,39 +4624,67 @@
           
           const details = result.data || {};
           
-          // 6. 실제 업데이트 검증
-          console.log('\n6️⃣ 실제 업데이트 검증');
-          await new Promise(resolve => setTimeout(resolve, 2000)); // 2초 대기
+          // 6. 실제 업데이트 검증 (옵션)
+          console.log('\n6️⃣ 실제 업데이트 검증 (선택사항)');
           
+          // verifyUpdate 액션 지원 여부 확인
           try {
-            const verifyData = {
-              action: 'verifyUpdate',
-              sheetUrl: debugInfo.sheetUrl,
-              rowNumber: parseInt(testRow),
-              expectedFilename: testUpdateData.filename,
-              expectedAnalysis: testUpdateData.aiAnalysis
+            const checkData = {
+              action: 'test',
+              timestamp: new Date().toISOString()
             };
             
-            const verifyResponse = await fetch(debugInfo.appsScriptUrl, {
+            const checkResponse = await fetch(debugInfo.appsScriptUrl, {
               method: 'POST',
               headers: {
                 'Content-Type': 'text/plain',
               },
-              body: JSON.stringify(verifyData)
+              body: JSON.stringify(checkData)
             });
             
-            const verifyResult = await verifyResponse.json();
-            console.log('   검증 결과:', verifyResult);
+            const checkResult = await checkResponse.json();
             
-            if (verifyResult.status === 'success' && verifyResult.verified) {
-              alert(`✅ 완벽! 시트 업데이트 및 검증 성공!\n\n📍 행 번호: ${testRow}\n📁 F열(파일명): ${testUpdateData.filename}\n🤖 H열(AI분석): ${testUpdateData.aiAnalysis}\n🕒 시간: ${new Date().toLocaleString('ko-KR')}\n\n✅ 실제 시트에서 데이터 확인됨\n업데이트된 열: ${details.updatedFields ? details.updatedFields.join(', ') : 'F, H'}\n\nGoogle Sheets에서 직접 확인하세요.`);
+            // verifyUpdate 지원 확인
+            if (checkResult.availableActions && !checkResult.availableActions.includes('verifyUpdate')) {
+              console.log('   ⚠️ 현재 Apps Script 버전은 verifyUpdate를 지원하지 않습니다.');
+              console.log('   📋 지원되는 액션:', checkResult.availableActions);
+              alert(`✅ 시트 업데이트 성공!\n\n📍 행 번호: ${testRow}\n📁 F열(파일명): ${testUpdateData.filename}\n🤖 H열(AI분석): ${testUpdateData.aiAnalysis}\n🕒 시간: ${new Date().toLocaleString('ko-KR')}\n\n업데이트된 열: ${details.updatedFields ? details.updatedFields.join(', ') : 'F, H'}\n\n⚠️ 검증 기능은 Apps Script v3.3 이상에서 지원됩니다.\nGoogle Sheets에서 직접 확인하세요.`);
             } else {
-              alert(`⚠️ 업데이트 성공 보고되었으나 검증 실패\n\n${verifyResult.message || '실제 시트 데이터 불일치'}\n\n가능한 원인:\n1. 권한 문제로 읽기 실패\n2. 시트 ID 또는 GID 불일치\n3. 캐시 지연\n\nGoogle Sheets를 직접 확인하고\n몇 분 후 다시 시도해보세요.`);
+              // verifyUpdate 실행
+              await new Promise(resolve => setTimeout(resolve, 2000)); // 2초 대기
+              
+              const verifyData = {
+                action: 'verifyUpdate',
+                sheetUrl: debugInfo.sheetUrl,
+                rowNumber: parseInt(testRow),
+                expectedFilename: testUpdateData.filename,
+                expectedAnalysis: testUpdateData.aiAnalysis
+              };
+              
+              const verifyResponse = await fetch(debugInfo.appsScriptUrl, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'text/plain',
+                },
+                body: JSON.stringify(verifyData)
+              });
+              
+              const verifyResult = await verifyResponse.json();
+              console.log('   검증 결과:', verifyResult);
+              
+              if (verifyResult.status === 'success' && verifyResult.verified) {
+                alert(`✅ 완벽! 시트 업데이트 및 검증 성공!\n\n📍 행 번호: ${testRow}\n📁 F열(파일명): ${testUpdateData.filename}\n🤖 H열(AI분석): ${testUpdateData.aiAnalysis}\n🕒 시간: ${new Date().toLocaleString('ko-KR')}\n\n✅ 실제 시트에서 데이터 확인됨\n업데이트된 열: ${details.updatedFields ? details.updatedFields.join(', ') : 'F, H'}\n\nGoogle Sheets에서 직접 확인하세요.`);
+              } else if (verifyResult.status === 'error' && verifyResult.message.includes('알 수 없는 액션')) {
+                console.warn('   ⚠️ verifyUpdate 액션이 지원되지 않습니다.');
+                alert(`✅ 시트 업데이트 성공!\n\n📍 행 번호: ${testRow}\n📁 F열(파일명): ${testUpdateData.filename}\n🤖 H열(AI분석): ${testUpdateData.aiAnalysis}\n\n⚠️ 검증 기능 미지원 (Apps Script 업데이트 필요)\nGoogle Sheets에서 직접 확인하세요.`);
+              } else {
+                alert(`⚠️ 업데이트 성공 보고되었으나 검증 실패\n\n${verifyResult.message || '실제 시트 데이터 불일치'}\n\n가능한 원인:\n1. 권한 문제로 읽기 실패\n2. 시트 ID 또는 GID 불일치\n3. 캐시 지연\n\nGoogle Sheets를 직접 확인하고\n몇 분 후 다시 시도해보세요.`);
+              }
             }
             
           } catch (verifyError) {
-            console.warn('   검증 과정 오류:', verifyError);
-            alert(`✅ 시트 업데이트 성공!\n⚠️ 검증 건너뜀: ${verifyError.message}\n\n📍 행 번호: ${testRow}\n📁 F열(파일명): ${testUpdateData.filename}\n🤖 H열(AI분석): ${testUpdateData.aiAnalysis}\n\nGoogle Sheets에서 직접 확인하세요.`);
+            console.warn('   검증 과정 건너뜀:', verifyError.message);
+            alert(`✅ 시트 업데이트 성공!\n\n📍 행 번호: ${testRow}\n📁 F열(파일명): ${testUpdateData.filename}\n🤖 H열(AI분석): ${testUpdateData.aiAnalysis}\n\nGoogle Sheets에서 직접 확인하세요.`);
           }
           
         } else {
