@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 9.6.7
+  Version: 9.6.8
   Last Updated: 2025-09-15
-  Description: 강력한 캐시 방지 및 버전 강제 업데이트 기능 추가
+  Description: 버전 표시 통일 및 동적 업데이트
 -->
 <html lang="ko">
 <head>
@@ -12,8 +12,8 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>포커 핸드 모니터링 v9.6.7 - AI 분석 시스템</title>
-  <script src="https://cdn.tailwindcss.com?v=9.6.6"></script>
+  <title id="page-title">포커 핸드 모니터링 v9.6.8 - AI 분석 시스템</title>
+  <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
     
@@ -248,7 +248,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span class="text-xs text-gray-500">v9.6.2</span>
+        <span id="version-display" class="text-xs text-gray-500">v9.6.8</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
@@ -599,9 +599,9 @@
     // 포커 핸드 모니터링 시스템 - Gemini AI 분석 시스템
     // ====================================
     
-    // 버전 정보
-    const APP_VERSION = '9.6.7';
-    const BUILD_TIME = '2025-09-15T12:00:00Z';
+    // 버전 정보 (한 곳에서만 관리)
+    const APP_VERSION = '9.6.8';
+    const BUILD_TIME = '2025-09-15T12:30:00Z';
     
     // 버전 체크 및 강제 업데이트
     function checkVersion() {
@@ -610,7 +610,7 @@
         console.log(`🔄 버전 업데이트 감지: ${storedVersion || '없음'} → ${APP_VERSION}`);
         
         // 버전별 마이그레이션
-        if (!storedVersion || storedVersion < '9.6.7') {
+        if (!storedVersion || storedVersion < APP_VERSION) {
           console.log('🧹 캐시 초기화 중...');
           // 중요한 설정은 보존
           const keepSettings = {
@@ -4287,6 +4287,18 @@
       
       console.log('='.repeat(60));
       console.log(`🚀 포커 핸드 모니터링 시스템 v${APP_VERSION} - Gemini AI 분석 시스템`);
+      
+      // 버전 표시 업데이트
+      const versionDisplay = document.getElementById('version-display');
+      if (versionDisplay) {
+        versionDisplay.textContent = `v${APP_VERSION}`;
+      }
+      
+      // 페이지 타이틀 업데이트
+      const pageTitle = document.getElementById('page-title');
+      if (pageTitle) {
+        pageTitle.textContent = `포커 핸드 모니터링 v${APP_VERSION} - AI 분석 시스템`;
+      }
       
       // 초기화 시 AI 키 로드
       loadAPIKeys();
