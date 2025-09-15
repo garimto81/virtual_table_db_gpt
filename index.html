@@ -339,22 +339,14 @@
       </div>
     </div>
 
-    <!-- 오른쪽: 요약 정보 -->
+    <!-- 오른쪽: 노트 섹션 -->
     <div class="section">
-      <!-- 핸드 결과 -->
-      <div class="mb-3">
-        <div class="section-header">결과</div>
-        <div id="hand-result" class="bg-gray-800 rounded p-3">
-          <div class="text-xs text-gray-400">대기 중...</div>
-        </div>
-      </div>
-
       <!-- 편집 노트 -->
       <div class="flex-1">
         <div class="section-header">노트</div>
         <textarea id="hand-notes" 
           class="w-full flex-1 bg-gray-800 rounded p-2 text-xs resize-none" 
-          style="min-height: 100px;"
+          style="min-height: calc(100vh - 200px);"
           placeholder="핸드 분석 노트..."></textarea>
         <button id="save-notes" class="mt-2 w-full px-3 py-1 bg-blue-600 text-white rounded text-xs">
           노트 저장
@@ -600,8 +592,8 @@
     // ====================================
     
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '9.7.1';
-    const BUILD_TIME = '2025-09-15T14:00:00Z';
+    const APP_VERSION = '9.7.2';
+    const BUILD_TIME = '2025-09-15T16:00:00Z';
     
     // 버전 체크 및 강제 업데이트
     function checkVersion() {
