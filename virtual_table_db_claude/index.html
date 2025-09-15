@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 9.6.2
-  Last Updated: 2025-01-11
-  Description: 행 번호 검증 강화 및 Apps Script 배포 가이드 추가
+  Version: 9.7.0
+  Last Updated: 2025-09-15
+  Description: Index 행 번호 불일치 자동 보정
 -->
 <html lang="ko">
 <head>
@@ -12,8 +12,8 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>포커 핸드 모니터링 v9.6.2 - AI 분석 시스템</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <title id="page-title">포커 핸드 모니터링 v9.6.8 - AI 분석 시스템</title>
+  <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
     
@@ -149,17 +149,17 @@
     /* 컴팩트 그리드 레이아웃 */
     .compact-grid {
       display: grid;
-      grid-template-columns: 280px 1fr 320px;
+      grid-template-columns: 320px 1fr;
       gap: 12px;
       padding: 12px;
       height: 100vh;
-      max-width: 1920px;
+      max-width: 1600px;
       margin: 0 auto;
     }
     
     @media (max-width: 1440px) {
       .compact-grid {
-        grid-template-columns: 260px 1fr 300px;
+        grid-template-columns: 300px 1fr;
       }
     }
     
@@ -248,7 +248,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span class="text-xs text-gray-500">v9.6.2</span>
+        <span id="version-display" class="text-xs text-gray-500">v9.6.8</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
@@ -339,43 +339,6 @@
       </div>
     </div>
 
-    <!-- 오른쪽: 요약 정보 -->
-    <div class="section">
-      <!-- 통계 -->
-      <div class="mb-3">
-        <div class="section-header">통계</div>
-        <div class="grid grid-cols-2 gap-2">
-          <div class="bg-gray-800 rounded p-2">
-            <div class="text-xs text-gray-400">총 핸드</div>
-            <div class="text-lg font-bold" id="total-hands">0</div>
-          </div>
-          <div class="bg-gray-800 rounded p-2">
-            <div class="text-xs text-gray-400">완료</div>
-            <div class="text-lg font-bold text-green-400" id="completed-hands">0</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 핸드 결과 -->
-      <div class="mb-3">
-        <div class="section-header">결과</div>
-        <div id="hand-result" class="bg-gray-800 rounded p-3">
-          <div class="text-xs text-gray-400">대기 중...</div>
-        </div>
-      </div>
-
-      <!-- 편집 노트 -->
-      <div class="flex-1">
-        <div class="section-header">노트</div>
-        <textarea id="hand-notes" 
-          class="w-full flex-1 bg-gray-800 rounded p-2 text-xs resize-none" 
-          style="min-height: 100px;"
-          placeholder="핸드 분석 노트..."></textarea>
-        <button id="save-notes" class="mt-2 w-full px-3 py-1 bg-blue-600 text-white rounded text-xs">
-          노트 저장
-        </button>
-      </div>
-    </div>
   </div>
 
   <!-- 완료 파일명 입력 모달 -->
@@ -611,8 +574,55 @@
 
   <script>
     // ====================================
-    // 포커 핸드 모니터링 시스템 v9.6.2 - Gemini AI 분석 시스템
+    // 포커 핸드 모니터링 시스템 - Gemini AI 분석 시스템
     // ====================================
+    
+    // 버전 정보 (한 곳에서만 관리)
+    const APP_VERSION = '9.7.5';
+    const BUILD_TIME = '2025-09-15T19:00:00Z';
+    
+    // 버전 체크 및 강제 업데이트
+    function checkVersion() {
+      const storedVersion = localStorage.getItem('app_version');
+      if (storedVersion !== APP_VERSION) {
+        console.log(`🔄 버전 업데이트 감지: ${storedVersion || '없음'} → ${APP_VERSION}`);
+        
+        // 버전별 마이그레이션
+        if (!storedVersion || storedVersion < APP_VERSION) {
+          console.log('🧹 캐시 초기화 중...');
+          // 중요한 설정은 보존
+          const keepSettings = {
+            'gemini_api_key': localStorage.getItem('gemini_api_key'),
+            'read_sheet_url': localStorage.getItem('read_sheet_url'),
+            'write_sheet_url': localStorage.getItem('write_sheet_url'),
+            'sheet_update_script_url': localStorage.getItem('sheet_update_script_url')
+          };
+          
+          // 캐시 클리어
+          localStorage.clear();
+          sessionStorage.clear();
+          
+          // 중요 설정 복원
+          Object.keys(keepSettings).forEach(key => {
+            if (keepSettings[key]) {
+              localStorage.setItem(key, keepSettings[key]);
+            }
+          });
+        }
+        
+        // 새 버전 저장
+        localStorage.setItem('app_version', APP_VERSION);
+        localStorage.setItem('build_time', BUILD_TIME);
+        
+        // 강제 리로드
+        if (storedVersion) {
+          console.log('🚀 새 버전으로 강제 업데이트 완료!');
+          setTimeout(() => location.reload(true), 1000);
+          return true;
+        }
+      }
+      return false;
+    }
     
     const CONFIG = {
       // Google Sheets CSV URLs
@@ -633,7 +643,7 @@
       // Apps Script 시트 업데이트 설정
       READ_SHEET_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=0&single=true&output=csv', // B열 기준 시간 매칭용 기본 Virtual 시트 CSV URL
       WRITE_SHEET_URL: 'https://docs.google.com/spreadsheets/d/1M-LM2KkwLNOTygtrPVdnYLqqBoz4MmZvbglUaptSYqE/edit?gid=561799849#gid=561799849', // F열(파일명), H열(AI분석) 업데이트용 시트 URL
-      SHEET_UPDATE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxz6Vg7Hzb87PBDD2DcKwsRoN_MvzVa2BQpthLn6TTsdku-BSZcDdubXlD0h1KP9wEIEA/exec' // 시트 업데이트 전용 Apps Script URL
+      SHEET_UPDATE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycby9hGqvMPogyFfOjTRM3SSSEnD6MRjC_ql37qpZOf-O95s02qEPyme8xTakKUnZ1l_zeA/exec' // 시트 업데이트 전용 Apps Script URL
     };
     
     // 전역 상태
@@ -741,11 +751,14 @@
         if (stored) {
           const data = JSON.parse(stored);
           // 객체 형태로 저장 (handNumber: timestamp)
-          return data.hands || {};
+          const hands = data.hands || {};
+          console.log(`📚 알림 기록 로드: ${Object.keys(hands).length}개 핸드`);
+          return hands;
         }
       } catch (e) {
         console.error('알림 기록 불러오기 실패:', e);
       }
+      console.log('📚 알림 기록 없음 - 새로 시작');
       return {};
     }
     
@@ -967,9 +980,11 @@
     
     function getSuitSymbol(suit) {
       const symbols = {
-        's': '♠', 'h': '♥', 'd': '♦', 'c': '♣'
+        's': '♠', 'h': '♥', 'd': '♦', 'c': '♣',
+        'S': '♠', 'H': '♥', 'D': '♦', 'C': '♣',
+        '1': '♠', '2': '♥', '3': '♦', '4': '♣'  // 숫자 형식도 지원
       };
-      return symbols[suit.toLowerCase()] || '';
+      return symbols[suit] || symbols[suit.toLowerCase()] || '';
     }
     
     function getSuitClass(suit) {
@@ -985,8 +1000,22 @@
         return `<div class="${type === 'board' ? 'board-card' : 'card-mini'}" style="background-color: #FFFFFF !important; color: #6b7280; border-style: dashed; color-scheme: light;">?</div>`;
       }
       
-      const rank = card.slice(0, -1);
-      const suit = card.slice(-1);
+      // 10과 T 모두 처리 가능한 파싱
+      let rank, suit;
+      if (card.startsWith('10')) {
+        rank = 'T';  // 10을 T로 표시
+        suit = card.substring(2);
+      } else if (card[0] === 'T' || card[0] === 't') {
+        rank = 'T';  // T는 그대로 T로 표시
+        suit = card.slice(-1);
+      } else {
+        rank = card.slice(0, -1);
+        suit = card.slice(-1);
+      }
+      
+      // 랭크 대문자 변환
+      rank = rank.toUpperCase();
+      
       const suitClass = getSuitClass(suit);
       const suitSymbol = getSuitSymbol(suit);
       
@@ -1177,11 +1206,14 @@
         if (!isInitialLoad && !suppressNotification) {
           const handsToNotify = [];
           
+          // 기존 알림 기록 확인
+          const existingNotified = getNotifiedHands();
+          
           for (const hand of newHandsFromCSV) {
             const handNumber = hand.handNumber;
             
-            // RecentHandsBuffer에 추가 - 새 핸드이면 true 반환
-            if (recentHandsBuffer.addHand(handNumber)) {
+            // 이미 알림된 핸드가 아니고, 버퍼에 새로 추가되는 경우만
+            if (!existingNotified[handNumber] && recentHandsBuffer.addHand(handNumber)) {
               handsToNotify.push(handNumber);
             }
           }
@@ -1231,7 +1263,56 @@
         const hand = allHands.find(h => h.handNumber === handNumber);
         if (!hand) return null;
         
-        const handRows = rows.slice(hand.startRow - 1, hand.endRow);
+        // 🔍 디버그: 행 번호 매핑 확인
+        console.log(`📌 핸드 ${handNumber} 로딩 중...`);
+        console.log(`   Index 정보: startRow=${hand.startRow}, endRow=${hand.endRow}`);
+        
+        // 실제 핸드 위치 찾기
+        let actualStartRow = -1;
+        rows.forEach((row, index) => {
+          if (row[1] === 'HAND' && row[2] === handNumber) {
+            actualStartRow = index + 1;
+            console.log(`   ✅ 실제 위치: 행 ${actualStartRow}`);
+          }
+        });
+        
+        if (actualStartRow !== hand.startRow) {
+          console.warn(`   ⚠️ 행 번호 불일치! Index: ${hand.startRow}, 실제: ${actualStartRow}`);
+        }
+        
+        // 실제 위치 기반으로 슬라이싱 (Index가 틀렸을 경우 대비)
+        let handRows;
+        if (actualStartRow > 0 && actualStartRow !== hand.startRow) {
+          console.warn('   📍 실제 위치 기반으로 재슬라이싱...');
+          // 실제 핸드 위치에서 시작하여 다음 핸드까지 찾기
+          let actualEndRow = actualStartRow;
+          for (let i = actualStartRow; i < rows.length; i++) {
+            if (i > actualStartRow && rows[i][1] === 'HAND') {
+              actualEndRow = i;
+              break;
+            }
+            if (i === rows.length - 1) {
+              actualEndRow = i + 1;
+            }
+          }
+          handRows = rows.slice(actualStartRow - 1, actualEndRow);
+          console.log(`   새 슬라이싱 범위: [${actualStartRow - 1}:${actualEndRow}]`);
+        } else {
+          handRows = rows.slice(hand.startRow - 1, hand.endRow);
+          console.log(`   슬라이싱 범위: [${hand.startRow - 1}:${hand.endRow}]`);
+        }
+        
+        console.log('   첫 3행:', handRows.slice(0, 3));
+        
+        // 보드 카드 미리보기
+        const boardPreview = [];
+        handRows.forEach(row => {
+          if (row[1] === 'EVENT' && (row[2] === 'BOARD' || row[2].includes('OARD'))) {
+            boardPreview.push(row[4]);
+          }
+        });
+        console.log('   🎴 보드 카드:', boardPreview);
+        
         return parseHandDetails(handRows);
         
       } catch (error) {
@@ -1290,7 +1371,37 @@
             const playerName = row[2];
             const seat = parseInt(row[3]) || 0;
             const chips = parseInt(row[5]) || parseInt(row[6]) || 0;
-            const cards = row[7] ? row[7].split(' ') : null;
+            // 카드 파싱 개선 - 공백이 없는 경우도 처리
+            let cards = null;
+            if (row[7]) {
+              // 공백이 있으면 공백으로 분리
+              if (row[7].includes(' ')) {
+                cards = row[7].split(' ');
+              } 
+              // 공백이 없고 길이가 4 이상이면 2개씩 분리 (ex: Qs2h)
+              else if (row[7].length >= 4) {
+                const cardStr = row[7];
+                const cards_temp = [];
+                let i = 0;
+                while (i < cardStr.length) {
+                  // 10 처리
+                  if (cardStr.substring(i, i+2) === '10') {
+                    cards_temp.push(cardStr.substring(i, i+3));
+                    i += 3;
+                  } 
+                  // T 또는 일반 카드
+                  else if (i + 1 < cardStr.length) {
+                    cards_temp.push(cardStr.substring(i, i+2));
+                    i += 2;
+                  } else {
+                    i++;
+                  }
+                }
+                cards = cards_temp;
+              } else {
+                cards = [row[7]];
+              }
+            }
             
             hand.players.push({
               seat: seat,
@@ -1305,32 +1416,47 @@
           case 'EVENT':
             const eventType = row[2];
             
-            if (eventType === 'BOARD') {
+            // BOARD 오타 처리 (BO\ARD 등)
+            if (eventType === 'BOARD' || eventType.includes('OARD')) {
               const boardNum = parseInt(row[3]) || 0;
               const card = row[4];
               
-              if (boardNum === 1) {
-                currentStreet = 'flop';
-                streetBetAmount['flop'] = 0; // 플롭 시작시 베팅 금액 초기화
-                // 첫 번째 플롭 카드 추가 (배열 초기화하지 않음)
+              // 보드 카드 추가
+              if (card) {
                 hand.communityCards.push(card);
-              } else if (boardNum === 2 || boardNum === 3) {
-                // 두 번째, 세 번째 플롭 카드 추가
-                hand.communityCards.push(card);
-              } else if (boardNum === 4) {
-                currentStreet = 'turn';
-                streetBetAmount['turn'] = 0; // 턴 시작시 베팅 금액 초기화
-                hand.communityCards.push(card);
-              } else if (boardNum === 5) {
-                currentStreet = 'river';
-                streetBetAmount['river'] = 0; // 리버 시작시 베팅 금액 초기화
-                hand.communityCards.push(card);
+                
+                // 스트리트 판단 (카드 개수 기반)
+                const cardCount = hand.communityCards.length;
+                if (cardCount === 1) {
+                  currentStreet = 'flop';
+                  streetBetAmount['flop'] = 0;
+                } else if (cardCount === 4) {
+                  currentStreet = 'turn';
+                  streetBetAmount['turn'] = 0;
+                } else if (cardCount === 5) {
+                  currentStreet = 'river';
+                  streetBetAmount['river'] = 0;
+                }
+                
+                if (DEBUG_MODE) {
+                  console.log(`🎴 BOARD: ${card} (카드 ${cardCount}개, ${currentStreet})`);
+                }
+              }
+            } else if (eventType === 'POT CORRECTION') {
+              // POT CORRECTION 특수 처리
+              const amount = parseInt(row[4]) || 0;
+              if (amount > 0) {
+                hand.pot += amount;
+                if (DEBUG_MODE) {
+                  console.log(`💰 POT CORRECTION: +${amount} (총 팟: ${hand.pot})`);
+                }
               }
             } else {
-              const playerNum = row[3];
+              const playerNum = parseInt(row[3]) || 0;
               const amount = parseInt(row[4]) || 0;
               
-              const playerObj = hand.players.find(p => p.seat === parseInt(playerNum));
+              // 플레이어 찾기 - seat 번호로 매칭
+              const playerObj = hand.players.find(p => p.seat === playerNum);
               const playerName = playerObj ? playerObj.name : `Player ${playerNum}`;
               
               // CHECK와 CALL을 스마트하게 구분
@@ -1552,8 +1678,7 @@
     }
     
     function updateStats() {
-      document.getElementById('total-hands').textContent = allHands.length;
-      document.getElementById('completed-hands').textContent = allHands.filter(h => h.handEdit).length;
+      // 통계 섹션 제거됨
     }
     
     async function selectHand(handNumber) {
@@ -2454,18 +2579,21 @@
       testBtn.textContent = '🔄 연결 테스트 중...';
       
       try {
-        // Apps Script는 CORS 문제를 피하기 위해 단순 GET 요청
-        console.log('📡 GET 요청 전송 중...');
+        // Apps Script 연결 테스트 (POST 사용 - CORS 회피)
+        console.log('📡 POST 요청 전송 중...');
+        
+        const testData = {
+          action: 'test',
+          timestamp: new Date().toISOString(),
+          source: 'connection_test'
+        };
         
         const response = await fetch(appsScriptUrl, {
-          method: 'GET',
-          mode: 'cors',
-          cache: 'no-cache',
+          method: 'POST',
           headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
+            'Content-Type': 'text/plain',  // CORS 회피용
           },
-          redirect: 'follow'
+          body: JSON.stringify(testData)
         });
         
         console.log('📡 응답 상태:', response.status);
@@ -2479,7 +2607,7 @@
             const data = JSON.parse(responseText);
             console.log('✅ Apps Script 연결 성공:', data);
             
-            alert(`✅ Apps Script 연결 성공!\n\n🔗 서비스: ${data.service || 'Virtual Table Sheet Updater'}\n📊 상태: ${data.status}\n📈 버전: ${data.version || 'v1.1'}\n⏰ 시간: ${new Date(data.time).toLocaleString()}\n🛠️ 메소드: ${data.method}`);
+            alert(`✅ Apps Script 연결 성공!\n\n🔗 서비스: ${data.service || 'Virtual Table Sheet Updater'}\n📊 상태: ${data.status}\n📈 버전: ${data.version || 'v1.1'}\n⏰ 시간: ${data.timestamp ? new Date(data.timestamp).toLocaleString() : new Date().toLocaleString()}\n📠 메시지: ${data.message || '서비스 정상 작동'}`);
             return true;
             
           } catch (jsonError) {
@@ -2619,11 +2747,9 @@
         const response = await fetch(appsScriptUrl, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
+            'Content-Type': 'text/plain',
           },
-          body: new URLSearchParams({
-            payload: JSON.stringify(updateData)
-          })
+          body: JSON.stringify(updateData)
         });
         
         console.log(`📊 응답 상태: ${response.status} ${response.statusText}`);
@@ -2725,8 +2851,18 @@
         if (!cards || cards.length === 0) return '??';
         return cards.map(card => {
           if (!card || card === '?') return '?';
-          const rank = card.slice(0, -1);
-          const suit = card.slice(-1);
+          // 10과 T 모두 처리 가능한 파싱
+          let rank, suit;
+          if (card.startsWith('10')) {
+            rank = 'T';  // 10을 T로 표시
+            suit = card.substring(2);
+          } else if (card[0] === 'T' || card[0] === 't') {
+            rank = 'T';  // T는 그대로 T로 표시
+            suit = card.slice(-1);
+          } else {
+            rank = card.slice(0, -1).toUpperCase();
+            suit = card.slice(-1);
+          }
           const suitSymbol = getSuitSymbol(suit);
           return rank + suitSymbol;
         }).join('');
@@ -2734,8 +2870,18 @@
       
       const board = handData.communityCards ? handData.communityCards.map(card => {
         if (!card || card === '?') return '?';
-        const rank = card.slice(0, -1);
-        const suit = card.slice(-1);
+        // 10과 T 모두 처리 가능한 파싱
+        let rank, suit;
+        if (card.startsWith('10')) {
+          rank = 'T';  // 10을 T로 표시
+          suit = card.substring(2);
+        } else if (card[0] === 'T' || card[0] === 't') {
+          rank = 'T';  // T는 그대로 T로 표시
+          suit = card.slice(-1);
+        } else {
+          rank = card.slice(0, -1).toUpperCase();
+          suit = card.slice(-1);
+        }
         const suitSymbol = getSuitSymbol(suit);
         return rank + suitSymbol;
       }).join(' ') : '보드 없음';
@@ -3083,10 +3229,22 @@
       
       // 카드를 파싱
       const parsedCards = allCards.map(card => {
-        const rank = card.slice(0, -1);
-        const suit = card.slice(-1);
+        let rank, suit;
+        // 10과 T 모두 처리
+        if (card.startsWith('10')) {
+          rank = 'T';
+          suit = card.substring(2);
+        } else if (card[0] === 'T' || card[0] === 't') {
+          rank = 'T';
+          suit = card.slice(-1);
+        } else {
+          rank = card.slice(0, -1).toUpperCase();
+          suit = card.slice(-1);
+        }
+        
         let numRank = parseInt(rank);
-        if (rank === 'J') numRank = 11;
+        if (rank === 'T') numRank = 10;
+        else if (rank === 'J') numRank = 11;
         else if (rank === 'Q') numRank = 12;
         else if (rank === 'K') numRank = 13;
         else if (rank === 'A') numRank = 14;
@@ -3131,10 +3289,22 @@
       
       // 카드를 랭크와 수트로 파싱
       const parsedCards = allCards.map(card => {
-        const rank = card.slice(0, -1);
-        const suit = card.slice(-1);
+        let rank, suit;
+        // 10과 T 모두 처리
+        if (card.startsWith('10')) {
+          rank = 'T';
+          suit = card.substring(2);
+        } else if (card[0] === 'T' || card[0] === 't') {
+          rank = 'T';
+          suit = card.slice(-1);
+        } else {
+          rank = card.slice(0, -1).toUpperCase();
+          suit = card.slice(-1);
+        }
+        
         let numRank = parseInt(rank);
-        if (rank === 'J') numRank = 11;
+        if (rank === 'T') numRank = 10;
+        else if (rank === 'J') numRank = 11;
         else if (rank === 'Q') numRank = 12;
         else if (rank === 'K') numRank = 13;
         else if (rank === 'A') numRank = 14;
@@ -3278,13 +3448,12 @@
       console.log('📤 사용 중인 Apps Script URL:', scriptUrl);
       
       try {
-        const formData = new FormData();
-        formData.append('payload', JSON.stringify(payload));
-        
-        const response = await fetch(scriptUrl + '?_t=' + Date.now(), {
+        const response = await fetch(scriptUrl, {
           method: 'POST',
-          body: formData,
-          cache: 'no-cache'
+          headers: {
+            'Content-Type': 'text/plain',
+          },
+          body: JSON.stringify(payload)
         });
         
         console.log(`📊 응답 상태: ${response.status} ${response.statusText}`);
@@ -4147,8 +4316,25 @@
     }
 
     async function init() {
+      // 버전 체크 먼저 실행
+      if (checkVersion()) {
+        return; // 리로드 중이면 중단
+      }
+      
       console.log('='.repeat(60));
-      console.log('🚀 포커 핸드 모니터링 시스템 v9.6.2 - Gemini AI 분석 시스템');
+      console.log(`🚀 포커 핸드 모니터링 시스템 v${APP_VERSION} - Gemini AI 분석 시스템`);
+      
+      // 버전 표시 업데이트
+      const versionDisplay = document.getElementById('version-display');
+      if (versionDisplay) {
+        versionDisplay.textContent = `v${APP_VERSION}`;
+      }
+      
+      // 페이지 타이틀 업데이트
+      const pageTitle = document.getElementById('page-title');
+      if (pageTitle) {
+        pageTitle.textContent = `포커 핸드 모니터링 v${APP_VERSION} - AI 분석 시스템`;
+      }
       
       // 초기화 시 AI 키 로드
       loadAPIKeys();
@@ -4222,6 +4408,8 @@
       }
       
       console.log('📄 초기 데이터 로딩 시작...');
+      // 초기 로딩 플래그를 true로 설정하여 알림 방지
+      isInitialLoad = true;
       await loadIndexData();
       
       if (allHands.length > 0) {

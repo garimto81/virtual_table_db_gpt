@@ -1,4 +1,4 @@
-// Virtual Table DB - Google Apps Script v3 (작동 확인)
+// Virtual Table DB - Google Apps Script v3.1 (text/plain 파싱 개선)
 // ContentService 문법 수정 버전
 
 // ========================================
@@ -29,9 +29,9 @@ function doGet(e) {
     status: 'ok',
     method: 'GET',
     time: new Date().toISOString(),
-    version: 'v3.0',
+    version: 'v3.1',
     service: 'Virtual Table Sheet Updater',
-    features: ['Sheet Update', 'Gemini AI Analysis', 'Auto Analysis', 'Index Sheet Support'],
+    features: ['Sheet Update', 'Gemini AI Analysis', 'Auto Analysis', 'Index Sheet Support', 'text/plain Support'],
     gemini_enabled: !!GEMINI_API_KEY,
     message: '서비스가 정상 작동 중입니다',
     cors: 'enabled'
@@ -40,7 +40,7 @@ function doGet(e) {
   return createCorsResponse(response);
 }
 
-// POST 요청 처리
+// POST 요청 처리 (text/plain 파싱 개선)
 function doPost(e) {
   console.log('📥 POST 요청 수신');
   
@@ -51,8 +51,9 @@ function doPost(e) {
     // 1. JSON 형식 (application/json)
     if (e.postData && e.postData.type === 'application/json') {
       requestData = JSON.parse(e.postData.contents);
+      console.log('✅ application/json 파싱 성공');
     }
-    // 2. Text/Plain 형식 (CORS 회피용)
+    // 2. Text/Plain 형식 (CORS 회피용) - 개선된 파싱
     else if (e.postData && e.postData.type === 'text/plain') {
       try {
         // text/plain으로 전송된 JSON 데이터 파싱
@@ -115,7 +116,7 @@ function doPost(e) {
           status: 'success',
           message: 'Apps Script 연결 성공!',
           timestamp: new Date().toISOString(),
-          version: 'v3.0',
+          version: 'v3.1',
           receivedData: requestData
         };
         break;
@@ -605,7 +606,7 @@ function testGet() {
 function testPost() {
   const e = {
     postData: {
-      type: 'application/json',
+      type: 'text/plain',  // text/plain 테스트
       contents: JSON.stringify({
         action: 'test',
         message: '테스트 메시지'
@@ -626,20 +627,22 @@ function getDeploymentInfo() {
   const url = ScriptApp.getService().getUrl();
   
   return {
-    version: '3.0',
-    lastUpdated: '2025-01-11',
-    description: 'ContentService 문법 수정 버전',
+    version: '3.1',
+    lastUpdated: '2025-09-15',
+    description: 'text/plain 파싱 개선 버전',
     webAppUrl: url || 'Not deployed yet',
     author: 'Virtual Table DB Team',
     status: 'active',
     features: [
       'Google Apps Script 최신 문법 적용',
+      'text/plain Content-Type 완벽 지원',
       'CORS 자동 처리 (Apps Script 기본)',
       '기존 로직 100% 호환',
       'Virtual 시트 업데이트 (D, E, F, H, I열)',
       'Index 시트 업데이트 지원',
       'AI 분석 (Gemini API)',
-      '상세한 에러 처리'
+      '상세한 에러 처리',
+      '디버그 로그 강화'
     ],
     endpoints: {
       GET: '서비스 상태 확인',
@@ -654,7 +657,8 @@ function getDeploymentInfo() {
     notes: [
       '배포 시 "액세스: 모든 사용자" 설정 필수',
       'Gemini API 키는 스크립트 속성에 설정',
-      'CORS는 Apps Script가 자동으로 처리'
+      'CORS는 Apps Script가 자동으로 처리',
+      'text/plain Content-Type 지원으로 CORS 문제 해결'
     ]
   };
 }
