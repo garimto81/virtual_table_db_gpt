@@ -84,11 +84,19 @@ function doPost(e) {
         };
         break;
         
+      case 'testPermissions':
+        result = handlePermissionTest(requestData);
+        break;
+        
+      case 'verifyUpdate':
+        result = handleUpdateVerification(requestData);
+        break;
+        
       default:
         result = {
           status: 'error',
           message: `알 수 없는 액션: ${action}`,
-          availableActions: ['updateSheet', 'test']
+          availableActions: ['updateSheet', 'test', 'testPermissions', 'verifyUpdate']
         };
     }
     
@@ -318,7 +326,195 @@ function openSheetByUrl(url) {
 }
 
 // ========================================
-// 6. 테스트 함수
+// 6. 권한 테스트 핸들러
+// ========================================
+function handlePermissionTest(data) {
+  console.log('🔐 === 권한 테스트 시작 ===');
+  console.log('📋 받은 데이터:', JSON.stringify(data));
+  
+  try {
+    const { sheetUrl } = data;
+    
+    if (!sheetUrl) {
+      return {
+        status: 'error',
+        message: '시트 URL이 필요합니다'
+      };
+    }
+    
+    console.log('🔗 시트 URL:', sheetUrl);
+    
+    // 시트 열기 테스트
+    const sheet = openSheetByUrl(sheetUrl);
+    if (!sheet) {
+      return {
+        status: 'error',
+        message: '시트를 열 수 없습니다. URL 확인 또는 권한 부여 필요'
+      };
+    }
+    
+    console.log('✅ 시트 열기 성공:', sheet.getName());
+    
+    // 읽기 권한 테스트
+    try {
+      const readTest = sheet.getRange(1, 1).getValue();
+      console.log('✅ 읽기 권한 확인');
+    } catch (readError) {
+      console.error('❌ 읽기 권한 없음:', readError);
+      return {
+        status: 'error',
+        message: '시트 읽기 권한 없음'
+      };
+    }
+    
+    // 쓰기 권한 테스트 (임시 값으로 테스트)
+    try {
+      const originalValue = sheet.getRange(1, 1).getValue();
+      const testValue = 'PERMISSION_TEST_' + Date.now();
+      
+      // 임시 값 설정
+      sheet.getRange(1, 1).setValue(testValue);
+      SpreadsheetApp.flush();
+      
+      // 확인
+      const verifyValue = sheet.getRange(1, 1).getValue();
+      
+      // 원래 값 복원
+      sheet.getRange(1, 1).setValue(originalValue);
+      SpreadsheetApp.flush();
+      
+      if (verifyValue === testValue) {
+        console.log('✅ 쓰기 권한 확인');
+        return {
+          status: 'success',
+          message: '모든 권한 확인 완료',
+          permissions: {
+            read: true,
+            write: true,
+            sheetName: sheet.getName()
+          }
+        };
+      } else {
+        console.error('❌ 쓰기 권한 없음');
+        return {
+          status: 'error',
+          message: '시트 쓰기 권한 없음'
+        };
+      }
+      
+    } catch (writeError) {
+      console.error('❌ 쓰기 테스트 실패:', writeError);
+      return {
+        status: 'error',
+        message: '시트 쓰기 권한 없음: ' + writeError.toString()
+      };
+    }
+    
+  } catch (error) {
+    console.error('❌ 권한 테스트 오류:', error);
+    return {
+      status: 'error',
+      message: '권한 테스트 실패: ' + error.toString()
+    };
+  }
+}
+
+// ========================================
+// 7. 업데이트 검증 핸들러
+// ========================================
+function handleUpdateVerification(data) {
+  console.log('🔍 === 업데이트 검증 시작 ===');
+  console.log('📋 받은 데이터:', JSON.stringify(data));
+  
+  try {
+    const {
+      sheetUrl,
+      rowNumber,
+      expectedFilename,
+      expectedAnalysis
+    } = data;
+    
+    // 필수 데이터 검증
+    if (!sheetUrl || !rowNumber || !expectedFilename) {
+      return {
+        status: 'error',
+        message: '필수 데이터 누락 (시트 URL, 행 번호, 예상 파일명)'
+      };
+    }
+    
+    console.log(`🔍 검증 정보:
+      - 시트 URL: ${sheetUrl}
+      - 행 번호: ${rowNumber}
+      - 예상 파일명: ${expectedFilename}
+      - 예상 AI분석: ${expectedAnalysis || '(없음)'}`);
+    
+    // 시트 열기
+    const sheet = openSheetByUrl(sheetUrl);
+    if (!sheet) {
+      return {
+        status: 'error',
+        message: '시트를 열 수 없습니다'
+      };
+    }
+    
+    const targetRow = parseInt(rowNumber);
+    console.log(`📊 시트 이름: "${sheet.getName()}", 대상 행: ${targetRow}`);
+    
+    // F열 (6번째 열) 검증
+    const actualFilename = sheet.getRange(targetRow, 6).getValue();
+    console.log('🔍 F열 실제값:', actualFilename);
+    console.log('🔍 F열 예상값:', expectedFilename);
+    
+    // H열 (8번째 열) 검증
+    const actualAnalysis = sheet.getRange(targetRow, 8).getValue();
+    console.log('🔍 H열 실제값:', actualAnalysis);
+    console.log('🔍 H열 예상값:', expectedAnalysis);
+    
+    // 검증 결과
+    const filenameMatch = String(actualFilename).trim() === String(expectedFilename).trim();
+    const analysisMatch = expectedAnalysis ? 
+      String(actualAnalysis).includes(String(expectedAnalysis).substring(0, 20)) : 
+      Boolean(actualAnalysis);
+    
+    const verified = filenameMatch && analysisMatch;
+    
+    console.log(`🔍 검증 결과:
+      - F열 일치: ${filenameMatch}
+      - H열 일치: ${analysisMatch}
+      - 전체 검증: ${verified}`);
+    
+    return {
+      status: 'success',
+      verified: verified,
+      message: verified ? '데이터 검증 성공' : '데이터 불일치 감지',
+      details: {
+        sheetName: sheet.getName(),
+        rowNumber: targetRow,
+        filename: {
+          expected: expectedFilename,
+          actual: actualFilename,
+          match: filenameMatch
+        },
+        analysis: {
+          expected: expectedAnalysis,
+          actual: actualAnalysis,
+          match: analysisMatch
+        },
+        verifiedAt: new Date().toISOString()
+      }
+    };
+    
+  } catch (error) {
+    console.error('❌ 검증 오류:', error);
+    return {
+      status: 'error',
+      message: '검증 실패: ' + error.toString()
+    };
+  }
+}
+
+// ========================================
+// 8. 테스트 함수
 // ========================================
 function testDirectUpdate() {
   console.log('🧪 === 직접 테스트 시작 ===');
@@ -383,23 +579,32 @@ function testPermissions() {
 }
 
 // ========================================
-// 7. 배포 정보
+// 9. 배포 정보
 // ========================================
 function getDeploymentInfo() {
   return {
-    version: '3.2-simple',
+    version: '3.3-enhanced',
     lastUpdated: '2025-09-15',
-    description: 'F열과 H열만 업데이트하는 간소화 버전',
+    description: 'F열과 H열만 업데이트하는 간소화 버전 + 강화된 디버깅',
     features: [
       'F열(파일명)과 H열(AI분석)만 업데이트',
+      '권한 진단 및 검증 기능',
+      '실시간 업데이트 검증',
       '강화된 오류 처리 및 디버깅',
-      '권한 검증 추가',
-      'text/plain Content-Type 지원'
+      'text/plain Content-Type 지원',
+      '6단계 디버깅 프로세스'
+    ],
+    actions: [
+      'updateSheet - 시트 업데이트',
+      'test - 연결 테스트',
+      'testPermissions - 권한 진단',
+      'verifyUpdate - 업데이트 검증'
     ],
     notes: [
       '배포 시 "액세스: 모든 사용자" 설정 필수',
       '시트 편집 권한 필요',
-      'F열 = 6번째 열, H열 = 8번째 열'
+      'F열 = 6번째 열, H열 = 8번째 열',
+      '브라우저에서 🔍 디버그 버튼으로 전체 진단 가능'
     ]
   };
 }

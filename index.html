@@ -466,26 +466,21 @@
         <div class="mt-4 pt-4 border-t border-gray-700">
           <h3 class="text-sm font-bold mb-2">📊 Apps Script 시트 연동</h3>
           <div class="mb-2">
-            <label class="block text-xs mb-1">📖 읽기용 CSV 시트 URL</label>
-            <input type="text" id="read-sheet-url" 
+            <label class="block text-xs mb-1">📋 메인 시트 URL (통합)</label>
+            <input type="text" id="main-sheet-url" 
                    class="w-full bg-gray-700 rounded px-3 py-1 text-sm border-2 border-gray-600" 
-                   placeholder="Virtual 시트 CSV URL (B열 기준)..."
-                   title="매칭에 사용되는 Virtual 시트 CSV URL">
-            <div id="read-sheet-url-feedback" class="text-xs mt-1 text-gray-400">
-              ✅ B열 기준 시간 매칭에 사용
-            </div>
-          </div>
-          <div class="mb-2">
-            <label class="block text-xs mb-1">✏️ 쓰기용 시트 URL</label>
-            <input type="text" id="write-sheet-url" 
-                   class="w-full bg-gray-700 rounded px-3 py-1 text-sm border-2 border-gray-600" 
-                   placeholder="업데이트할 시트 URL..."
+                   placeholder="Google Sheets URL 입력..."
                    value="https://docs.google.com/spreadsheets/d/1M-LM2KkwLNOTygtrPVdnYLqqBoz4MmZvbglUaptSYqE/edit?gid=561799849#gid=561799849"
-                   title="F열(파일명), H열(AI분석) 업데이트할 시트">
-            <div id="write-sheet-url-feedback" class="text-xs mt-1 text-gray-400">
-              ✅ F열(파일명), H열(AI분석) 업데이트
+                   title="통합 시트 - B열(시간), F열(파일명), H열(AI분석)">
+            <div id="main-sheet-url-feedback" class="text-xs mt-1 text-gray-400">
+              ✅ B열: 시간 매칭 (읽기)
+              <br>✅ F열: 파일명 업데이트 (쓰기)
+              <br>✅ H열: AI 분석 업데이트 (쓰기)
             </div>
           </div>
+          <!-- 호환성을 위한 숨겨진 필드 -->
+          <input type="hidden" id="read-sheet-url" />
+          <input type="hidden" id="write-sheet-url" />
           <div class="mb-3">
             <label class="block text-xs mb-1">🔗 Apps Script Web App URL</label>
             <input type="text" id="apps-script-url" 
@@ -581,7 +576,7 @@
     // ====================================
     
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '9.7.7';
+    const APP_VERSION = '10.0.0';
     const BUILD_TIME = '2025-09-15T21:00:00Z';
     
     // 버전 체크 및 강제 업데이트
@@ -643,11 +638,45 @@
       AI_PROVIDER: 'gemini',
       GEMINI_API_KEY: '',
       
-      // Apps Script 시트 업데이트 설정
-      READ_SHEET_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=0&single=true&output=csv', // B열 기준 시간 매칭용 기본 Virtual 시트 CSV URL
-      WRITE_SHEET_URL: 'https://docs.google.com/spreadsheets/d/1M-LM2KkwLNOTygtrPVdnYLqqBoz4MmZvbglUaptSYqE/edit?gid=561799849#gid=561799849', // F열(파일명), H열(AI분석) 업데이트용 시트 URL
-      SHEET_UPDATE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycby9hGqvMPogyFfOjTRM3SSSEnD6MRjC_ql37qpZOf-O95s02qEPyme8xTakKUnZ1l_zeA/exec' // 시트 업데이트 전용 Apps Script URL
+      // 시트 업데이트 설정 (단일 시트로 통합)
+      MAIN_SHEET_URL: 'https://docs.google.com/spreadsheets/d/1M-LM2KkwLNOTygtrPVdnYLqqBoz4MmZvbglUaptSYqE/edit?gid=561799849#gid=561799849', // 메인 시트 URL (읽기/쓰기 모두 사용)
+      SHEET_UPDATE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycby9hGqvMPogyFfOjTRM3SSSEnD6MRjC_ql37qpZOf-O95s02qEPyme8xTakKUnZ1l_zeA/exec', // 시트 업데이트 전용 Apps Script URL
+      
+      // 기존 URL들 (호환성 유지용 - 추후 제거 예정)
+      READ_SHEET_URL: '', // Deprecated - MAIN_SHEET_URL 사용
+      WRITE_SHEET_URL: '' // Deprecated - MAIN_SHEET_URL 사용
     };
+    
+    // 시트 URL 헬퍼 함수 (단일 시트 관리)
+    function getSheetUrl() {
+      // MAIN_SHEET_URL을 우선 사용, 없으면 기존 WRITE_SHEET_URL 사용 (호환성)
+      return CONFIG.MAIN_SHEET_URL || CONFIG.WRITE_SHEET_URL || CONFIG.READ_SHEET_URL;
+    }
+    
+    function getSheetCsvUrl() {
+      const sheetUrl = getSheetUrl();
+      if (!sheetUrl) return null;
+      
+      // 이미 CSV URL이면 그대로 반환
+      if (sheetUrl.includes('/pub?') && sheetUrl.includes('output=csv')) {
+        return sheetUrl;
+      }
+      
+      // 일반 URL을 웹 게시 CSV URL로 변환
+      const sheetIdMatch = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+      const gidMatch = sheetUrl.match(/[#&]gid=([0-9]+)/);
+      
+      if (sheetIdMatch) {
+        const sheetId = sheetIdMatch[1];
+        const gid = gidMatch ? gidMatch[1] : '0';
+        
+        // 먼저 웹 게시 URL 시도 (2PACX 형식이 있다면)
+        // 없으면 export URL 사용
+        return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+      }
+      
+      return null;
+    }
     
     // 전역 상태
     let currentHand = null;
@@ -2708,14 +2737,14 @@
       // 실시간으로 입력 필드에서 URL 가져오기
       const appsScriptUrlInput = document.getElementById('apps-script-url');
       const appsScriptUrl = appsScriptUrlInput ? appsScriptUrlInput.value : CONFIG.SHEET_UPDATE_SCRIPT_URL;
-      const writeSheetUrl = CONFIG.WRITE_SHEET_URL;
+      const sheetUrl = getSheetUrl(); // 통합된 시트 URL 사용
       
       if (!appsScriptUrl) {
         throw new Error('Apps Script URL이 설정되지 않았습니다.');
       }
       
-      if (!writeSheetUrl) {
-        throw new Error('쓰기용 시트 URL이 설정되지 않았습니다.');
+      if (!sheetUrl) {
+        throw new Error('시트 URL이 설정되지 않았습니다.');
       }
       
       console.log('📊 === 시트 업데이트 시작 ===');
@@ -2726,7 +2755,7 @@
       
       const updateData = {
         action: 'updateSheet',
-        sheetUrl: writeSheetUrl,
+        sheetUrl: sheetUrl,  // 통합된 시트 URL
         rowNumber: matchedRow,
         filename: filename,  // F열
         aiAnalysis: aiAnalysis || `핸드 #${handNumber} - ${new Date().toLocaleString('ko-KR')}`  // H열
@@ -3428,7 +3457,7 @@
       // Apps Script 호환 데이터 구조로 변환
       const payload = {
         action: 'updateSheet',  // updateHand 대신 updateSheet 사용
-        sheetUrl: CONFIG.WRITE_SHEET_URL,  // 시트 URL 포함
+        sheetUrl: getSheetUrl(),  // 통합된 시트 URL 사용
         rowNumber: parseInt(rowNumber),  // 정수로 변환
         handNumber: handNumber,
         filename: data.filename,
@@ -3502,6 +3531,10 @@
     
     // 개선된 완료 모달 표시 (처리 과정 실시간 확인)
     async function showImprovedCompletionModal(handNumber, timestamp, virtualSheetUrl) {
+      // virtualSheetUrl이 없으면 기본값 사용
+      if (!virtualSheetUrl) {
+        virtualSheetUrl = getSheetCsvUrl();
+      }
       const modal = document.getElementById('completion-modal');
       const timestampInput = document.getElementById('hand-timestamp');
       const filenameInput = document.getElementById('final-filename');
@@ -3980,8 +4013,11 @@
       CONFIG.ENABLE_SOUND = document.getElementById('enable-sound').checked;
       
       // Apps Script 설정 저장
-      CONFIG.READ_SHEET_URL = document.getElementById('read-sheet-url').value;
-      CONFIG.WRITE_SHEET_URL = document.getElementById('write-sheet-url').value;
+      // 메인 시트 URL 저장 (통합 관리)
+      CONFIG.MAIN_SHEET_URL = document.getElementById('main-sheet-url').value;
+      // 호환성을 위해 기존 변수에도 할당
+      CONFIG.READ_SHEET_URL = CONFIG.MAIN_SHEET_URL;
+      CONFIG.WRITE_SHEET_URL = CONFIG.MAIN_SHEET_URL;
       CONFIG.SHEET_UPDATE_SCRIPT_URL = document.getElementById('apps-script-url').value;
       
       // Gemini API 키 저장
@@ -3997,8 +4033,10 @@
       }
       
       // Apps Script 설정 localStorage 저장
-      localStorage.setItem('read_sheet_url', CONFIG.READ_SHEET_URL);
-      localStorage.setItem('write_sheet_url', CONFIG.WRITE_SHEET_URL);
+      localStorage.setItem('main_sheet_url', CONFIG.MAIN_SHEET_URL);
+      // 호환성 유지
+      localStorage.setItem('read_sheet_url', CONFIG.MAIN_SHEET_URL);
+      localStorage.setItem('write_sheet_url', CONFIG.MAIN_SHEET_URL);
       localStorage.setItem('sheet_update_script_url', CONFIG.SHEET_UPDATE_SCRIPT_URL);
       
       // AI API 키 localStorage 저장
@@ -4224,10 +4262,10 @@
     
     document.getElementById('complete-btn').addEventListener('click', async () => {
       if (currentHand) {
-        // Virtual 시트 URL 확인 및 유효성 검증
-        const virtualSheetUrl = CONFIG.READ_SHEET_URL;
+        // 시트 URL 확인 및 유효성 검증 (단일 시트 사용)
+        const virtualSheetUrl = getSheetCsvUrl();
         if (!virtualSheetUrl) {
-          alert('먼저 설정에서 Virtual 시트 URL을 입력해주세요.');
+          alert('먼저 설정에서 시트 URL을 입력해주세요.');
           return;
         }
         
@@ -4340,24 +4378,27 @@
       console.log(`📊 Virtual 시트 설정: ${CONFIG.READ_SHEET_URL ? CONFIG.READ_SHEET_URL.substring(0, 50) + '...' : '미설정'}`);
       
       
-      // Apps Script 설정 로드
-      const savedReadSheetUrl = localStorage.getItem('read_sheet_url');
-      const savedWriteSheetUrl = localStorage.getItem('write_sheet_url');
+      // Apps Script 설정 로드 (통합 시트 관리)
+      const savedMainSheetUrl = localStorage.getItem('main_sheet_url');
+      const savedReadSheetUrl = localStorage.getItem('read_sheet_url'); // 호환성
+      const savedWriteSheetUrl = localStorage.getItem('write_sheet_url'); // 호환성
       const savedScriptUrl = localStorage.getItem('sheet_update_script_url');
       
-      if (savedReadSheetUrl) {
-        CONFIG.READ_SHEET_URL = savedReadSheetUrl;
-        document.getElementById('read-sheet-url').value = savedReadSheetUrl;
-        console.log(`📖 읽기 시트 URL 로드됨 (저장된 값)`);
-      } else if (CONFIG.READ_SHEET_URL) {
-        // localStorage에 저장된 값이 없으면 기본값을 UI에 표시
-        document.getElementById('read-sheet-url').value = CONFIG.READ_SHEET_URL;
-        console.log(`📖 읽기 시트 URL 기본값 사용`);
-      }
-      if (savedWriteSheetUrl) {
-        CONFIG.WRITE_SHEET_URL = savedWriteSheetUrl;
-        document.getElementById('write-sheet-url').value = savedWriteSheetUrl;
-        console.log(`✏️ 쓰기 시트 URL 로드됨`);
+      // 메인 시트 URL 우선, 없으면 기존 URL 사용 (호환성)
+      const sheetUrl = savedMainSheetUrl || savedWriteSheetUrl || savedReadSheetUrl || CONFIG.MAIN_SHEET_URL;
+      
+      if (sheetUrl) {
+        CONFIG.MAIN_SHEET_URL = sheetUrl;
+        CONFIG.READ_SHEET_URL = sheetUrl; // 호환성
+        CONFIG.WRITE_SHEET_URL = sheetUrl; // 호환성
+        
+        // UI에 표시
+        document.getElementById('main-sheet-url').value = sheetUrl;
+        // 숨겨진 필드도 업데이트 (호환성)
+        document.getElementById('read-sheet-url').value = sheetUrl;
+        document.getElementById('write-sheet-url').value = sheetUrl;
+        
+        console.log(`📋 메인 시트 URL 로드됨: ${sheetUrl.substring(0, 50)}...`);
       }
       if (savedScriptUrl) {
         // 이전 URL이 저장되어 있으면 새 URL로 자동 교체
@@ -4441,7 +4482,7 @@
       console.log('🔍 === 시트 업데이트 디버그 시작 ===');
       
       const debugInfo = {
-        sheetUrl: CONFIG.WRITE_SHEET_URL,
+        sheetUrl: getSheetUrl(), // 통합된 시트 URL 사용
         appsScriptUrl: CONFIG.SHEET_UPDATE_SCRIPT_URL,
         timestamp: new Date().toISOString()
       };
@@ -4519,8 +4560,39 @@
         return;
       }
       
-      // 4. 테스트 데이터 업데이트
-      console.log('\n4️⃣ 테스트 데이터 업데이트');
+      // 4. Apps Script 권한 진단
+      console.log('\n4️⃣ Apps Script 권한 진단');
+      
+      try {
+        const permissionData = {
+          action: 'testPermissions',
+          sheetUrl: debugInfo.sheetUrl,
+          timestamp: new Date().toISOString()
+        };
+        
+        const permResponse = await fetch(debugInfo.appsScriptUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain',
+          },
+          body: JSON.stringify(permissionData)
+        });
+        
+        const permResult = await permResponse.json();
+        console.log('   권한 진단 결과:', permResult);
+        
+        if (permResult.status !== 'success') {
+          console.warn('   ⚠️ 권한 문제 감지:', permResult.message);
+        } else {
+          console.log('   ✅ 권한 확인 완료');
+        }
+        
+      } catch (permError) {
+        console.warn('   ⚠️ 권한 테스트 건너뜀:', permError.message);
+      }
+      
+      // 5. 테스트 데이터 업데이트
+      console.log('\n5️⃣ 테스트 데이터 업데이트');
       
       const testRow = prompt('테스트할 행 번호를 입력하세요 (예: 2)', '2');
       if (!testRow) return;
@@ -4530,7 +4602,7 @@
         sheetUrl: debugInfo.sheetUrl,
         rowNumber: parseInt(testRow),
         filename: 'debug_test_' + Date.now() + '.mp4',  // F열
-        aiAnalysis: '디버그 테스트 - ' + new Date().toLocaleString('ko-KR')  // H열
+        aiAnalysis: '🔧 디버그 테스트 - ' + new Date().toLocaleString('ko-KR')  // H열
       };
       
       console.log('   테스트 데이터:', testUpdateData);
@@ -4551,7 +4623,41 @@
           console.log('   ✅ 시트 업데이트 성공!');
           
           const details = result.data || {};
-          alert(`✅ 시트 업데이트 성공!\n\n📍 행 번호: ${testRow}\n📁 F열(파일명): ${testUpdateData.filename}\n🤖 H열(AI분석): ${testUpdateData.aiAnalysis}\n🕒 시간: ${new Date().toLocaleString('ko-KR')}\n\n업데이트된 열: ${details.updatedFields ? details.updatedFields.join(', ') : 'F, H'}\n\nGoogle Sheets에서 확인하세요.`);
+          
+          // 6. 실제 업데이트 검증
+          console.log('\n6️⃣ 실제 업데이트 검증');
+          await new Promise(resolve => setTimeout(resolve, 2000)); // 2초 대기
+          
+          try {
+            const verifyData = {
+              action: 'verifyUpdate',
+              sheetUrl: debugInfo.sheetUrl,
+              rowNumber: parseInt(testRow),
+              expectedFilename: testUpdateData.filename,
+              expectedAnalysis: testUpdateData.aiAnalysis
+            };
+            
+            const verifyResponse = await fetch(debugInfo.appsScriptUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'text/plain',
+              },
+              body: JSON.stringify(verifyData)
+            });
+            
+            const verifyResult = await verifyResponse.json();
+            console.log('   검증 결과:', verifyResult);
+            
+            if (verifyResult.status === 'success' && verifyResult.verified) {
+              alert(`✅ 완벽! 시트 업데이트 및 검증 성공!\n\n📍 행 번호: ${testRow}\n📁 F열(파일명): ${testUpdateData.filename}\n🤖 H열(AI분석): ${testUpdateData.aiAnalysis}\n🕒 시간: ${new Date().toLocaleString('ko-KR')}\n\n✅ 실제 시트에서 데이터 확인됨\n업데이트된 열: ${details.updatedFields ? details.updatedFields.join(', ') : 'F, H'}\n\nGoogle Sheets에서 직접 확인하세요.`);
+            } else {
+              alert(`⚠️ 업데이트 성공 보고되었으나 검증 실패\n\n${verifyResult.message || '실제 시트 데이터 불일치'}\n\n가능한 원인:\n1. 권한 문제로 읽기 실패\n2. 시트 ID 또는 GID 불일치\n3. 캐시 지연\n\nGoogle Sheets를 직접 확인하고\n몇 분 후 다시 시도해보세요.`);
+            }
+            
+          } catch (verifyError) {
+            console.warn('   검증 과정 오류:', verifyError);
+            alert(`✅ 시트 업데이트 성공!\n⚠️ 검증 건너뜀: ${verifyError.message}\n\n📍 행 번호: ${testRow}\n📁 F열(파일명): ${testUpdateData.filename}\n🤖 H열(AI분석): ${testUpdateData.aiAnalysis}\n\nGoogle Sheets에서 직접 확인하세요.`);
+          }
           
         } else {
           throw new Error(result.message || '업데이트 실패');
@@ -4559,7 +4665,20 @@
         
       } catch (error) {
         console.error('   ❌ 시트 업데이트 실패:', error);
-        alert(`❌ 시트 업데이트 실패\n\n${error.message}\n\n가능한 원인:\n1. 시트 편집 권한 없음\n2. 잘못된 행 번호\n3. Apps Script 오류\n\nApps Script 로그를 확인하세요.`);
+        
+        // 상세한 오류 분석
+        let troubleshootMsg = '';
+        if (error.message.includes('CORS')) {
+          troubleshootMsg = '\n🔧 해결책: Apps Script "모든 사용자" 액세스 설정 확인';
+        } else if (error.message.includes('권한')) {
+          troubleshootMsg = '\n🔧 해결책: 시트 편집 권한 또는 Apps Script 권한 확인';
+        } else if (error.message.includes('찾을 수 없음')) {
+          troubleshootMsg = '\n🔧 해결책: 시트 URL 또는 Apps Script URL 확인';
+        } else {
+          troubleshootMsg = '\n🔧 해결책: Apps Script 로그와 문서 확인';
+        }
+        
+        alert(`❌ 시트 업데이트 실패\n\n오류: ${error.message}${troubleshootMsg}\n\n추가 진단:\n1. F12 > Console 로그 확인\n2. Apps Script 실행 로그 확인\n3. 문제해결 가이드 참조`);
       }
       
       console.log('\n🔍 === 디버귵 종료 ===');
