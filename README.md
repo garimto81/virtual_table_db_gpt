@@ -5,16 +5,17 @@
 
 ## 🚀 주요 기능
 - ✅ 실시간 포커 핸드 추적 및 분석
-- ✅ Google Sheets 자동 업데이트
+- ✅ Google Sheets 자동 업데이트 (F열: 파일명, H열: AI분석)
 - ✅ AI 기반 핸드 분석 (Gemini API)
 - ✅ CSV 파일 시간 매칭 (±3분 범위)
 - ✅ 웹 기반 모니터링 대시보드
+- ✅ 🔍 시트 업데이트 디버그 기능
 
 ## 📁 프로젝트 구조
 ```
 virtual_table_db_claude/
-├── index.html         # 메인 웹 애플리케이션 (v9.7.6)
-├── apps_script.gs     # Google Apps Script (v3.1)
+├── index.html         # 메인 웹 애플리케이션 (v9.7.7)
+├── apps_script.gs     # Google Apps Script (v3.2)
 ├── README.md          # 프로젝트 개요
 ├── _config.yml        # GitHub Pages 설정
 ├── docs/              # 문서 모음
@@ -33,10 +34,11 @@ virtual_table_db_claude/
 ### 1. Apps Script 배포
 1. [Google Apps Script](https://script.google.com) 접속
 2. 새 프로젝트 생성
-3. `apps_script_final.gs` 내용 복사/붙여넣기
+3. `apps_script.gs` (v3.2) 내용 복사/붙여넣기
 4. 배포 > 새 배포 > 웹 앱
 5. 액세스 권한: "모든 사용자" 설정
 6. 배포 URL 복사
+7. **중요**: Google Sheets에 편집자 권한 부여
 
 ### 2. 웹 앱 설정
 1. https://garimto81.github.io/virtual_table_db_claude/ 접속
@@ -139,7 +141,15 @@ virtual_table_db_claude/
 - Apps Script 변수 스코프 오류 수정
 
 ## 🐛 문제 해결
-CORS 오류, 캐시 문제, 행 번호 불일치 등의 해결 방법은 문서를 참조하세요.
+
+### 🔍 시트 업데이트 문제
+1. 헤더의 **🔍 디버그** 버튼 클릭
+2. 3단계 검증 수행
+3. 실제 테스트 데이터 입력 확인
+
+### 상세 가이드
+- [SHEET_UPDATE_TROUBLESHOOTING.md](docs/SHEET_UPDATE_TROUBLESHOOTING.md)
+- CORS 오류, 캐시 문제, 권한 설정 등
 
 ## 📞 지원
 - GitHub Issues: [Report Issue](https://github.com/garimto81/virtual_table_db_claude/issues)

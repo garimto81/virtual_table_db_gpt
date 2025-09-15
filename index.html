@@ -581,8 +581,8 @@
     // ====================================
     
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '9.7.6';
-    const BUILD_TIME = '2025-09-15T20:00:00Z';
+    const APP_VERSION = '9.7.7';
+    const BUILD_TIME = '2025-09-15T21:00:00Z';
     
     // 버전 체크 및 강제 업데이트
     function checkVersion() {
@@ -2728,14 +2728,13 @@
         action: 'updateSheet',
         sheetUrl: writeSheetUrl,
         rowNumber: matchedRow,
-        handNumber: handNumber,
-        filename: filename,
-        aiAnalysis: aiAnalysis,
-        timestamp: new Date().toISOString()
+        filename: filename,  // F열
+        aiAnalysis: aiAnalysis || `핸드 #${handNumber} - ${new Date().toLocaleString('ko-KR')}`  // H열
       };
       
       try {
         console.log('📤 Apps Script로 데이터 전송 중...');
+        console.log('📤 전송 데이터:', JSON.stringify(updateData, null, 2));
         
         const response = await fetch(appsScriptUrl, {
           method: 'POST',
@@ -4530,10 +4529,8 @@
         action: 'updateSheet',
         sheetUrl: debugInfo.sheetUrl,
         rowNumber: parseInt(testRow),
-        handNumber: 'DEBUG_' + Date.now(),
-        filename: 'debug_test_' + Date.now() + '.mp4',
-        aiAnalysis: '디버그 테스트 - ' + new Date().toLocaleString('ko-KR'),
-        timestamp: new Date().toISOString()
+        filename: 'debug_test_' + Date.now() + '.mp4',  // F열
+        aiAnalysis: '디버그 테스트 - ' + new Date().toLocaleString('ko-KR')  // H열
       };
       
       console.log('   테스트 데이터:', testUpdateData);
@@ -4554,7 +4551,7 @@
           console.log('   ✅ 시트 업데이트 성공!');
           
           const details = result.data || {};
-          alert(`✅ 시트 업데이트 성공!\n\n📍 행 번호: ${testRow}\n📁 파일명: ${testUpdateData.filename}\n🕒 시간: ${new Date().toLocaleString('ko-KR')}\n\n업데이트된 열: ${details.updatedFields ? details.updatedFields.join(', ') : 'D, E, F, H, I'}\n\nGoogle Sheets에서 확인하세요.`);
+          alert(`✅ 시트 업데이트 성공!\n\n📍 행 번호: ${testRow}\n📁 F열(파일명): ${testUpdateData.filename}\n🤖 H열(AI분석): ${testUpdateData.aiAnalysis}\n🕒 시간: ${new Date().toLocaleString('ko-KR')}\n\n업데이트된 열: ${details.updatedFields ? details.updatedFields.join(', ') : 'F, H'}\n\nGoogle Sheets에서 확인하세요.`);
           
         } else {
           throw new Error(result.message || '업데이트 실패');
