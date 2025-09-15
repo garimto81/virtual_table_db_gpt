@@ -149,17 +149,17 @@
     /* 컴팩트 그리드 레이아웃 */
     .compact-grid {
       display: grid;
-      grid-template-columns: 280px 1fr 320px;
+      grid-template-columns: 320px 1fr;
       gap: 12px;
       padding: 12px;
       height: 100vh;
-      max-width: 1920px;
+      max-width: 1600px;
       margin: 0 auto;
     }
     
     @media (max-width: 1440px) {
       .compact-grid {
-        grid-template-columns: 260px 1fr 300px;
+        grid-template-columns: 300px 1fr;
       }
     }
     
@@ -339,20 +339,6 @@
       </div>
     </div>
 
-    <!-- 오른쪽: 노트 섹션 -->
-    <div class="section">
-      <!-- 편집 노트 -->
-      <div class="flex-1">
-        <div class="section-header">노트</div>
-        <textarea id="hand-notes" 
-          class="w-full flex-1 bg-gray-800 rounded p-2 text-xs resize-none" 
-          style="min-height: calc(100vh - 200px);"
-          placeholder="핸드 분석 노트..."></textarea>
-        <button id="save-notes" class="mt-2 w-full px-3 py-1 bg-blue-600 text-white rounded text-xs">
-          노트 저장
-        </button>
-      </div>
-    </div>
   </div>
 
   <!-- 완료 파일명 입력 모달 -->
@@ -592,8 +578,8 @@
     // ====================================
     
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '9.7.2';
-    const BUILD_TIME = '2025-09-15T16:00:00Z';
+    const APP_VERSION = '9.7.3';
+    const BUILD_TIME = '2025-09-15T17:00:00Z';
     
     // 버전 체크 및 강제 업데이트
     function checkVersion() {
