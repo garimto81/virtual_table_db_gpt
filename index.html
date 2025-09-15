@@ -600,8 +600,8 @@
     // ====================================
     
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '9.7.0';
-    const BUILD_TIME = '2025-09-15T13:30:00Z';
+    const APP_VERSION = '9.7.1';
+    const BUILD_TIME = '2025-09-15T14:00:00Z';
     
     // 버전 체크 및 강제 업데이트
     function checkVersion() {
@@ -773,11 +773,14 @@
         if (stored) {
           const data = JSON.parse(stored);
           // 객체 형태로 저장 (handNumber: timestamp)
-          return data.hands || {};
+          const hands = data.hands || {};
+          console.log(`📚 알림 기록 로드: ${Object.keys(hands).length}개 핸드`);
+          return hands;
         }
       } catch (e) {
         console.error('알림 기록 불러오기 실패:', e);
       }
+      console.log('📚 알림 기록 없음 - 새로 시작');
       return {};
     }
     
@@ -1225,11 +1228,14 @@
         if (!isInitialLoad && !suppressNotification) {
           const handsToNotify = [];
           
+          // 기존 알림 기록 확인
+          const existingNotified = getNotifiedHands();
+          
           for (const hand of newHandsFromCSV) {
             const handNumber = hand.handNumber;
             
-            // RecentHandsBuffer에 추가 - 새 핸드이면 true 반환
-            if (recentHandsBuffer.addHand(handNumber)) {
+            // 이미 알림된 핸드가 아니고, 버퍼에 새로 추가되는 경우만
+            if (!existingNotified[handNumber] && recentHandsBuffer.addHand(handNumber)) {
               handsToNotify.push(handNumber);
             }
           }
@@ -4421,6 +4427,8 @@
       }
       
       console.log('📄 초기 데이터 로딩 시작...');
+      // 초기 로딩 플래그를 true로 설정하여 알림 방지
+      isInitialLoad = true;
       await loadIndexData();
       
       if (allHands.length > 0) {
