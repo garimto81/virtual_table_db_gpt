@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 9.6.5
+  Version: 9.6.6
   Last Updated: 2025-09-15
-  Description: 카드 10을 T로 표시, 통계 섹션 제거, 카드 파싱 개선
+  Description: CSV 파싱 로직 개선, BOARD 오타 처리, 카드 포맷 수정
 -->
 <html lang="ko">
 <head>
@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>포커 핸드 모니터링 v9.6.5 - AI 분석 시스템</title>
+  <title>포커 핸드 모니터링 v9.6.6 - AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -1291,7 +1291,37 @@
             const playerName = row[2];
             const seat = parseInt(row[3]) || 0;
             const chips = parseInt(row[5]) || parseInt(row[6]) || 0;
-            const cards = row[7] ? row[7].split(' ') : null;
+            // 카드 파싱 개선 - 공백이 없는 경우도 처리
+            let cards = null;
+            if (row[7]) {
+              // 공백이 있으면 공백으로 분리
+              if (row[7].includes(' ')) {
+                cards = row[7].split(' ');
+              } 
+              // 공백이 없고 길이가 4 이상이면 2개씩 분리 (ex: Qs2h)
+              else if (row[7].length >= 4) {
+                const cardStr = row[7];
+                const cards_temp = [];
+                let i = 0;
+                while (i < cardStr.length) {
+                  // 10 처리
+                  if (cardStr.substring(i, i+2) === '10') {
+                    cards_temp.push(cardStr.substring(i, i+3));
+                    i += 3;
+                  } 
+                  // T 또는 일반 카드
+                  else if (i + 1 < cardStr.length) {
+                    cards_temp.push(cardStr.substring(i, i+2));
+                    i += 2;
+                  } else {
+                    i++;
+                  }
+                }
+                cards = cards_temp;
+              } else {
+                cards = [row[7]];
+              }
+            }
             
             hand.players.push({
               seat: seat,
@@ -1306,32 +1336,47 @@
           case 'EVENT':
             const eventType = row[2];
             
-            if (eventType === 'BOARD') {
+            // BOARD 오타 처리 (BO\ARD 등)
+            if (eventType === 'BOARD' || eventType.includes('OARD')) {
               const boardNum = parseInt(row[3]) || 0;
               const card = row[4];
               
-              if (boardNum === 1) {
-                currentStreet = 'flop';
-                streetBetAmount['flop'] = 0; // 플롭 시작시 베팅 금액 초기화
-                // 첫 번째 플롭 카드 추가 (배열 초기화하지 않음)
+              // 보드 카드 추가
+              if (card) {
                 hand.communityCards.push(card);
-              } else if (boardNum === 2 || boardNum === 3) {
-                // 두 번째, 세 번째 플롭 카드 추가
-                hand.communityCards.push(card);
-              } else if (boardNum === 4) {
-                currentStreet = 'turn';
-                streetBetAmount['turn'] = 0; // 턴 시작시 베팅 금액 초기화
-                hand.communityCards.push(card);
-              } else if (boardNum === 5) {
-                currentStreet = 'river';
-                streetBetAmount['river'] = 0; // 리버 시작시 베팅 금액 초기화
-                hand.communityCards.push(card);
+                
+                // 스트리트 판단 (카드 개수 기반)
+                const cardCount = hand.communityCards.length;
+                if (cardCount === 1) {
+                  currentStreet = 'flop';
+                  streetBetAmount['flop'] = 0;
+                } else if (cardCount === 4) {
+                  currentStreet = 'turn';
+                  streetBetAmount['turn'] = 0;
+                } else if (cardCount === 5) {
+                  currentStreet = 'river';
+                  streetBetAmount['river'] = 0;
+                }
+                
+                if (DEBUG_MODE) {
+                  console.log(`🎴 BOARD: ${card} (카드 ${cardCount}개, ${currentStreet})`);
+                }
+              }
+            } else if (eventType === 'POT CORRECTION') {
+              // POT CORRECTION 특수 처리
+              const amount = parseInt(row[4]) || 0;
+              if (amount > 0) {
+                hand.pot += amount;
+                if (DEBUG_MODE) {
+                  console.log(`💰 POT CORRECTION: +${amount} (총 팟: ${hand.pot})`);
+                }
               }
             } else {
-              const playerNum = row[3];
+              const playerNum = parseInt(row[3]) || 0;
               const amount = parseInt(row[4]) || 0;
               
-              const playerObj = hand.players.find(p => p.seat === parseInt(playerNum));
+              // 플레이어 찾기 - seat 번호로 매칭
+              const playerObj = hand.players.find(p => p.seat === playerNum);
               const playerName = playerObj ? playerObj.name : `Player ${playerNum}`;
               
               // CHECK와 CALL을 스마트하게 구분
