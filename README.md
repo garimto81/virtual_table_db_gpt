@@ -59,9 +59,15 @@ virtual_table_db_claude/
 - **Hosting**: GitHub Pages
 
 ## 📊 버전
-- **현재 버전**: v10.0.0
-- **Apps Script**: v3.3-enhanced
+- **현재 버전**: v10.1.0
+- **Apps Script**: v3.4-fixed
 - **최종 업데이트**: 2025-09-15
+
+### v10.1.0 업데이트 내용
+- 🔧 E열 데이터 검증 규칙 충돌 문제 해결
+- ✅ verifyUpdate 액션 호환성 개선
+- 📋 새 행 추가 시 자동으로 E열 검증 규칙 제거
+- 🛡️ Apps Script 버전별 기능 자동 감지
 
 ### v10.0.0 업데이트 내용 (메이저 업데이트)
 - 🎯 **단일 시트 통합 관리**: 읽기/쓰기 시트 통합
