@@ -255,6 +255,9 @@
         </div>
       </div>
       <div class="flex items-center gap-2">
+        <button id="debug-sheet-btn" class="px-3 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700" title="시트 업데이트 디버그">
+          🔍 디버그
+        </button>
         <button id="refresh-btn" class="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
           새로고침
         </button>
@@ -578,8 +581,8 @@
     // ====================================
     
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '9.7.5';
-    const BUILD_TIME = '2025-09-15T19:00:00Z';
+    const APP_VERSION = '9.7.6';
+    const BUILD_TIME = '2025-09-15T20:00:00Z';
     
     // 버전 체크 및 강제 업데이트
     function checkVersion() {
@@ -1784,18 +1787,8 @@
     }
     
     function updateHandResult(hand) {
-      const container = document.getElementById('hand-result');
-      
-      if (!hand.winner) {
-        container.innerHTML = '<div class="text-xs text-gray-400">결과 없음</div>';
-        return;
-      }
-      
-      container.innerHTML = `
-        <div class="text-sm font-bold text-green-400">${hand.winner.player}</div>
-        <div class="text-xs text-gray-300">Win: ${formatNumber(hand.winner.amount)}</div>
-        ${hand.winner.hand ? `<div class="text-xs text-gray-400">${hand.winner.hand}</div>` : ''}
-      `;
+      // 결과 탭이 제거되어 더 이상 사용하지 않음
+      return;
     }
     
     // ====================================
@@ -4444,6 +4437,137 @@
     init();
     
     // 페이지 종료 시 타이머 정리
+    // 디버그 버튼 이벤트 리스너
+    document.getElementById('debug-sheet-btn').addEventListener('click', async () => {
+      console.log('🔍 === 시트 업데이트 디버그 시작 ===');
+      
+      const debugInfo = {
+        sheetUrl: CONFIG.WRITE_SHEET_URL,
+        appsScriptUrl: CONFIG.SHEET_UPDATE_SCRIPT_URL,
+        timestamp: new Date().toISOString()
+      };
+      
+      // 1. Google Sheets URL 검증
+      console.log('\n1️⃣ Google Sheets URL 검증');
+      console.log('   URL:', debugInfo.sheetUrl);
+      
+      if (!debugInfo.sheetUrl) {
+        alert('❌ 시트 URL이 설정되지 않았습니다.\n설정 버튼을 클릭하여 URL을 입력하세요.');
+        return;
+      }
+      
+      // URL 형식 검증
+      const urlMatch = debugInfo.sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+      if (!urlMatch) {
+        alert('❌ 잘못된 Google Sheets URL 형식\n\n올바른 형식:\nhttps://docs.google.com/spreadsheets/d/[ID]/edit');
+        return;
+      }
+      
+      const spreadsheetId = urlMatch[1];
+      const gidMatch = debugInfo.sheetUrl.match(/[#&]gid=([0-9]+)/);
+      const gid = gidMatch ? gidMatch[1] : null;
+      
+      console.log('   스프레드시트 ID:', spreadsheetId);
+      console.log('   시트 GID:', gid || '(기본 시트)');
+      
+      // 2. Apps Script URL 검증
+      console.log('\n2️⃣ Apps Script URL 검증');
+      console.log('   URL:', debugInfo.appsScriptUrl);
+      
+      if (!debugInfo.appsScriptUrl) {
+        alert('❌ Apps Script URL이 설정되지 않았습니다.');
+        return;
+      }
+      
+      if (!debugInfo.appsScriptUrl.includes('script.google.com') || !debugInfo.appsScriptUrl.includes('/exec')) {
+        alert('❌ 잘못된 Apps Script URL\n\n올바른 형식:\nhttps://script.google.com/macros/s/[SCRIPT_ID]/exec');
+        return;
+      }
+      
+      // 3. Apps Script 연결 테스트
+      console.log('\n3️⃣ Apps Script 연결 테스트');
+      
+      try {
+        const testData = {
+          action: 'test',
+          timestamp: new Date().toISOString()
+        };
+        
+        const response = await fetch(debugInfo.appsScriptUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain',
+          },
+          body: JSON.stringify(testData)
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log('   연결 결과:', result);
+        
+        if (result.status !== 'success') {
+          throw new Error(result.message || '연결 실패');
+        }
+        
+        console.log('   ✅ Apps Script 연결 성공');
+        
+      } catch (error) {
+        console.error('   ❌ Apps Script 연결 실패:', error);
+        alert(`❌ Apps Script 연결 실패\n\n${error.message}\n\n해결책:\n1. Apps Script가 배포되었는지 확인\n2. "모든 사용자" 액세스 설정 확인`);
+        return;
+      }
+      
+      // 4. 테스트 데이터 업데이트
+      console.log('\n4️⃣ 테스트 데이터 업데이트');
+      
+      const testRow = prompt('테스트할 행 번호를 입력하세요 (예: 2)', '2');
+      if (!testRow) return;
+      
+      const testUpdateData = {
+        action: 'updateSheet',
+        sheetUrl: debugInfo.sheetUrl,
+        rowNumber: parseInt(testRow),
+        handNumber: 'DEBUG_' + Date.now(),
+        filename: 'debug_test_' + Date.now() + '.mp4',
+        aiAnalysis: '디버그 테스트 - ' + new Date().toLocaleString('ko-KR'),
+        timestamp: new Date().toISOString()
+      };
+      
+      console.log('   테스트 데이터:', testUpdateData);
+      
+      try {
+        const response = await fetch(debugInfo.appsScriptUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain',
+          },
+          body: JSON.stringify(testUpdateData)
+        });
+        
+        const result = await response.json();
+        console.log('   업데이트 결과:', result);
+        
+        if (result.status === 'success') {
+          console.log('   ✅ 시트 업데이트 성공!');
+          
+          const details = result.data || {};
+          alert(`✅ 시트 업데이트 성공!\n\n📍 행 번호: ${testRow}\n📁 파일명: ${testUpdateData.filename}\n🕒 시간: ${new Date().toLocaleString('ko-KR')}\n\n업데이트된 열: ${details.updatedFields ? details.updatedFields.join(', ') : 'D, E, F, H, I'}\n\nGoogle Sheets에서 확인하세요.`);
+          
+        } else {
+          throw new Error(result.message || '업데이트 실패');
+        }
+        
+      } catch (error) {
+        console.error('   ❌ 시트 업데이트 실패:', error);
+        alert(`❌ 시트 업데이트 실패\n\n${error.message}\n\n가능한 원인:\n1. 시트 편집 권한 없음\n2. 잘못된 행 번호\n3. Apps Script 오류\n\nApps Script 로그를 확인하세요.`);
+      }
+      
+      console.log('\n🔍 === 디버귵 종료 ===');
+    });
+    
     window.addEventListener('beforeunload', () => {
       if (refreshTimerInitial) {
         clearTimeout(refreshTimerInitial);

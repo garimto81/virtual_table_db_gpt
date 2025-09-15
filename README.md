@@ -48,8 +48,14 @@ virtual_table_db_claude/
 - **Hosting**: GitHub Pages
 
 ## 📊 버전
-- **현재 버전**: v9.7.5
+- **현재 버전**: v9.7.6
 - **최종 업데이트**: 2025-09-15
+
+### v9.7.6 업데이트 내용
+- 🔍 시트 업데이트 디버그 버튼 추가
+- 실시간 시트 업데이트 검증 기능
+- HTML 오류 수정 (hand-result 요소 제거 관련)
+- 3단계 검증: URL 형식, Apps Script 연결, 실제 업데이트 테스트
 
 ### v9.7.5 업데이트 내용
 - Apps Script 연결 테스트를 GET에서 POST로 변경
