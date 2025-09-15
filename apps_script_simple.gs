@@ -1,6 +1,7 @@
-// Virtual Table DB - Google Apps Script v3.4 (간소화 버전)
+// Virtual Table DB - Google Apps Script v3.4.1 (간소화 버전)
 // F열(파일명)과 H열(AI 분석)만 업데이트
 // E열 데이터 검증 규칙 충돌 방지
+// finalAnalysis 변수 스코프 문제 수정
 
 // ========================================
 // 1. 기본 설정
@@ -211,6 +212,7 @@ function handleSheetUpdate(data) {
     // 데이터 업데이트 (F열과 H열만)
     const updates = [];
     const updateTime = new Date();
+    let finalAnalysis = ''; // try 블록 밖에서 선언
     
     try {
       // F열 (6번째 열): 파일명
@@ -221,7 +223,7 @@ function handleSheetUpdate(data) {
       console.log('✅ F열 업데이트 성공');
       
       // H열 (8번째 열): AI 분석
-      let finalAnalysis = aiAnalysis || `파일: ${filename}\n시간: ${updateTime.toLocaleString('ko-KR')}`;
+      finalAnalysis = aiAnalysis || `파일: ${filename}\n시간: ${updateTime.toLocaleString('ko-KR')}`;
       console.log(`📝 H열(8) 업데이트: "${finalAnalysis}"`);
       const rangeH = sheet.getRange(targetRow, 8);
       rangeH.setValue(finalAnalysis);
