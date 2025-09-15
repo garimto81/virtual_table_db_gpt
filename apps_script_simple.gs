@@ -1,5 +1,6 @@
-// Virtual Table DB - Google Apps Script v3.2 (간소화 버전)
+// Virtual Table DB - Google Apps Script v3.4 (간소화 버전)
 // F열(파일명)과 H열(AI 분석)만 업데이트
+// E열 데이터 검증 규칙 충돌 방지
 
 // ========================================
 // 1. 기본 설정
@@ -195,6 +196,16 @@ function handleSheetUpdate(data) {
       const rowsToAdd = targetRow - maxRow;
       sheet.insertRowsAfter(maxRow, rowsToAdd);
       console.log(`📝 ${rowsToAdd}개 행 추가`);
+      
+      // 새로 추가된 행의 데이터 검증 규칙 제거 (E열 문제 해결)
+      try {
+        // E열의 데이터 검증 규칙 제거
+        const newRowRange = sheet.getRange(maxRow + 1, 5, rowsToAdd, 1); // E열 = 5번째 열
+        newRowRange.clearDataValidations();
+        console.log('✅ 새 행의 E열 데이터 검증 규칙 제거');
+      } catch (clearError) {
+        console.warn('⚠️ 데이터 검증 규칙 제거 실패 (무시):', clearError);
+      }
     }
     
     // 데이터 업데이트 (F열과 H열만)
@@ -583,9 +594,9 @@ function testPermissions() {
 // ========================================
 function getDeploymentInfo() {
   return {
-    version: '3.3-enhanced',
+    version: '3.4-fixed',
     lastUpdated: '2025-09-15',
-    description: 'F열과 H열만 업데이트하는 간소화 버전 + 강화된 디버깅',
+    description: 'F열과 H열만 업데이트 + E열 데이터 검증 충돌 해결',
     features: [
       'F열(파일명)과 H열(AI분석)만 업데이트',
       '권한 진단 및 검증 기능',
