@@ -48,8 +48,14 @@ virtual_table_db_claude/
 - **Hosting**: GitHub Pages
 
 ## 📊 버전
-- **현재 버전**: v9.7.4
+- **현재 버전**: v9.7.5
 - **최종 업데이트**: 2025-09-15
+
+### v9.7.5 업데이트 내용
+- Apps Script 연결 테스트를 GET에서 POST로 변경
+- CORS 오류 해결을 위한 text/plain Content-Type 사용
+- 테스트 연결 시 action: 'test' 전송
+- Apps Script v3.1 호환성 확보
 
 ### v9.7.4 업데이트 내용
 - Apps Script text/plain 파싱 로직 개선

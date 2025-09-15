@@ -578,8 +578,8 @@
     // ====================================
     
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '9.7.4';
-    const BUILD_TIME = '2025-09-15T18:00:00Z';
+    const APP_VERSION = '9.7.5';
+    const BUILD_TIME = '2025-09-15T19:00:00Z';
     
     // 버전 체크 및 강제 업데이트
     function checkVersion() {
@@ -2579,18 +2579,21 @@
       testBtn.textContent = '🔄 연결 테스트 중...';
       
       try {
-        // Apps Script는 CORS 문제를 피하기 위해 단순 GET 요청
-        console.log('📡 GET 요청 전송 중...');
+        // Apps Script 연결 테스트 (POST 사용 - CORS 회피)
+        console.log('📡 POST 요청 전송 중...');
+        
+        const testData = {
+          action: 'test',
+          timestamp: new Date().toISOString(),
+          source: 'connection_test'
+        };
         
         const response = await fetch(appsScriptUrl, {
-          method: 'GET',
-          mode: 'cors',
-          cache: 'no-cache',
+          method: 'POST',
           headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
+            'Content-Type': 'text/plain',  // CORS 회피용
           },
-          redirect: 'follow'
+          body: JSON.stringify(testData)
         });
         
         console.log('📡 응답 상태:', response.status);
@@ -2604,7 +2607,7 @@
             const data = JSON.parse(responseText);
             console.log('✅ Apps Script 연결 성공:', data);
             
-            alert(`✅ Apps Script 연결 성공!\n\n🔗 서비스: ${data.service || 'Virtual Table Sheet Updater'}\n📊 상태: ${data.status}\n📈 버전: ${data.version || 'v1.1'}\n⏰ 시간: ${new Date(data.time).toLocaleString()}\n🛠️ 메소드: ${data.method}`);
+            alert(`✅ Apps Script 연결 성공!\n\n🔗 서비스: ${data.service || 'Virtual Table Sheet Updater'}\n📊 상태: ${data.status}\n📈 버전: ${data.version || 'v1.1'}\n⏰ 시간: ${data.timestamp ? new Date(data.timestamp).toLocaleString() : new Date().toLocaleString()}\n📠 메시지: ${data.message || '서비스 정상 작동'}`);
             return true;
             
           } catch (jsonError) {
