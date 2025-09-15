@@ -341,21 +341,6 @@
 
     <!-- 오른쪽: 요약 정보 -->
     <div class="section">
-      <!-- 통계 -->
-      <div class="mb-3">
-        <div class="section-header">통계</div>
-        <div class="grid grid-cols-2 gap-2">
-          <div class="bg-gray-800 rounded p-2">
-            <div class="text-xs text-gray-400">총 핸드</div>
-            <div class="text-lg font-bold" id="total-hands">0</div>
-          </div>
-          <div class="bg-gray-800 rounded p-2">
-            <div class="text-xs text-gray-400">완료</div>
-            <div class="text-lg font-bold text-green-400" id="completed-hands">0</div>
-          </div>
-        </div>
-      </div>
-
       <!-- 핸드 결과 -->
       <div class="mb-3">
         <div class="section-header">결과</div>
@@ -967,9 +952,11 @@
     
     function getSuitSymbol(suit) {
       const symbols = {
-        's': '♠', 'h': '♥', 'd': '♦', 'c': '♣'
+        's': '♠', 'h': '♥', 'd': '♦', 'c': '♣',
+        'S': '♠', 'H': '♥', 'D': '♦', 'C': '♣',
+        '1': '♠', '2': '♥', '3': '♦', '4': '♣'  // 숫자 형식도 지원
       };
-      return symbols[suit.toLowerCase()] || '';
+      return symbols[suit] || symbols[suit.toLowerCase()] || '';
     }
     
     function getSuitClass(suit) {
@@ -985,8 +972,16 @@
         return `<div class="${type === 'board' ? 'board-card' : 'card-mini'}" style="background-color: #FFFFFF !important; color: #6b7280; border-style: dashed; color-scheme: light;">?</div>`;
       }
       
-      const rank = card.slice(0, -1);
-      const suit = card.slice(-1);
+      // 10 처리를 위한 개선된 파싱
+      let rank, suit;
+      if (card.startsWith('10')) {
+        rank = '10';
+        suit = card.substring(2);
+      } else {
+        rank = card.slice(0, -1);
+        suit = card.slice(-1);
+      }
+      
       const suitClass = getSuitClass(suit);
       const suitSymbol = getSuitSymbol(suit);
       
@@ -1552,8 +1547,7 @@
     }
     
     function updateStats() {
-      document.getElementById('total-hands').textContent = allHands.length;
-      document.getElementById('completed-hands').textContent = allHands.filter(h => h.handEdit).length;
+      // 통계 섹션 제거됨
     }
     
     async function selectHand(handNumber) {
@@ -2723,8 +2717,15 @@
         if (!cards || cards.length === 0) return '??';
         return cards.map(card => {
           if (!card || card === '?') return '?';
-          const rank = card.slice(0, -1);
-          const suit = card.slice(-1);
+          // 10 처리를 위한 개선된 파싱
+          let rank, suit;
+          if (card.startsWith('10')) {
+            rank = '10';
+            suit = card.substring(2);
+          } else {
+            rank = card.slice(0, -1);
+            suit = card.slice(-1);
+          }
           const suitSymbol = getSuitSymbol(suit);
           return rank + suitSymbol;
         }).join('');
@@ -2732,8 +2733,15 @@
       
       const board = handData.communityCards ? handData.communityCards.map(card => {
         if (!card || card === '?') return '?';
-        const rank = card.slice(0, -1);
-        const suit = card.slice(-1);
+        // 10 처리를 위한 개선된 파싱
+        let rank, suit;
+        if (card.startsWith('10')) {
+          rank = '10';
+          suit = card.substring(2);
+        } else {
+          rank = card.slice(0, -1);
+          suit = card.slice(-1);
+        }
         const suitSymbol = getSuitSymbol(suit);
         return rank + suitSymbol;
       }).join(' ') : '보드 없음';
