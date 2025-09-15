@@ -600,8 +600,8 @@
     // ====================================
     
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '9.6.8';
-    const BUILD_TIME = '2025-09-15T12:30:00Z';
+    const APP_VERSION = '9.6.9';
+    const BUILD_TIME = '2025-09-15T13:00:00Z';
     
     // 버전 체크 및 강제 업데이트
     function checkVersion() {
@@ -1279,7 +1279,38 @@
         const hand = allHands.find(h => h.handNumber === handNumber);
         if (!hand) return null;
         
+        // 🔍 디버그: 행 번호 매핑 확인
+        console.log(`📌 핸드 ${handNumber} 로딩 중...`);
+        console.log(`   Index 정보: startRow=${hand.startRow}, endRow=${hand.endRow}`);
+        
+        // 실제 핸드 위치 찾기
+        let actualStartRow = -1;
+        rows.forEach((row, index) => {
+          if (row[1] === 'HAND' && row[2] === handNumber) {
+            actualStartRow = index + 1;
+            console.log(`   ✅ 실제 위치: 행 ${actualStartRow}`);
+          }
+        });
+        
+        if (actualStartRow !== hand.startRow) {
+          console.warn(`   ⚠️ 행 번호 불일치! Index: ${hand.startRow}, 실제: ${actualStartRow}`);
+        }
+        
         const handRows = rows.slice(hand.startRow - 1, hand.endRow);
+        
+        // 슬라이싱된 데이터 확인
+        console.log(`   슬라이싱 범위: [${hand.startRow - 1}:${hand.endRow}]`);
+        console.log('   첫 3행:', handRows.slice(0, 3));
+        
+        // 보드 카드 미리보기
+        const boardPreview = [];
+        handRows.forEach(row => {
+          if (row[1] === 'EVENT' && (row[2] === 'BOARD' || row[2].includes('OARD'))) {
+            boardPreview.push(row[4]);
+          }
+        });
+        console.log('   🎴 보드 카드:', boardPreview);
+        
         return parseHandDetails(handRows);
         
       } catch (error) {
