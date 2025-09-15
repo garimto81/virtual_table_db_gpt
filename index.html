@@ -972,15 +972,21 @@
         return `<div class="${type === 'board' ? 'board-card' : 'card-mini'}" style="background-color: #FFFFFF !important; color: #6b7280; border-style: dashed; color-scheme: light;">?</div>`;
       }
       
-      // 10 처리를 위한 개선된 파싱
+      // 10과 T 모두 처리 가능한 파싱
       let rank, suit;
       if (card.startsWith('10')) {
-        rank = '10';
+        rank = 'T';  // 10을 T로 표시
         suit = card.substring(2);
+      } else if (card[0] === 'T' || card[0] === 't') {
+        rank = 'T';  // T는 그대로 T로 표시
+        suit = card.slice(-1);
       } else {
         rank = card.slice(0, -1);
         suit = card.slice(-1);
       }
+      
+      // 랭크 대문자 변환
+      rank = rank.toUpperCase();
       
       const suitClass = getSuitClass(suit);
       const suitSymbol = getSuitSymbol(suit);
@@ -2717,13 +2723,16 @@
         if (!cards || cards.length === 0) return '??';
         return cards.map(card => {
           if (!card || card === '?') return '?';
-          // 10 처리를 위한 개선된 파싱
+          // 10과 T 모두 처리 가능한 파싱
           let rank, suit;
           if (card.startsWith('10')) {
-            rank = '10';
+            rank = 'T';  // 10을 T로 표시
             suit = card.substring(2);
+          } else if (card[0] === 'T' || card[0] === 't') {
+            rank = 'T';  // T는 그대로 T로 표시
+            suit = card.slice(-1);
           } else {
-            rank = card.slice(0, -1);
+            rank = card.slice(0, -1).toUpperCase();
             suit = card.slice(-1);
           }
           const suitSymbol = getSuitSymbol(suit);
@@ -2733,13 +2742,16 @@
       
       const board = handData.communityCards ? handData.communityCards.map(card => {
         if (!card || card === '?') return '?';
-        // 10 처리를 위한 개선된 파싱
+        // 10과 T 모두 처리 가능한 파싱
         let rank, suit;
         if (card.startsWith('10')) {
-          rank = '10';
+          rank = 'T';  // 10을 T로 표시
           suit = card.substring(2);
+        } else if (card[0] === 'T' || card[0] === 't') {
+          rank = 'T';  // T는 그대로 T로 표시
+          suit = card.slice(-1);
         } else {
-          rank = card.slice(0, -1);
+          rank = card.slice(0, -1).toUpperCase();
           suit = card.slice(-1);
         }
         const suitSymbol = getSuitSymbol(suit);
@@ -3089,10 +3101,22 @@
       
       // 카드를 파싱
       const parsedCards = allCards.map(card => {
-        const rank = card.slice(0, -1);
-        const suit = card.slice(-1);
+        let rank, suit;
+        // 10과 T 모두 처리
+        if (card.startsWith('10')) {
+          rank = 'T';
+          suit = card.substring(2);
+        } else if (card[0] === 'T' || card[0] === 't') {
+          rank = 'T';
+          suit = card.slice(-1);
+        } else {
+          rank = card.slice(0, -1).toUpperCase();
+          suit = card.slice(-1);
+        }
+        
         let numRank = parseInt(rank);
-        if (rank === 'J') numRank = 11;
+        if (rank === 'T') numRank = 10;
+        else if (rank === 'J') numRank = 11;
         else if (rank === 'Q') numRank = 12;
         else if (rank === 'K') numRank = 13;
         else if (rank === 'A') numRank = 14;
@@ -3137,10 +3161,22 @@
       
       // 카드를 랭크와 수트로 파싱
       const parsedCards = allCards.map(card => {
-        const rank = card.slice(0, -1);
-        const suit = card.slice(-1);
+        let rank, suit;
+        // 10과 T 모두 처리
+        if (card.startsWith('10')) {
+          rank = 'T';
+          suit = card.substring(2);
+        } else if (card[0] === 'T' || card[0] === 't') {
+          rank = 'T';
+          suit = card.slice(-1);
+        } else {
+          rank = card.slice(0, -1).toUpperCase();
+          suit = card.slice(-1);
+        }
+        
         let numRank = parseInt(rank);
-        if (rank === 'J') numRank = 11;
+        if (rank === 'T') numRank = 10;
+        else if (rank === 'J') numRank = 11;
         else if (rank === 'Q') numRank = 12;
         else if (rank === 'K') numRank = 13;
         else if (rank === 'A') numRank = 14;
