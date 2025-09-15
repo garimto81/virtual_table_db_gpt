@@ -59,9 +59,15 @@ virtual_table_db_claude/
 - **Hosting**: GitHub Pages
 
 ## 📊 버전
-- **현재 버전**: v10.1.1
+- **현재 버전**: v10.1.2
 - **Apps Script**: v3.4.1
 - **최종 업데이트**: 2025-09-15
+
+### v10.1.2 업데이트 내용
+- 🐛 Apps Script finalAnalysis 변수 스코프 오류 수정
+- ✅ 시트 업데이트 오류 메시지 해결
+- 🔧 try-catch 블록 외부 변수 선언으로 참조 오류 해결
+- 📦 Apps Script v3.4.1 적용 필요
 
 ### v10.1.1 업데이트 내용
 - 🔧 브라우저 캐시 문제로 인한 오류 메시지 개선
