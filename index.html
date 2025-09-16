@@ -1612,7 +1612,8 @@
         const handTime = await getHandTimestamp(handNumber);
         if (!handTime) return null;
 
-        const matchedRow = await matchTimeInVirtualSheet(handTime);
+        const result = await findMatchingRowInVirtualSheet(getSheetUrl(), handTime);
+        const matchedRow = result ? result.matchedRow : null;
         if (!matchedRow) return null;
 
         const statusData = {
@@ -1627,9 +1628,9 @@
           body: JSON.stringify(statusData)
         });
 
-        const result = await response.json();
-        console.log(`📋 핸드 #${handNumber} 상태 확인 결과:`, result);
-        return result.data?.columnE || null;
+        const statusResult = await response.json();
+        console.log(`📋 핸드 #${handNumber} 상태 확인 결과:`, statusResult);
+        return statusResult.data?.columnE || null;
       } catch (error) {
         console.error('❌ E열 상태 확인 오류:', error);
         return null;
@@ -4022,7 +4023,9 @@
         }
 
         // 4. 시간 매칭 수행
-        const matchedRow = await matchTimeInVirtualSheet(handTime);
+        const sheetUrl = getSheetUrl();
+        const matchResult = await findMatchingRowInVirtualSheet(sheetUrl, handTime);
+        const matchedRow = matchResult ? matchResult.matchedRow : null;
         if (!matchedRow) {
           throw new Error('시간 매칭에 실패했습니다. (대상 시간에서 ±3분 범위를 찾을 수 없음)');
         }
