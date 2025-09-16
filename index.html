@@ -2057,6 +2057,41 @@
     // 알림 함수
     // ====================================
     
+    // 핸드 버튼 상태 제어 함수
+    function disableHandButtons() {
+      const editBtn = document.getElementById('edit-btn');
+      const completeBtn = document.getElementById('complete-btn');
+
+      if (editBtn && completeBtn) {
+        editBtn.disabled = true;
+        editBtn.textContent = '완료됨';
+        editBtn.classList.remove('bg-yellow-600');
+        editBtn.classList.add('bg-gray-600', 'cursor-not-allowed');
+
+        completeBtn.disabled = true;
+        completeBtn.textContent = '완료됨';
+        completeBtn.classList.remove('bg-green-600');
+        completeBtn.classList.add('bg-gray-600', 'cursor-not-allowed');
+      }
+    }
+
+    function enableHandButtons() {
+      const editBtn = document.getElementById('edit-btn');
+      const completeBtn = document.getElementById('complete-btn');
+
+      if (editBtn && completeBtn) {
+        editBtn.disabled = false;
+        editBtn.textContent = '편집';
+        editBtn.classList.remove('bg-gray-600', 'cursor-not-allowed');
+        editBtn.classList.add('bg-yellow-600');
+
+        completeBtn.disabled = true; // 기본적으로 비활성화
+        completeBtn.textContent = '완료';
+        completeBtn.classList.remove('bg-gray-600', 'cursor-not-allowed');
+        completeBtn.classList.add('bg-green-600');
+      }
+    }
+
     // 업데이트 상태 표시 함수
     function showUpdateStatus(status, type = 'info') {
       const statusDiv = document.getElementById('update-status');
