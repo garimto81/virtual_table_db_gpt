@@ -1,5 +1,5 @@
-// Virtual Table DB - Google Apps Script v3.4.1 (finalAnalysis 오류 수정)
-// ContentService 문법 수정 버전
+// Virtual Table DB - Google Apps Script v3.4.4 (E열 2단계 워크플로우 완전 구현)
+// E열 드롭다운 및 상태 관리 시스템 포함
 
 // ========================================
 // 1. 기본 설정
