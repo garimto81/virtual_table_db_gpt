@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 10.1.3
+  Version: 10.1.4
   Last Updated: 2025-09-16
-  Description: E열 2단계 워크플로우 구현 - 편집/완료 버튼 로직 완전 개선
+  Description: 버튼 초기화 안정성 개선 - 페이지 로드 시 깜박임 현상 완전 해결
 -->
 <html lang="ko">
 <head>
@@ -248,7 +248,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span id="version-display" class="text-xs text-gray-500">v10.1.3</span>
+        <span id="version-display" class="text-xs text-gray-500">v10.1.4</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
@@ -307,8 +307,8 @@
           </div>
         </div>
         <div class="flex gap-2">
-          <button id="edit-btn" class="px-2 py-1 bg-yellow-600 text-xs rounded">편집</button>
-          <button id="complete-btn" class="px-2 py-1 bg-green-600 text-xs rounded">완료</button>
+          <button id="edit-btn" class="px-2 py-1 bg-yellow-600 text-xs rounded" disabled>편집</button>
+          <button id="complete-btn" class="px-2 py-1 bg-green-600 text-xs rounded" disabled>완료</button>
         </div>
       </div>
 
@@ -576,7 +576,7 @@
     // ====================================
     
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '10.1.3';
+    const APP_VERSION = '10.1.4';
     const BUILD_TIME = '2025-09-15T21:00:00Z';
     
     // 버전 체크 및 강제 업데이트
@@ -1842,6 +1842,10 @@
       
       // 버튼 상태 업데이트 (완료 상태에 따라)
       updateHandStatus(indexHand ? indexHand.handEdit : false);
+
+      // E열 상태 기반 버튼 업데이트 (비동기)
+      console.log(`🔄 핸드 #${handNumber} 선택 완료 - 버튼 상태 업데이트 예약`);
+      setTimeout(() => updateButtonStates(handNumber), 200); // 약간의 딱레이로 UI 완성 후 실행
     }
     
     function updateBoardCards(cards) {
@@ -4494,6 +4498,22 @@
     // 초기화
     // ====================================
     
+    // 초기 버튼 상태 설정 함수
+    function initializeButtonStates() {
+      const editBtn = document.getElementById('edit-btn');
+      const completeBtn = document.getElementById('complete-btn');
+
+      if (editBtn && completeBtn) {
+        // 초기 상태: 모두 비활성화 (핸드 선택 전)
+        editBtn.disabled = true;
+        completeBtn.disabled = true;
+        editBtn.textContent = '편집';
+        completeBtn.textContent = '완료';
+
+        console.log('⚙️ 초기 버튼 상태 설정 완료 - 모두 비활성화');
+      }
+    }
+
     // 마스터 핸드 목록 로드
     function loadMasterHandList() {
       try {
@@ -4568,7 +4588,10 @@
       // 초기화 시 AI 키 로드
       loadAPIKeys();
       console.log('='.repeat(60));
-      
+
+      // 초기 버튼 상태 설정 (핸드 선택 전에는 비활성화)
+      initializeButtonStates();
+
       // 마스터 핸드 목록 로드
       loadMasterHandList();
       console.log(`📁 기존 마스터 핸드: ${masterHandList.size}개`);
