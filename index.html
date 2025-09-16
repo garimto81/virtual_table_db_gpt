@@ -1613,13 +1613,15 @@
         if (!handTime) return null;
 
         const result = await findMatchingRowInVirtualSheet(getSheetUrl(), handTime);
-        const matchedRow = result ? result.matchedRow : null;
-        if (!matchedRow) return null;
+        const matchedRowData = result ? result.matchedRow : null;
+        if (!matchedRowData || !matchedRowData.row) return null;
+
+        const rowNumber = matchedRowData.row; // 행 번호 추출 (숫자)
 
         const statusData = {
           action: 'verifyUpdate',
           sheetUrl: getSheetUrl(),
-          rowNumber: matchedRow
+          rowNumber: rowNumber
         };
 
         const response = await fetch(getAppsScriptUrl(), {
@@ -3922,29 +3924,38 @@
       const filename = document.getElementById('final-filename').value;
       const summary = document.getElementById('ai-summary').value;
       const matchedRowInfo = document.getElementById('matched-row').value;
-      
+
       if (!filename || filename.includes('처리 중') || filename.includes('오류')) {
         alert('처리가 완료될 때까지 기다려주시거나, 처리에 실패한 경우 다시 시도해주세요.');
         return;
       }
-      
+
       if (!summary || summary.includes('처리 중') || summary.includes('처리 실패')) {
         alert('핸드 분석이 완료될 때까지 기다려주시거나, 실패한 경우 다시 시도해주세요.');
         return;
       }
-      
+
+      // 행 번호 추출 (예: "매칭: 5행 [...]" → 5)
+      const rowMatch = matchedRowInfo.match(/매칭:\s*(\d+)행/);
+      const rowNumber = rowMatch ? parseInt(rowMatch[1]) : null;
+
+      if (!rowNumber) {
+        alert('⚠️ 매칭된 행 정보를 찾을 수 없습니다.\n매칭이 완료되었는지 확인해주세요.');
+        return;
+      }
+
       // 확인 버튼 비활성화
       const confirmBtn = document.getElementById('confirm-completion');
       const originalText = confirmBtn.textContent;
       confirmBtn.disabled = true;
       confirmBtn.textContent = '업데이트 중...';
-      
+
       try {
         // 시트 업데이트 데이터 준비 (E열: '복사완료' 포함)
         const completeUpdateData = {
           action: 'updateSheet',
           sheetUrl: getSheetUrl(),
-          rowNumber: parseInt(matchedRowInfo),
+          rowNumber: rowNumber,
           handNumber: handNumber,
           filename: filename,
           aiAnalysis: summary,
@@ -3956,7 +3967,7 @@
 
         // Apps Script를 통한 시트 업데이트 (E열 '복사완료' 포함)
         const updateResult = await updateSheetData(
-          parseInt(matchedRowInfo),
+          rowNumber,  // 숫자 타입 행 번호 전달
           handNumber,
           filename,
           summary,
@@ -4024,10 +4035,11 @@
 
         // 4. 시간 매칭 수행
         const matchResult = await findMatchingRowInVirtualSheet(sheetUrl, handTime);
-        const matchedRow = matchResult ? matchResult.matchedRow : null;
-        if (!matchedRow) {
+        const matchedRowData = matchResult ? matchResult.matchedRow : null;
+        if (!matchedRowData || !matchedRowData.row) {
           throw new Error('시간 매칭에 실패했습니다. (대상 시간에서 ±3분 범위를 찾을 수 없음)');
         }
+        const rowNumber = matchedRowData.row; // 행 번호 추출 (숫자)
 
         // 5. AI 분석 실행
         const aiAnalysis = await analyzeHandWithAI(handNumber);
@@ -4037,7 +4049,7 @@
         const updateData = {
           action: 'updateSheet',
           sheetUrl: sheetUrl,
-          rowNumber: matchedRow,
+          rowNumber: rowNumber,  // 숫자 타입 사용
           handNumber: handNumber,
           filename: filename,
           aiAnalysis: aiAnalysis,
@@ -4047,7 +4059,7 @@
 
         console.log('📤 편집 상태 업데이트 데이터:', updateData);
 
-        const result = await updateSheetData(matchedRow, handNumber, filename, aiAnalysis, updateData);
+        const result = await updateSheetData(rowNumber, handNumber, filename, aiAnalysis, updateData);
 
         if (result && result.success) {
           // 7. 성공 시 UI 업데이트
@@ -4058,7 +4070,7 @@
           // 로컬 상태 업데이트
           updateHandEditStatus(handNumber, false, true); // 마지막 매개변수는 skipServerCall
 
-          alert('✅ 편집 상태로 설정되었습니다!\n\n📋 행 번호: ' + matchedRow + '\n📁 파일명: ' + filename + '\n🤖 AI 분석: 완료\n\n이제 "완료" 버튼을 클릭하세요.');
+          alert('✅ 편집 상태로 설정되었습니다!\n\n📋 행 번호: ' + rowNumber + '\n📁 파일명: ' + filename + '\n🤖 AI 분석: 완료\n\n이제 "완료" 버튼을 클릭하세요.');
         } else {
           throw new Error(result?.message || '시트 업데이트에 실패했습니다.');
         }
