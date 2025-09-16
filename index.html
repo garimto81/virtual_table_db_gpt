@@ -248,7 +248,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span id="version-display" class="text-xs text-gray-500">v10.1.9</span>
+        <span id="version-display" class="text-xs text-gray-500">v10.2.0</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
@@ -730,6 +730,72 @@
     let refreshTimerInterval = null;  // 반복 setInterval용
     let lastHandCount = 0;
     let isInitialLoad = true; // 첫 로딩인지 확인
+
+    // 완료된 핸드 관리 시스템
+    class CompletedHandsManager {
+      constructor() {
+        this.completedHands = new Set();
+        this.storageKey = 'poker_completed_hands_v1';
+        this.loadFromStorage();
+      }
+
+      // 로컬 스토리지에서 로드
+      loadFromStorage() {
+        try {
+          const stored = localStorage.getItem(this.storageKey);
+          if (stored) {
+            const data = JSON.parse(stored);
+            this.completedHands = new Set(data);
+          }
+        } catch (error) {
+          console.error('완료 핸드 로드 오류:', error);
+          this.completedHands = new Set();
+        }
+      }
+
+      // 로컬 스토리지에 저장
+      saveToStorage() {
+        try {
+          const data = Array.from(this.completedHands);
+          localStorage.setItem(this.storageKey, JSON.stringify(data));
+        } catch (error) {
+          console.error('완료 핸드 저장 오류:', error);
+        }
+      }
+
+      // 핸드 완료 처리
+      markAsCompleted(handNumber) {
+        this.completedHands.add(String(handNumber));
+        this.saveToStorage();
+      }
+
+      // 핸드 완료 상태 확인
+      isCompleted(handNumber) {
+        return this.completedHands.has(String(handNumber));
+      }
+
+      // 완료된 핸드 목록 가져오기
+      getCompletedHands() {
+        return Array.from(this.completedHands);
+      }
+
+      // 핸드 완료 상태 제거 (재작업 필요 시)
+      removeFromCompleted(handNumber) {
+        this.completedHands.delete(String(handNumber));
+        this.saveToStorage();
+      }
+
+      // 통계 정보
+      getStats() {
+        return {
+          totalCompleted: this.completedHands.size,
+          completedList: this.getCompletedHands()
+        };
+      }
+    }
+
+    // 완료 핸드 매니저 인스턴스 생성
+    const completedHandsManager = new CompletedHandsManager();
     
     // 최근 5개 핸드만 추적하는 간단한 버퍼
     class RecentHandsBuffer {
@@ -1762,15 +1828,31 @@
       }
       
       listEl.innerHTML = filteredHands.map(hand => {
+        // 완료 상태 확인
+        const isCompleted = completedHandsManager.isCompleted(hand.handNumber);
+
         // 상태에 따른 색상 설정
-        const statusColor = hand.handEdit ? 'border-green-500 bg-green-900/20' : 
-                          hand.workStatus === '진행중' ? 'border-yellow-500 bg-yellow-900/20' : 
-                          'border-gray-600 bg-gray-800';
-        
+        let statusColor;
+        let statusIcon = '';
+
+        if (isCompleted) {
+          // 완료된 핸드 - 회색으로 처리
+          statusColor = 'border-gray-500 bg-gray-800/50 opacity-60';
+          statusIcon = '🏁'; // 처리 완료 아이콘
+        } else if (hand.handEdit) {
+          statusColor = 'border-green-500 bg-green-900/20';
+          statusIcon = '✅'; // 체크 마크
+        } else if (hand.workStatus === '진행중') {
+          statusColor = 'border-yellow-500 bg-yellow-900/20';
+          statusIcon = '⚡'; // 진행 중
+        } else {
+          statusColor = 'border-gray-600 bg-gray-800';
+        }
+
         // 스트리트별 색상
         const streetColors = {
           'preflop': 'text-purple-400',
-          'flop': 'text-blue-400', 
+          'flop': 'text-blue-400',
           'turn': 'text-green-400',
           'river': 'text-orange-400',
           'showdown': 'text-yellow-400'
@@ -1799,22 +1881,24 @@
           '파일 없음';
 
         return `
-        <div class="rounded-lg p-3 cursor-pointer hover:scale-105 transition-all border ${statusColor}" 
+        <div class="rounded-lg p-3 cursor-pointer hover:scale-105 transition-all border ${statusColor}"
              onclick="selectHand('${hand.handNumber}')">
           <div class="flex items-center justify-between mb-1">
-            <span class="text-sm font-bold text-white">Hand #${hand.handNumber}</span>
-            ${hand.handEdit ? '<span class="text-green-400">✓</span>' : 
-              hand.workStatus === '진행중' ? '<span class="text-yellow-400">⚡</span>' : ''}
+            <span class="text-sm font-bold ${isCompleted ? 'text-gray-400' : 'text-white'}">
+              Hand #${hand.handNumber}
+              ${isCompleted ? ' (완료)' : ''}
+            </span>
+            <span class="text-lg">${statusIcon}</span>
           </div>
           <div class="flex items-center justify-between text-xs">
-            <span class="text-gray-300">${hand.table || '테이블 -'}</span>
+            <span class="${isCompleted ? 'text-gray-500' : 'text-gray-300'}">${hand.table || '테이블 -'}</span>
             <span class="${streetColor} font-semibold">${hand.lastStreet || 'Preflop'}</span>
           </div>
           <div class="flex items-center justify-between text-xs mt-1">
-            <span class="text-gray-500">${hand.lastAction || '-'}</span>
-            <span class="text-gray-500 font-mono">${time}</span>
+            <span class="${isCompleted ? 'text-gray-600' : 'text-gray-500'}">${hand.lastAction || '-'}</span>
+            <span class="${isCompleted ? 'text-gray-600' : 'text-gray-500'} font-mono">${time}</span>
           </div>
-          <div class="text-xs text-blue-300 mt-1 truncate" title="${hand.camFiles?.join(', ') || ''}">
+          <div class="text-xs ${isCompleted ? 'text-gray-600' : 'text-blue-300'} mt-1 truncate" title="${hand.camFiles?.join(', ') || ''}">
             📹 ${camFilesText}
           </div>
         </div>
@@ -1890,7 +1974,17 @@
 
       // E열 상태 기반 버튼 업데이트 (비동기)
       console.log(`🔄 핸드 #${handNumber} 선택 완료 - 버튼 상태 업데이트 예약`);
-      setTimeout(() => updateButtonStates(handNumber), 200); // 약간의 딱레이로 UI 완성 후 실행
+      // 완료 상태 확인 및 버튼 제어
+      const isCompleted = completedHandsManager.isCompleted(handNumber);
+
+      if (isCompleted) {
+        // 완료된 핸드인 경우 버튼 비활성화
+        disableHandButtons();
+        showUpdateStatus(`🏁 핸드 #${handNumber} 작업 완료 - 재작업 불필요`, 'success');
+      } else {
+        // 완료되지 않은 핸드인 경우 정상 버튼 상태 업데이트
+        setTimeout(() => updateButtonStates(handNumber), 200);
+      } // 약간의 딱레이로 UI 완성 후 실행
     }
     
     function updateBoardCards(cards) {
@@ -4400,6 +4494,15 @@
           // 업데이트 상태 표시
           showUpdateStatus(`✅ 핸드 #${handNumber} 업데이트 완료 - E열: 복사완료`, 'success');
 
+          // 핸드를 완료된 것으로 표시
+          completedHandsManager.markAsCompleted(handNumber);
+
+          // 핸드 목록 업데이트 (시각적 표시를 위해)
+          updateHandList();
+
+          // 버튼 비활성화
+          disableHandButtons();
+
           // 로컬 상태 업데이트
           updateHandEditStatus(handNumber, true, true);
         } else {
@@ -4540,6 +4643,12 @@
 
           // 업데이트 상태 표시
           showUpdateStatus(`✏️ 핸드 #${handNumber} 편집 모드 전환 - E열: 미완료`, 'warning');
+
+          // 핸드가 편집 중이므로 완료 목록에서 제거 (재작업)
+          completedHandsManager.removeFromCompleted(handNumber);
+
+          // 핸드 목록 업데이트
+          updateHandList();
         } else {
           throw new Error(result?.message || '시트 업데이트에 실패했습니다.');
         }
