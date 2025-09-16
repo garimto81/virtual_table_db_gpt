@@ -652,7 +652,13 @@
       // MAIN_SHEET_URL을 우선 사용, 없으면 기존 WRITE_SHEET_URL 사용 (호환성)
       return CONFIG.MAIN_SHEET_URL || CONFIG.WRITE_SHEET_URL || CONFIG.READ_SHEET_URL;
     }
-    
+
+    function getAppsScriptUrl() {
+      // Apps Script URL 가져오기 (DOM 또는 CONFIG에서)
+      const appsScriptUrlInput = document.getElementById('apps-script-url');
+      return appsScriptUrlInput ? appsScriptUrlInput.value : CONFIG.SHEET_UPDATE_SCRIPT_URL;
+    }
+
     function getSheetCsvUrl() {
       const sheetUrl = getSheetUrl();
       if (!sheetUrl) return null;
