@@ -14,8 +14,8 @@
 ## 📁 프로젝트 구조
 ```
 virtual_table_db_claude/
-├── index.html         # 메인 웹 애플리케이션 (v9.7.7)
-├── apps_script.gs     # Google Apps Script (v3.2)
+├── index.html         # 메인 웹 애플리케이션 (v10.1.2)
+├── apps_script.gs     # Google Apps Script (v3.4.1)
 ├── README.md          # 프로젝트 개요
 ├── _config.yml        # GitHub Pages 설정
 ├── docs/              # 문서 모음
@@ -34,7 +34,7 @@ virtual_table_db_claude/
 ### 1. Apps Script 배포
 1. [Google Apps Script](https://script.google.com) 접속
 2. 새 프로젝트 생성
-3. `apps_script.gs` (v3.2) 내용 복사/붙여넣기
+3. `apps_script.gs` (v3.4.1) 내용 복사/붙여넣기
 4. 배포 > 새 배포 > 웹 앱
 5. 액세스 권한: "모든 사용자" 설정
 6. 배포 URL 복사

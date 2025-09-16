@@ -1,4 +1,4 @@
-// Virtual Table DB - Google Apps Script v3.1 (text/plain 파싱 개선)
+// Virtual Table DB - Google Apps Script v3.4.1 (finalAnalysis 오류 수정)
 // ContentService 문법 수정 버전
 
 // ========================================
@@ -29,7 +29,7 @@ function doGet(e) {
     status: 'ok',
     method: 'GET',
     time: new Date().toISOString(),
-    version: 'v3.1',
+    version: 'v3.4.1',
     service: 'Virtual Table Sheet Updater',
     features: ['Sheet Update', 'Gemini AI Analysis', 'Auto Analysis', 'Index Sheet Support', 'text/plain Support'],
     gemini_enabled: !!GEMINI_API_KEY,
@@ -116,7 +116,7 @@ function doPost(e) {
           status: 'success',
           message: 'Apps Script 연결 성공!',
           timestamp: new Date().toISOString(),
-          version: 'v3.1',
+          version: 'v3.4.1',
           receivedData: requestData
         };
         break;
@@ -627,7 +627,7 @@ function getDeploymentInfo() {
   const url = ScriptApp.getService().getUrl();
   
   return {
-    version: '3.1',
+    version: '3.4.1',
     lastUpdated: '2025-09-15',
     description: 'text/plain 파싱 개선 버전',
     webAppUrl: url || 'Not deployed yet',
