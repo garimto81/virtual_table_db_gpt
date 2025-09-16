@@ -59,9 +59,26 @@ virtual_table_db_claude/
 - **Hosting**: GitHub Pages
 
 ## 📊 버전
-- **현재 버전**: v10.1.2
-- **Apps Script**: v3.4.1
-- **최종 업데이트**: 2025-09-15
+- **현재 버전**: v10.1.5
+- **Apps Script**: v3.4.4
+- **최종 업데이트**: 2025-09-16
+
+### v10.1.5 업데이트 내용
+- 🐛 matchTimeInVirtualSheet 미정의 함수 오류 수정
+- ✅ findMatchingRowInVirtualSheet로 올바른 함수 호출 변경
+- 🔧 checkHandStatusInSheet 함수 변수명 충돌 해결
+- ✨ 편집 버튼과 완료 버튼 정상 작동 복구
+
+### v10.1.4 업데이트 내용
+- 🎯 버튼 초기화 안정성 개선
+- ✅ HTML에 disabled 속성 직접 추가
+- 🔧 initializeButtonStates 함수 추가
+
+### v10.1.3 업데이트 내용
+- ✨ E열 2단계 워크플로우 완전 구현
+- 🔄 편집 버튼 → "미완료" 상태 업데이트
+- ✅ 완료 버튼 → "복사완료" 상태 업데이트
+- 📦 Apps Script v3.4.4 필요
 
 ### v10.1.2 업데이트 내용
 - 🐛 Apps Script finalAnalysis 변수 스코프 오류 수정
