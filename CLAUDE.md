@@ -2,27 +2,39 @@
 
 ## 📌 기본 규칙
 
-### 1. Subagents와 MCP 적극 활용
+### 1. 코드 수정 후 필수 확인 절차
+**모든 코드 수정 후 반드시 다음 절차를 수행:**
+1. **로컬 테스트**: 수정사항 정상 작동 확인
+2. **버전 업데이트**: 버전 번호 증가 (예: v10.1.5 → v10.1.6)
+3. **커밋 및 푸시**: Git 커밋 메시지에 수정 내용 명시
+4. **GitHub 확인**: WebFetch로 실제 GitHub 코드 변경 확인
+   ```
+   WebFetch: https://raw.githubusercontent.com/[repo]/master/[file]
+   확인사항: 버전, 수정된 함수, 변경된 로직
+   ```
+5. **브라우저 캐시 안내**: 사용자에게 Ctrl+Shift+R 안내
+
+### 2. Subagents와 MCP 적극 활용
 - 복잡한 작업은 항상 적절한 subagent에게 위임
 - 단순 작업도 MCP를 통해 자동화 고려
 - 작업 시작 전 사용 가능한 도구 확인
 
-### 2. 언어 설정
+### 3. 언어 설정
 - **모든 응답은 한글로 작성**
 - 코드 주석도 가능한 한글로 작성
 - 기술 용어는 한글(영문) 형식 사용
 
-### 3. 프로젝트 관리 원칙
+### 4. 프로젝트 관리 원칙
 - 프로젝트 간 충돌 방지를 위해 독립적 환경 유지
 - 공통 모듈 수정 시 영향도 분석 필수
 - 각 프로젝트별 README 최신 상태 유지
 
-### 4. 단계적 사고 프로세스
+### 5. 단계적 사고 프로세스
 - 복잡한 작업은 하위 작업으로 분해
 - TodoWrite로 작업 계획 수립
 - 각 단계별 적절한 subagent 할당
 
-### 5. MCP 선택 가이드
+### 6. MCP 선택 가이드
 - 작업 특성 분석 후 최적 MCP 선택
 - 여러 MCP 조합 활용 고려
 - 효율성과 정확성 균형 유지
@@ -162,6 +174,35 @@ npm install
 4. **문서화**: 코드 작성과 동시에 문서 업데이트
 5. **테스트 우선**: TDD 접근 방식으로 품질 보장
 
+## 🔄 코드 수정 작업 예시
+
+### virtual_table_db_claude 프로젝트 버그 수정 예시
+```bash
+# 1. 오류 분석 및 수정
+- 오류 메시지 확인: "getAppsScriptUrl is not defined"
+- 원인 파악: 함수 정의 누락
+- 수정: 헬퍼 함수 추가
+
+# 2. 버전 업데이트
+- index.html: APP_VERSION = '10.1.6'
+- HTML 주석 버전 동기화
+- README.md 버전 정보 업데이트
+
+# 3. Git 작업
+git add -A
+git commit -m "fix: 구체적인 수정 내용"
+git push origin master
+
+# 4. GitHub 확인
+WebFetch: https://raw.githubusercontent.com/garimto81/virtual_table_db_claude/master/index.html
+- 버전 확인: v10.1.6
+- 함수 정의 확인
+- 수정사항 반영 확인
+
+# 5. 사용자 안내
+"브라우저 캐시 초기화: Ctrl+Shift+R"
+```
+
 ## 📞 도움말 및 참고 자료
 
 - Claude Code 문서: https://docs.anthropic.com/en/docs/claude-code
@@ -171,4 +212,4 @@ npm install
 ---
 
 이 문서는 지속적으로 업데이트됩니다.
-최종 수정일: 2025-08-05
+최종 수정일: 2025-09-16
