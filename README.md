@@ -59,9 +59,15 @@ virtual_table_db_claude/
 - **Hosting**: GitHub Pages
 
 ## 📊 버전
-- **현재 버전**: v10.1.5
+- **현재 버전**: v10.1.6
 - **Apps Script**: v3.4.4
 - **최종 업데이트**: 2025-09-16
+
+### v10.1.6 업데이트 내용
+- 🐛 데이터 타입 불일치 문제 완전 해결
+- ✅ matchedRow 객체에서 행 번호 올바른 추출
+- 🔧 getAppsScriptUrl() 헬퍼 함수 추가
+- ✨ 편집/완료 버튼 완벽 작동
 
 ### v10.1.5 업데이트 내용
 - 🐛 matchTimeInVirtualSheet 미정의 함수 오류 수정
