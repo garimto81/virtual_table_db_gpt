@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 10.1.6
+  Version: 10.1.7
   Last Updated: 2025-09-16
-  Description: 타입 불일치 및 함수 정의 누락 문제 완전 해결
+  Description: 편집/완료 버튼 자동 처리 및 상세 팝업 구현
 -->
 <html lang="ko">
 <head>
@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title id="page-title">포커 핸드 모니터링 v10.1.6 - AI 분석 시스템</title>
+  <title id="page-title">포커 핸드 모니터링 v10.1.7 - AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -576,7 +576,7 @@
     // ====================================
     
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '10.1.6';
+    const APP_VERSION = '10.1.7';
     const BUILD_TIME = '2025-09-16T08:40:00Z';
     
     // 버전 체크 및 강제 업데이트
@@ -4016,6 +4016,99 @@
       }
     });
     
+    // 완료 버튼 처리 함수 (자동 처리)
+    async function processCompleteButton(handNumber) {
+      const editBtn = document.getElementById('edit-btn');
+      const completeBtn = document.getElementById('complete-btn');
+
+      try {
+        // 1. 버튼 상태 변경
+        completeBtn.disabled = true;
+        completeBtn.textContent = '처리 중...';
+        editBtn.disabled = true;
+
+        // 2. 시트 URL 확인
+        const sheetUrl = getSheetUrl();
+        if (!sheetUrl) {
+          throw new Error('시트 URL이 설정되지 않았습니다.');
+        }
+
+        // 3. 핸드 시간 가져오기
+        const handTime = await getHandTimestamp(handNumber);
+        if (!handTime) {
+          throw new Error('핸드 시간 정보를 가져올 수 없습니다.');
+        }
+
+        // 4. 시간 매칭 수행
+        const matchResult = await findMatchingRowInVirtualSheet(sheetUrl, handTime);
+        const matchedRowData = matchResult ? matchResult.matchedRow : null;
+        if (!matchedRowData || !matchedRowData.row) {
+          throw new Error('시간 매칭에 실패했습니다. (대상 시간에서 ±3분 범위를 찾을 수 없음)');
+        }
+        const rowNumber = matchedRowData.row; // 행 번호 추출 (숫자)
+
+        // 5. AI 분석 실행
+        const aiAnalysis = await analyzeHandWithAI(handNumber);
+        const filename = `${handNumber}_${new Date().toISOString().slice(0,10).replace(/-/g, '')}_completed`;
+
+        // 6. 시트 업데이트 (복사완료 상태로)
+        const updateData = {
+          action: 'updateSheet',
+          sheetUrl: sheetUrl,
+          rowNumber: rowNumber,
+          handNumber: handNumber,
+          filename: filename,
+          aiAnalysis: aiAnalysis,
+          status: '복사완료',  // ✅ 완료 단계에서 '복사완료' 설정
+          timestamp: handTime
+        };
+
+        console.log('📤 완료 상태 업데이트 데이터:', updateData);
+
+        const result = await updateSheetData(rowNumber, handNumber, filename, aiAnalysis, updateData);
+
+        if (result && result.success) {
+          // 7. 성공 시 UI 업데이트
+          completeBtn.textContent = '완료';
+          completeBtn.disabled = true;  // 완료 후 비활성화
+          editBtn.disabled = true;      // 편집 버튼도 비활성화
+
+          // 상세한 정보를 포함한 팝업 메시지
+          const detailMessage = `✅ 완료 처리되었습니다!
+
+📊 Google Sheets 업데이트 정보:
+━━━━━━━━━━━━━━━━━━━━━━━━
+📍 시트 위치: ${rowNumber}번째 행
+📁 D열 (핸드번호): ${handNumber}
+📝 E열 (상태): 복사완료 ✅
+📂 F열 (파일명): ${filename}
+🤖 H열 (AI분석): ${aiAnalysis.substring(0, 50)}...
+
+⏰ 시간: ${new Date(handTime * 1000).toLocaleString('ko-KR')}
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+✨ 모든 작업이 성공적으로 완료되었습니다!`;
+
+          alert(detailMessage);
+
+          // 로컬 상태 업데이트
+          updateHandEditStatus(handNumber, true, true);
+        } else {
+          throw new Error(result?.message || '시트 업데이트에 실패했습니다.');
+        }
+
+      } catch (error) {
+        console.error('❌ 완료 버튼 처리 오류:', error);
+
+        // 오류 시 버튼 복원
+        completeBtn.disabled = false;
+        completeBtn.textContent = '완료';
+        editBtn.disabled = false;
+
+        alert(`❌ 완료 처리 중 오류가 발생했습니다.\n\n${error.message}`);
+      }
+    }
+
     // 편집 버튼 처리 함수 (새로 추가)
     async function processEditButton(handNumber) {
       const editBtn = document.getElementById('edit-btn');
@@ -4076,7 +4169,23 @@
           // 로컬 상태 업데이트
           updateHandEditStatus(handNumber, false, true); // 마지막 매개변수는 skipServerCall
 
-          alert('✅ 편집 상태로 설정되었습니다!\n\n📋 행 번호: ' + rowNumber + '\n📁 파일명: ' + filename + '\n🤖 AI 분석: 완료\n\n이제 "완료" 버튼을 클릭하세요.');
+          // 상세한 정보를 포함한 팝업 메시지
+          const detailMessage = `✅ 편집 모드로 전환되었습니다!
+
+📊 Google Sheets 업데이트 정보:
+━━━━━━━━━━━━━━━━━━━━━━━━
+📍 시트 위치: ${rowNumber}번째 행
+📁 D열 (핸드번호): ${handNumber}
+📝 E열 (상태): 미완료
+📂 F열 (파일명): ${filename}
+🤖 H열 (AI분석): ${aiAnalysis.substring(0, 50)}...
+
+⏰ 시간: ${new Date(handTime * 1000).toLocaleString('ko-KR')}
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+💡 다음 단계: "완료" 버튼을 클릭하여 최종 처리하세요.`;
+
+          alert(detailMessage);
         } else {
           throw new Error(result?.message || '시트 업데이트에 실패했습니다.');
         }
@@ -4485,31 +4594,9 @@
     
     document.getElementById('complete-btn').addEventListener('click', async () => {
       if (currentHand) {
-        // 시트 URL 확인 및 유효성 검증 (단일 시트 사용)
-        const virtualSheetUrl = getSheetCsvUrl();
-        if (!virtualSheetUrl) {
-          alert('먼저 설정에서 시트 URL을 입력해주세요.');
-          return;
-        }
-        
-        // URL 기본 검증
-        if (!virtualSheetUrl.includes('docs.google.com/spreadsheets')) {
-          const confirmMessage = `⚠️ URL 형식 확인\n\nGoogle Sheets URL이 아닌 것 같습니다.\n그래도 계속 진행하시겠습니까?`;
-          if (!confirm(confirmMessage)) {
-            return;
-          }
-          console.warn('⚠️ 비표준 URL로 진행:', virtualSheetUrl);
-        } else {
-          console.log('✅ URL 형식 확인:', virtualSheetUrl.substring(0, 50) + '...');
-        }
-        
-        // 핸드 시간 가져오기
-        const handTime = await getHandTimestamp(currentHand);
-        if (handTime) {
-          // 개선된 완료 모달 표시
-          showImprovedCompletionModal(currentHand, handTime, virtualSheetUrl);
-        } else {
-          alert('핸드 시간 정보를 가져올 수 없습니다.');
+        const confirmed = confirm('이 핸드를 완료 처리하시겠습니까?\n\n자동으로 시트가 업데이트되고 E열이 "복사완료"로 설정됩니다.');
+        if (confirmed) {
+          await processCompleteButton(currentHand);
         }
       }
     });
