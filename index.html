@@ -4023,7 +4023,6 @@
         }
 
         // 4. 시간 매칭 수행
-        const sheetUrl = getSheetUrl();
         const matchResult = await findMatchingRowInVirtualSheet(sheetUrl, handTime);
         const matchedRow = matchResult ? matchResult.matchedRow : null;
         if (!matchedRow) {
