@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title id="page-title">포커 핸드 모니터링 v11.1.0 - AI 분석 시스템</title>
+  <title id="page-title">포커 핸드 모니터링 v11.3.2 - AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <!-- 성능 모니터링 도구 - 통합됨 (외부 파일 제거) -->
   <style>
@@ -675,7 +675,7 @@
     // ====================================
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '11.3.1';
+    const APP_VERSION = '11.3.2';
     const BUILD_TIME = '2025-09-17T11:00:00Z';
 
     // ====================================
@@ -2580,16 +2580,18 @@
       return results;
     }
 
-    // 기존 개별 상태 확인 함수 (호환성 유지)
+    // 개별 상태 확인 함수 (캐시 우선, 시트 폴백)
     async function checkHandStatusInSheet(handNumber) {
       try {
-        // ⚠️ Virtual 시트 매칭 비활성화 - 캐시만 사용
-        console.log(`🔍 핸드 #${handNumber} 상태 확인: 캐시 전용 모드`);
+        console.log(`🔍 핸드 #${handNumber} 상태 확인: 캐시 우선 + 시트 폴백 모드`);
 
         const handTime = await getHandTimestamp(handNumber);
-        if (!handTime) return null;
+        if (!handTime) {
+          console.log(`❌ 핸드 #${handNumber} 타임스탬프 조회 실패`);
+          return null;
+        }
 
-        // 캐시에서만 확인, Virtual 시트 매칭 건너뛰기
+        // 1순위: 캐시에서 확인
         if (sheetDataCache) {
           await sheetDataCache.ensureFresh();
           const cachedRow = sheetDataCache.findClosestRow(handTime);
@@ -2599,8 +2601,25 @@
           }
         }
 
-        // 캐시 미스 시 Virtual 시트 매칭 대신 null 반환 (편집 가능 상태)
-        console.log(`⚠️ 캐시 미스: 핸드 #${handNumber} - 편집 가능 상태로 설정`);
+        // 2순위: 캐시 미스 시 실제 Virtual 시트에서 확인
+        console.log(`🔄 캐시 미스 - Virtual 시트에서 실제 상태 확인: 핸드 #${handNumber}`);
+
+        const virtualSheetUrl = getVirtualSheetUrl();
+        if (!virtualSheetUrl) {
+          console.log(`⚠️ Virtual 시트 URL 미설정 - 편집 가능 상태로 설정`);
+          return null;
+        }
+
+        // Virtual 시트 매칭으로 실제 상태 확인
+        const matchResult = await findClosestVirtualRow(handTime, virtualSheetUrl, false);
+        if (matchResult && matchResult.row) {
+          const status = matchResult.status || '';
+          console.log(`✅ Virtual 시트 매칭 성공: 핸드 #${handNumber} 상태 = "${status}"`);
+          return status;
+        }
+
+        // 매칭 실패 시 편집 가능 상태로 설정
+        console.log(`⚠️ Virtual 시트 매칭 실패: 핸드 #${handNumber} - 편집 가능 상태로 설정`);
         return null;
 
       } catch (error) {
