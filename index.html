@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title id="page-title">포커 핸드 모니터링 v11.3.4 - AI 분석 시스템</title>
+  <title id="page-title">포커 핸드 모니터링 v11.3.5 - AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <!-- 성능 모니터링 도구 - 통합됨 (외부 파일 제거) -->
   <style>
@@ -675,7 +675,7 @@
     // ====================================
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '11.3.4';
+    const APP_VERSION = '11.3.5';
     const BUILD_TIME = '2025-09-17T11:00:00Z';
 
     // ====================================
@@ -3500,8 +3500,18 @@
           
           // 매칭된 행에서 E열 상태값 추출
           const cols = closestRow;
-          const status = cols[4]?.trim() || ''; // E열
-          const filename = cols[5]?.trim() || ''; // F열
+          let status = cols[4]?.trim() || ''; // E열
+          let filename = cols[5]?.trim() || ''; // F열
+
+          // CSV 파싱 시 따옴표 제거 처리
+          if (status.startsWith('"') && status.endsWith('"')) {
+            status = status.slice(1, -1).trim();
+          }
+          if (filename.startsWith('"') && filename.endsWith('"')) {
+            filename = filename.slice(1, -1).trim();
+          }
+
+          console.log(`🔍 [디버그] E열 원본: "${cols[4]}" → 파싱 후: "${status}"`);
 
           return {
             row: closestRow,
