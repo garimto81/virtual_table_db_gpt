@@ -675,7 +675,7 @@
     // ====================================
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '11.4.1';
+    const APP_VERSION = '11.4.2';
     const BUILD_TIME = '2025-09-17T11:00:00Z';
 
     // ====================================
@@ -840,17 +840,35 @@
         const str = String(timeStr).trim();
 
         // 이미 타임스탬프인 경우 (10자리 숫자)
-        const timestamp = parseInt(str);
-        if (!isNaN(timestamp) && timestamp > 1000000000) {
-          return timestamp;
+        const numValue = parseInt(str);
+        if (!isNaN(numValue) && numValue > 1000000000 && str.match(/^\d+$/)) {
+          return numValue;
         }
 
-        // HH:MM:SS 또는 HH:MM 형식
-        const timeParts = str.match(/(\d{1,2}):(\d{2}):?(\d{2})?/);
+        // HH:MM:SS 또는 HH:MM 형식 (Virtual 시트의 기본 형식)
+        const timeParts = str.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
         if (timeParts) {
           const today = new Date();
-          today.setHours(parseInt(timeParts[1]), parseInt(timeParts[2]), parseInt(timeParts[3] || 0), 0);
-          return Math.floor(today.getTime() / 1000);
+          const hours = parseInt(timeParts[1]);
+          const minutes = parseInt(timeParts[2]);
+          const seconds = parseInt(timeParts[3] || 0);
+
+          today.setHours(hours, minutes, seconds, 0);
+
+          // 만약 시간이 현재 시간보다 미래라면, 어제 날짜로 설정
+          const now = new Date();
+          if (today > now) {
+            today.setDate(today.getDate() - 1);
+          }
+
+          const timestamp = Math.floor(today.getTime() / 1000);
+
+          // 처음 몇 개만 디버깅 로그
+          if (this.cache.size < 3) {
+            console.log(`⏰ 시간 변환: "${str}" → ${timestamp} (${today.toLocaleString()})`);
+          }
+
+          return timestamp;
         }
 
         // 디버깅: 파싱 실패한 값 로그
