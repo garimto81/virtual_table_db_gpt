@@ -26,10 +26,10 @@
 ## 4. 세부 작업 계획
 
 ### 4.1 준비 단계 (D-3)
-- [ ] 현행 코드 스냅샷 저장 및 버전 태깅.
-- [ ] 기존 Google Sheets 구조, Apps Script 배포 상태 정리.
-- [ ] 리팩토링 브랜치(`refactor/main-structure`) 생성.
-- [ ] 헬스 체크용 샘플 CSV/시트 준비.
+- [x] 현행 코드 스냅샷 저장 및 버전 태깅.
+- [x] 기존 Google Sheets 구조, Apps Script 배포 상태 정리.
+- [x] 리팩토링 브랜치(`refactor/main-structure`) 생성.
+- [x] 헬스 체크용 샘플 CSV/시트 준비.
 
 ### 4.2 프론트엔드 리팩토링 (D1~D6)
 1. **구조 분할** (`src/` 디렉터리 신설)

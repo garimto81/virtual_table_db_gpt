@@ -1,0 +1,4 @@
+handNumber,startRow,endRow,handUpdatedAt,handEdit,handEditTime,placeholder,table,placeholder2,cam,camFileName1,camFileNum1,camFileName2,camFileNum2,lastStreet,lastAction,workStatus
+HAND10234,120,145,2025-09-16T09:12:00Z,FALSE,,unused,TV Table 5,unused,CamA,CAM,47,CAM2,11,river,check/call,대기중
+HAND10235,146,175,2025-09-16T09:18:00Z,TRUE,2025-09-16T09:25:10Z,unused,TV Table 5,unused,CamB,CAM,52,,,river,bet,진행중
+HAND10236,176,204,2025-09-16T09:24:00Z,FALSE,,unused,TV Table 2,unused,CamC,CAM,63,,,turn,fold,대기중
