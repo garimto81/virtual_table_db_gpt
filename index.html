@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 11.2.4
+  Version: 11.2.5
   Last Updated: 2025-09-17
-  Description: 새로고침 최적화 - 단일 스마트 새로고침 시스템으로 전환, 중복 새로고침 제거
+  Description: 긴급 수정 - 설정 저장 시 기존 타이머 재활성화 버그 수정, 모든 자동 reload 비활성화
 -->
 <html lang="ko">
 <head>
@@ -678,7 +678,7 @@
     // ====================================
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '11.2.4';
+    const APP_VERSION = '11.2.5';
     const BUILD_TIME = '2025-09-17T11:00:00Z';
 
     // ====================================
@@ -1461,9 +1461,9 @@
           localStorage.setItem('app_version', APP_VERSION);
           localStorage.setItem('build_time', BUILD_TIME);
 
-          // 강제 리로드 (한 번만)
-          console.log('🚀 새 버전으로 강제 업데이트 완료!');
-          setTimeout(() => location.reload(true), 1000);
+          // ⚠️ 강제 리로드 비활성화 - 사용자가 수동으로 새로고침하도록 안내
+          console.log('🚀 새 버전 감지 - Ctrl+Shift+R로 수동 새로고침 권장');
+          console.log('ℹ️ 자동 새로고침 비활성화 - 과도한 새로고침 방지');
           return true;
         } else {
           // 버전이 같거나 높으면 저장만 하고 리로드하지 않음
@@ -5459,7 +5459,8 @@
       // AI API 키 localStorage 저장
       saveAPIKeys();
       
-      // 모든 타이머 정리
+      // ⚠️ 기존 타이머 시스템 비활성화 - Phase 3 스마트 새로고침만 사용
+      // Phase 3에서 더 효율적인 스마트 새로고침을 제공하므로 기존 타이머 사용 안 함
       if (refreshTimerInitial) {
         clearTimeout(refreshTimerInitial);
         refreshTimerInitial = null;
@@ -5468,9 +5469,8 @@
         clearInterval(refreshTimerInterval);
         refreshTimerInterval = null;
       }
-      
-      // 새로운 타이머 설정
-      refreshTimerInterval = setInterval(() => loadIndexData(true), CONFIG.REFRESH_INTERVAL);
+
+      console.log('⚠️ 설정 저장 - 기존 타이머 시스템 비활성화 유지 (Phase 3 사용)');
       
       document.getElementById('settings-modal').classList.add('hidden');
     });
@@ -6269,8 +6269,8 @@
         });
 
         console.log('✅ 모든 데이터 초기화 완료');
-        alert('모든 데이터가 초기화되었습니다. 페이지를 새로고침합니다.');
-        location.reload();
+        alert('모든 데이터가 초기화되었습니다. Ctrl+Shift+R로 수동 새로고침하여 반영하세요.');
+        // location.reload(); // ⚠️ 자동 새로고침 비활성화 - 과도한 새로고침 방지
       } catch (error) {
         console.error('❌ 데이터 초기화 실패:', error);
         alert('데이터 초기화 중 오류가 발생했습니다.');
