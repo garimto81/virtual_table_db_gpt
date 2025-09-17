@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title id="page-title">포커 핸드 모니터링 v11.3.5 - AI 분석 시스템</title>
+  <title id="page-title">포커 핸드 모니터링 v11.3.6 - AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <!-- 성능 모니터링 도구 - 통합됨 (외부 파일 제거) -->
   <style>
@@ -675,7 +675,7 @@
     // ====================================
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '11.3.5';
+    const APP_VERSION = '11.3.6';
     const BUILD_TIME = '2025-09-17T11:00:00Z';
 
     // ====================================
@@ -2613,7 +2613,15 @@
         // Virtual 시트 매칭으로 실제 상태 확인
         const matchResult = await findClosestVirtualRow(handTime, virtualSheetUrl, false);
         if (matchResult && matchResult.row) {
-          const status = matchResult.status || '';
+          let status = matchResult.status || '';
+
+          // 추가 따옴표 제거 처리 (이중 보안)
+          console.log(`🔍 [checkHandStatusInSheet] matchResult.status 원본: "${matchResult.status}"`);
+          if (status.startsWith('"') && status.endsWith('"')) {
+            status = status.slice(1, -1).trim();
+            console.log(`🔧 [checkHandStatusInSheet] 따옴표 제거 후: "${status}"`);
+          }
+
           console.log(`✅ Virtual 시트 매칭 성공: 핸드 #${handNumber}`);
           console.log(`   📊 매칭된 행 정보:`, {
             row: matchResult.row,
