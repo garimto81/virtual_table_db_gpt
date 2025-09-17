@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title id="page-title">포커 핸드 모니터링 v11.3.3 - AI 분석 시스템</title>
+  <title id="page-title">포커 핸드 모니터링 v11.3.4 - AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <!-- 성능 모니터링 도구 - 통합됨 (외부 파일 제거) -->
   <style>
@@ -675,7 +675,7 @@
     // ====================================
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '11.3.3';
+    const APP_VERSION = '11.3.4';
     const BUILD_TIME = '2025-09-17T11:00:00Z';
 
     // ====================================
@@ -2614,7 +2614,15 @@
         const matchResult = await findClosestVirtualRow(handTime, virtualSheetUrl, false);
         if (matchResult && matchResult.row) {
           const status = matchResult.status || '';
-          console.log(`✅ Virtual 시트 매칭 성공: 핸드 #${handNumber} 상태 = "${status}"`);
+          console.log(`✅ Virtual 시트 매칭 성공: 핸드 #${handNumber}`);
+          console.log(`   📊 매칭된 행 정보:`, {
+            row: matchResult.row,
+            rowIndex: matchResult.rowIndex,
+            time: matchResult.time,
+            status: `"${status}"`,
+            filename: matchResult.filename,
+            timeDiff: Math.abs(handTime - (matchResult.timestamp || 0))
+          });
           return status;
         }
 
@@ -3490,13 +3498,21 @@
           // console.log(`✅ 시간 차이: ${minDiff}초`); // ⚠️ 콘솔 스팸 방지
           // console.log(`✅ 정확도: ${minDiff <= 5 ? '정확 (5초 이내)' : minDiff <= 30 ? '근사 (30초 이내)' : '대략적 (30초 초과)'}`); // ⚠️ 콘솔 스팸 방지
           
+          // 매칭된 행에서 E열 상태값 추출
+          const cols = closestRow;
+          const status = cols[4]?.trim() || ''; // E열
+          const filename = cols[5]?.trim() || ''; // F열
+
           return {
             row: closestRow,
             rowIndex: rowIndex,
             timeDiff: minDiff,
             targetTime: `${targetHours.toString().padStart(2, '0')}:${targetMinutes.toString().padStart(2, '0')}:${targetSeconds.toString().padStart(2, '0')}`,
             matchedTime: matchedTime,
-            accuracy: minDiff <= 5 ? 'exact' : minDiff <= 30 ? 'close' : 'approximate'
+            accuracy: minDiff <= 5 ? 'exact' : minDiff <= 30 ? 'close' : 'approximate',
+            status: status, // E열 상태값 추가
+            filename: filename, // F열 파일명 추가
+            timestamp: targetTime // 타임스탬프 추가
           };
         } else {
           console.error(`❌ === Virtual 시트 매칭 실패 ===`);
