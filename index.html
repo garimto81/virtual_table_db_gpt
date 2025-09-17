@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 10.2.0
+  Version: 10.2.1
   Last Updated: 2025-09-17
-  Description: Virtual 시트 매칭 자동 실행 시 팝업 완전 제거
+  Description: Apps Script URL 초기화 및 편집 버튼 오류 수정
 -->
 <html lang="ko">
 <head>
@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title id="page-title">포커 핸드 모니터링 v10.2.0 - AI 분석 시스템</title>
+  <title id="page-title">포커 핸드 모니터링 v10.2.1 - AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <!-- 성능 모니터링 도구 -->
   <script src="performance_monitor.js"></script>
@@ -602,7 +602,7 @@
     // ====================================
     
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '10.2.0';
+    const APP_VERSION = '10.2.1';
     const BUILD_TIME = '2025-09-16T08:40:00Z';
     
     // 버전 체크 및 강제 업데이트
@@ -680,9 +680,23 @@
     }
 
     function getAppsScriptUrl() {
-      // Apps Script URL 가져오기 (DOM 또는 CONFIG에서)
+      // Apps Script URL 가져오기 (DOM 우선, 없으면 CONFIG)
       const appsScriptUrlInput = document.getElementById('apps-script-url');
-      return appsScriptUrlInput ? appsScriptUrlInput.value : CONFIG.SHEET_UPDATE_SCRIPT_URL;
+      let url = appsScriptUrlInput ? appsScriptUrlInput.value.trim() : '';
+
+      // 입력 필드가 비어있으면 CONFIG 사용
+      if (!url) {
+        url = CONFIG.SHEET_UPDATE_SCRIPT_URL || '';
+      }
+
+      // 디버그 로그
+      if (!url) {
+        console.warn('⚠️ Apps Script URL이 설정되지 않았습니다.');
+        console.log('   입력 필드:', appsScriptUrlInput ? appsScriptUrlInput.value : 'N/A');
+        console.log('   CONFIG 값:', CONFIG.SHEET_UPDATE_SCRIPT_URL);
+      }
+
+      return url;
     }
 
     function getSheetCsvUrl() {
@@ -2872,9 +2886,8 @@
     
     // 시트에 데이터 업데이트 (F열: 파일명, H열: AI분석)
     async function updateSheetData(matchedRow, handNumber, filename, aiAnalysis, customData = null) {
-      // 실시간으로 입력 필드에서 URL 가져오기
-      const appsScriptUrlInput = document.getElementById('apps-script-url');
-      const appsScriptUrl = appsScriptUrlInput ? appsScriptUrlInput.value : CONFIG.SHEET_UPDATE_SCRIPT_URL;
+      // getAppsScriptUrl() 함수를 통해 URL 가져오기
+      const appsScriptUrl = getAppsScriptUrl();
       const sheetUrl = getSheetUrl(); // 통합된 시트 URL 사용
 
       if (!appsScriptUrl) {
@@ -4789,7 +4802,14 @@
           CONFIG.SHEET_UPDATE_SCRIPT_URL = newUrl;
           document.getElementById('apps-script-url').value = newUrl;
           localStorage.setItem('sheet_update_script_url', newUrl);
+        } else {
+          // CONFIG에서 가져온 값을 입력 필드에 설정
+          document.getElementById('apps-script-url').value = CONFIG.SHEET_UPDATE_SCRIPT_URL;
+          console.log(`🔗 Apps Script URL CONFIG에서 로드: ${CONFIG.SHEET_UPDATE_SCRIPT_URL}`);
         }
+      } else {
+        // Apps Script URL이 전혀 설정되지 않은 경우
+        console.warn('⚠️ Apps Script URL이 설정되지 않았습니다. 설정 메뉴에서 URL을 입력해주세요.');
       }
       
       // 최근 핸드 버퍼 상태 확인
