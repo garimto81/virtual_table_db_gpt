@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title id="page-title">포커 핸드 모니터링 v11.0.0 - AI 분석 시스템</title>
+  <title id="page-title">포커 핸드 모니터링 v11.1.0 - AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <!-- 성능 모니터링 도구 -->
   <script src="performance_monitor.js"></script>
@@ -291,6 +291,28 @@
     </div>
     <div id="test-results" class="text-xs mono" style="color: #94a3b8;">
       <!-- 테스트 결과 표시 -->
+    </div>
+  </div>
+
+  <!-- Phase 2: 캐시 통계 패널 -->
+  <div id="cache-stats-panel" class="fixed bottom-4 left-4 bg-gray-900 bg-opacity-95 rounded-lg p-3 text-xs max-w-xs z-40 border border-gray-700">
+    <div class="flex items-center justify-between mb-2">
+      <span class="font-bold text-yellow-400">📊 Phase 2 캐시 통계</span>
+      <button onclick="toggleCacheStats()" class="text-gray-400 hover:text-white">×</button>
+    </div>
+    <div id="cache-stats-content" class="space-y-1 text-gray-300">
+      <div>캐시 크기: <span id="cache-size" class="text-white">0</span>개</div>
+      <div>적중률: <span id="cache-hit-rate" class="text-green-400">0</span>%</div>
+      <div>적중/미스: <span id="cache-hits" class="text-green-400">0</span>/<span id="cache-misses" class="text-red-400">0</span></div>
+      <div>마지막 갱신: <span id="cache-last-update" class="text-white">-</span></div>
+      <div>TTL: <span id="cache-ttl" class="text-white">300초</span></div>
+      <div>상태: <span id="cache-status" class="text-yellow-400">대기</span></div>
+      <div class="pt-2 flex gap-2">
+        <button onclick="refreshCacheManually()"
+                class="px-2 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs">🔄 갱신</button>
+        <button onclick="clearCacheManually()"
+                class="px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs">🗑️ 초기화</button>
+      </div>
     </div>
   </div>
 
@@ -600,11 +622,291 @@
     // ====================================
     // 포커 핸드 모니터링 시스템 - Gemini AI 분석 시스템
     // ====================================
-    
+
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '11.0.0';
-    const BUILD_TIME = '2025-09-16T08:40:00Z';
-    
+    const APP_VERSION = '11.1.0';
+    const BUILD_TIME = '2025-09-17T10:00:00Z';
+
+    // ====================================
+    // Phase 2: 캐싱 시스템 구현
+    // ====================================
+
+    /**
+     * 시트 데이터 캐싱 관리자
+     * TTL(Time To Live) 기반으로 자동 갱신
+     */
+    class SheetDataCache {
+      constructor() {
+        this.cache = new Map();
+        this.timeIndex = new Map(); // 시간 기반 빠른 검색용 인덱스
+        this.ttl = 5 * 60 * 1000; // 5분 캐시 유효시간
+        this.lastUpdate = 0;
+        this.isLoading = false;
+        this.maxCacheSize = 1000; // 최대 캐시 행 수
+        this.hitCount = 0;
+        this.missCount = 0;
+      }
+
+      /**
+       * 캐시 유효성 확인
+       */
+      isExpired() {
+        return Date.now() - this.lastUpdate > this.ttl;
+      }
+
+      /**
+       * 캐시 적중률 계산
+       */
+      getHitRate() {
+        const total = this.hitCount + this.missCount;
+        return total > 0 ? (this.hitCount / total * 100).toFixed(1) : 0;
+      }
+
+      /**
+       * 전체 시트 데이터 로드 및 캐싱
+       */
+      async refreshCache() {
+        if (this.isLoading) {
+          console.log('⏳ 캐시 갱신 중... 대기');
+          return;
+        }
+
+        this.isLoading = true;
+        const startTime = performance.now();
+
+        try {
+          console.log('🔄 [Phase 2] 캐시 갱신 시작...');
+
+          const sheetUrl = getSheetUrl();
+          if (!sheetUrl) {
+            throw new Error('시트 URL이 설정되지 않음');
+          }
+
+          // CSV 데이터 가져오기
+          const csvUrl = convertToCSVUrl(sheetUrl);
+          const response = await fetch(csvUrl + '&random=' + Math.random());
+          const csvText = await response.text();
+
+          // CSV 파싱
+          const lines = csvText.split('\n').filter(line => line.trim());
+          const headers = lines[0].split(',').map(h => h.trim());
+
+          // 열 인덱스 찾기
+          const timeCol = headers.indexOf('B');
+          const statusCol = headers.indexOf('E');
+          const filenameCol = headers.indexOf('F');
+          const analysisCol = headers.indexOf('H');
+
+          // 캐시 초기화
+          this.cache.clear();
+          this.timeIndex.clear();
+
+          // 데이터 파싱 및 인덱싱
+          for (let i = 1; i < lines.length && i <= this.maxCacheSize; i++) {
+            const cols = lines[i].split(',');
+
+            const timeStr = cols[1]?.trim(); // B열
+            if (!timeStr) continue;
+
+            // 시간 파싱
+            const timestamp = this.parseTimeToTimestamp(timeStr);
+            if (!timestamp) continue;
+
+            const rowData = {
+              row: i + 1, // 행 번호 (1-based)
+              time: timeStr,
+              timestamp: timestamp,
+              status: cols[4]?.trim() || '', // E열
+              filename: cols[5]?.trim() || '', // F열
+              analysis: cols[7]?.trim() || '' // H열
+            };
+
+            this.cache.set(i + 1, rowData);
+
+            // 시간 인덱스에 추가
+            if (!this.timeIndex.has(timestamp)) {
+              this.timeIndex.set(timestamp, []);
+            }
+            this.timeIndex.get(timestamp).push(i + 1);
+          }
+
+          this.lastUpdate = Date.now();
+          const duration = performance.now() - startTime;
+
+          console.log(`✅ [Phase 2] 캐시 갱신 완료`);
+          console.log(`   - 캐시된 행: ${this.cache.size}개`);
+          console.log(`   - 시간 인덱스: ${this.timeIndex.size}개`);
+          console.log(`   - 소요 시간: ${duration.toFixed(0)}ms`);
+          console.log(`   - TTL: ${this.ttl / 1000}초`);
+
+        } catch (error) {
+          console.error('❌ [Phase 2] 캐시 갱신 실패:', error);
+          // 캐시 실패해도 기존 데이터 유지
+        } finally {
+          this.isLoading = false;
+        }
+      }
+
+      /**
+       * 시간 문자열을 타임스탬프로 변환
+       */
+      parseTimeToTimestamp(timeStr) {
+        if (!timeStr) return null;
+
+        // HH:MM:SS 형식
+        const timeParts = timeStr.match(/(\d{1,2}):(\d{2}):?(\d{2})?/);
+        if (timeParts) {
+          const today = new Date();
+          today.setHours(parseInt(timeParts[1]), parseInt(timeParts[2]), parseInt(timeParts[3] || 0), 0);
+          return Math.floor(today.getTime() / 1000);
+        }
+
+        // 이미 타임스탬프인 경우
+        const timestamp = parseInt(timeStr);
+        if (!isNaN(timestamp)) {
+          return timestamp;
+        }
+
+        return null;
+      }
+
+      /**
+       * 타임스탬프로 가장 가까운 행 찾기 (이진 검색)
+       */
+      findClosestRow(targetTimestamp, tolerance = 180) {
+        // 캐시가 비었거나 만료되었으면 null
+        if (this.cache.size === 0 || this.isExpired()) {
+          this.missCount++;
+          return null;
+        }
+
+        // 정확한 매칭 먼저 시도
+        if (this.timeIndex.has(targetTimestamp)) {
+          const rows = this.timeIndex.get(targetTimestamp);
+          if (rows.length > 0) {
+            this.hitCount++;
+            return this.cache.get(rows[0]);
+          }
+        }
+
+        // 근사 매칭 (±tolerance 초)
+        let closestRow = null;
+        let minDiff = Infinity;
+
+        for (const [timestamp, rows] of this.timeIndex) {
+          const diff = Math.abs(timestamp - targetTimestamp);
+          if (diff <= tolerance && diff < minDiff) {
+            minDiff = diff;
+            closestRow = this.cache.get(rows[0]);
+          }
+        }
+
+        if (closestRow) {
+          this.hitCount++;
+        } else {
+          this.missCount++;
+        }
+
+        return closestRow;
+      }
+
+      /**
+       * 여러 핸드의 상태를 캐시에서 확인
+       */
+      async checkMultipleHandsFromCache(handNumbers) {
+        // 캐시 자동 갱신
+        if (this.isExpired()) {
+          await this.refreshCache();
+        }
+
+        const results = {};
+        const notInCache = [];
+
+        // 캐시에서 먼저 확인
+        for (const handNum of handNumbers) {
+          const timestamp = await getHandTimestamp(handNum);
+          if (!timestamp) continue;
+
+          const cachedRow = this.findClosestRow(timestamp);
+          if (cachedRow) {
+            results[handNum] = cachedRow.status;
+          } else {
+            notInCache.push(handNum);
+          }
+        }
+
+        console.log(`📊 [Phase 2] 캐시 적중률: ${this.getHitRate()}%`);
+        console.log(`   - 캐시 적중: ${Object.keys(results).length}개`);
+        console.log(`   - 캐시 미스: ${notInCache.length}개`);
+
+        // 캐시에 없는 항목은 Phase 1 방식으로 처리
+        if (notInCache.length > 0) {
+          const apiResults = await checkAllHandsStatus(notInCache);
+          Object.assign(results, apiResults);
+        }
+
+        return results;
+      }
+
+      /**
+       * 캐시 통계 정보
+       */
+      getStats() {
+        return {
+          size: this.cache.size,
+          hitRate: this.getHitRate(),
+          hitCount: this.hitCount,
+          missCount: this.missCount,
+          lastUpdate: new Date(this.lastUpdate).toLocaleTimeString(),
+          ttl: this.ttl / 1000 + '초',
+          isExpired: this.isExpired()
+        };
+      }
+
+      /**
+       * 캐시 강제 초기화
+       */
+      clear() {
+        this.cache.clear();
+        this.timeIndex.clear();
+        this.lastUpdate = 0;
+        this.hitCount = 0;
+        this.missCount = 0;
+        console.log('🧹 [Phase 2] 캐시 초기화 완료');
+      }
+    }
+
+    // 전역 캐시 인스턴스 생성
+    const sheetDataCache = new SheetDataCache();
+
+    /**
+     * Google Sheets URL을 CSV 다운로드 URL로 변환
+     */
+    function convertToCSVUrl(sheetUrl) {
+      if (!sheetUrl) return null;
+
+      // 이미 CSV URL인 경우 그대로 반환
+      if (sheetUrl.includes('/export?format=csv')) {
+        return sheetUrl;
+      }
+
+      // 시트 ID 추출
+      const idMatch = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+      if (!idMatch) {
+        console.error('잘못된 시트 URL 형식:', sheetUrl);
+        return null;
+      }
+
+      const spreadsheetId = idMatch[1];
+
+      // GID 추출 (옵션)
+      const gidMatch = sheetUrl.match(/[#&]gid=([0-9]+)/);
+      const gid = gidMatch ? gidMatch[1] : '0';
+
+      // CSV 다운로드 URL 생성
+      return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&gid=${gid}`;
+    }
+
     // 버전 체크 및 강제 업데이트
     function checkVersion() {
       const storedVersion = localStorage.getItem('app_version');
@@ -1847,7 +2149,7 @@
     }
 
     /**
-     * Phase 1 최적화 - 화면에 보이는 핸드만 상태 확인
+     * Phase 2 최적화 - 캐시 우선, API 폴백
      */
     async function updateVisibleHandsStatus() {
       const startTime = performance.now();
@@ -1871,8 +2173,8 @@
 
       console.log(`👁️ ${visibleHands.length}개의 보이는 핸드 상태 확인`);
 
-      // Phase 1: 일괄 상태 확인
-      const statuses = await checkAllHandsStatus(visibleHands);
+      // Phase 2: 캐시 우선 확인, 없으면 API
+      const statuses = await sheetDataCache.checkMultipleHandsFromCache(visibleHands);
 
       // UI 업데이트
       for (const [handNum, status] of Object.entries(statuses)) {
@@ -5293,6 +5595,53 @@
       console.log('\n🔍 === 디버귵 종료 ===');
     });
     
+    // ====================================
+    // Phase 2: 캐시 통계 UI 업데이트 함수
+    // ====================================
+
+    function updateCacheStatsUI() {
+      const stats = sheetDataCache.getStats();
+
+      document.getElementById('cache-size').textContent = stats.size;
+      document.getElementById('cache-hit-rate').textContent = stats.hitRate;
+      document.getElementById('cache-hits').textContent = stats.hitCount;
+      document.getElementById('cache-misses').textContent = stats.missCount;
+      document.getElementById('cache-last-update').textContent = stats.lastUpdate;
+      document.getElementById('cache-ttl').textContent = stats.ttl;
+
+      const statusEl = document.getElementById('cache-status');
+      if (sheetDataCache.isLoading) {
+        statusEl.textContent = '갱신 중...';
+        statusEl.className = 'text-yellow-400';
+      } else if (stats.isExpired) {
+        statusEl.textContent = '만료됨';
+        statusEl.className = 'text-red-400';
+      } else {
+        statusEl.textContent = '활성';
+        statusEl.className = 'text-green-400';
+      }
+    }
+
+    function toggleCacheStats() {
+      const panel = document.getElementById('cache-stats-panel');
+      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
+
+    async function refreshCacheManually() {
+      await sheetDataCache.refreshCache();
+      updateCacheStatsUI();
+      // 화면 업데이트도 트리거
+      updateVisibleHandsStatus();
+    }
+
+    function clearCacheManually() {
+      sheetDataCache.clear();
+      updateCacheStatsUI();
+    }
+
+    // 주기적으로 캐시 통계 업데이트
+    setInterval(updateCacheStatsUI, 1000);
+
     window.addEventListener('beforeunload', () => {
       if (refreshTimerInitial) {
         clearTimeout(refreshTimerInitial);
