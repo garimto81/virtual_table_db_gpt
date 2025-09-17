@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>포커 핸드 모니터링 v10.3.0 - Incremental Updates</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="performance_monitor.js"></script>
+  <script src="checksum_manager.js"></script>
+  <script src="incremental_manager.js"></script>
+  <style>
+    body {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    .metric-card {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .row-added {
+      animation: slideIn 0.5s ease-out;
+      background-color: rgba(34, 197, 94, 0.2);
+    }
+    .row-deleted {
+      animation: slideOut 0.3s ease-in;
+      background-color: rgba(239, 68, 68, 0.2);
+    }
+    .cell-updated {
+      animation: flashUpdate 0.5s ease-out;
+      background-color: rgba(59, 130, 246, 0.3);
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slideOut {
+      from { opacity: 1; transform: scale(1); }
+      to { opacity: 0; transform: scale(0.95); }
+    }
+    @keyframes flashUpdate {
+      0% { background-color: rgba(59, 130, 246, 0.6); }
+      100% { background-color: transparent; }
+    }
+  </style>
+</head>
+<body>
+  <!-- 헤더 -->
+  <div class="bg-slate-900/95 border-b border-slate-700 p-4 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <h1 class="text-xl font-bold">포커 핸드 모니터링</h1>
+        <span class="text-xs text-gray-500">v10.3.0 Incremental</span>
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse" id="status-indicator"></span>
+          <span class="text-xs text-gray-400" id="status-text">준비 중...</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <select id="mode-selector" onchange="switchMode()" class="px-2 py-1 bg-gray-700 text-white rounded text-sm">
+          <option value="incremental">🔺 증분 모드</option>
+          <option value="checksum">✅ Checksum 모드</option>
+          <option value="legacy">❌ 레거시 모드</option>
+        </select>
+        <button onclick="showStats()" class="px-3 py-1 bg-blue-600 text-white rounded text-sm">
+          📊 통계
+        </button>
+        <button onclick="simulateChanges()" class="px-3 py-1 bg-purple-600 text-white rounded text-sm">
+          🎲 변경 시뮬레이션
+        </button>
+        <button onclick="forceRefresh()" class="px-3 py-1 bg-yellow-600 text-white rounded text-sm">
+          🔄 새로고침
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 메인 컨테이너 -->
+  <div class="max-w-7xl mx-auto p-6">
+    <!-- 성능 메트릭 대시보드 -->
+    <div class="grid grid-cols-5 gap-4 mb-6">
+      <div class="metric-card">
+        <div class="text-xs text-gray-400 mb-1">데이터 절약</div>
+        <div id="data-savings" class="text-2xl font-bold text-green-400">0%</div>
+      </div>
+      <div class="metric-card">
+        <div class="text-xs text-gray-400 mb-1">증분 업데이트</div>
+        <div id="incremental-count" class="text-2xl font-bold text-blue-400">0</div>
+      </div>
+      <div class="metric-card">
+        <div class="text-xs text-gray-400 mb-1">전체 동기화</div>
+        <div id="full-sync-count" class="text-2xl font-bold">0</div>
+      </div>
+      <div class="metric-card">
+        <div class="text-xs text-gray-400 mb-1">충돌 해결</div>
+        <div id="conflicts-resolved" class="text-2xl font-bold text-yellow-400">0</div>
+      </div>
+      <div class="metric-card">
+        <div class="text-xs text-gray-400 mb-1">효율성</div>
+        <div id="efficiency" class="text-2xl font-bold text-purple-400">0%</div>
+      </div>
+    </div>
+
+    <!-- 델타 시각화 -->
+    <div class="grid grid-cols-3 gap-4 mb-6">
+      <div class="metric-card">
+        <h3 class="text-sm font-bold mb-3 text-green-400">➕ 추가된 행</h3>
+        <div id="added-rows" class="h-20 overflow-y-auto text-xs">
+          <div class="text-gray-500">변경사항 없음</div>
+        </div>
+      </div>
+      <div class="metric-card">
+        <h3 class="text-sm font-bold mb-3 text-blue-400">✏️ 수정된 행</h3>
+        <div id="modified-rows" class="h-20 overflow-y-auto text-xs">
+          <div class="text-gray-500">변경사항 없음</div>
+        </div>
+      </div>
+      <div class="metric-card">
+        <h3 class="text-sm font-bold mb-3 text-red-400">🗑️ 삭제된 행</h3>
+        <div id="deleted-rows" class="h-20 overflow-y-auto text-xs">
+          <div class="text-gray-500">변경사항 없음</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 데이터 테이블 -->
+    <div class="metric-card">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-bold">시트 데이터</h2>
+        <div class="flex items-center gap-4 text-sm">
+          <div>모드: <span id="current-mode" class="font-bold text-blue-400">증분</span></div>
+          <div>행 수: <span id="row-count" class="font-bold">0</span></div>
+          <div>버전: <span id="version-display" class="font-mono text-xs">-</span></div>
+        </div>
+      </div>
+      <div id="data-container" class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-gray-700">
+              <th class="text-left p-2">#</th>
+              <th class="text-left p-2">A열</th>
+              <th class="text-left p-2">B열</th>
+              <th class="text-left p-2">C열</th>
+              <th class="text-left p-2">D열</th>
+              <th class="text-left p-2">E열 (상태)</th>
+              <th class="text-left p-2">액션</th>
+            </tr>
+          </thead>
+          <tbody id="data-tbody">
+            <tr>
+              <td colspan="7" class="text-center p-4 text-gray-500">데이터 로딩 중...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 실시간 로그 -->
+    <div class="metric-card mt-6">
+      <h2 class="text-lg font-bold mb-4">📝 실시간 로그</h2>
+      <div id="log-container" class="h-48 overflow-y-auto bg-black/30 rounded p-3 font-mono text-xs">
+        <div class="text-green-400">[시스템] 증분 업데이트 모드 준비 완료</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 통계 모달 -->
+  <div id="stats-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div class="bg-slate-800 rounded-lg p-6 max-w-2xl w-full">
+      <h3 class="text-xl font-bold mb-4">📊 상세 통계</h3>
+      <div class="grid grid-cols-2 gap-6">
+        <div>
+          <h4 class="font-bold mb-2 text-blue-400">증분 업데이트</h4>
+          <div id="incremental-stats" class="space-y-1 text-sm">
+            <!-- 동적 생성 -->
+          </div>
+        </div>
+        <div>
+          <h4 class="font-bold mb-2 text-purple-400">충돌 해결</h4>
+          <div id="conflict-stats" class="space-y-1 text-sm">
+            <!-- 동적 생성 -->
+          </div>
+        </div>
+      </div>
+      <div class="mt-4 flex gap-4">
+        <button onclick="exportStats()" class="px-4 py-2 bg-green-600 text-white rounded">
+          📥 통계 내보내기
+        </button>
+        <button onclick="resetStats()" class="px-4 py-2 bg-red-600 text-white rounded">
+          🗑️ 통계 리셋
+        </button>
+        <button onclick="closeStats()" class="px-4 py-2 bg-gray-600 text-white rounded">
+          닫기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Google Apps Script URL (실제 URL로 교체 필요)
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+
+    // 매니저 인스턴스
+    let incrementalManager = null;
+    let checksumManager = null;
+    let currentMode = 'incremental';
+    let legacyInterval = null;
+
+    // 로그 추가
+    function addLog(message, type = 'info') {
+      const logContainer = document.getElementById('log-container');
+      const timestamp = new Date().toLocaleTimeString('ko-KR');
+
+      let prefix = '[정보]';
+      let colorClass = 'text-gray-300';
+
+      if (type === 'success') {
+        prefix = '[성공]';
+        colorClass = 'text-green-400';
+      } else if (type === 'error') {
+        prefix = '[오류]';
+        colorClass = 'text-red-400';
+      } else if (type === 'warning') {
+        prefix = '[경고]';
+        colorClass = 'text-yellow-400';
+      } else if (type === 'delta') {
+        prefix = '[델타]';
+        colorClass = 'text-blue-400';
+      }
+
+      const entry = document.createElement('div');
+      entry.className = colorClass;
+      entry.textContent = `${timestamp} ${prefix} ${message}`;
+      logContainer.appendChild(entry);
+      logContainer.scrollTop = logContainer.scrollHeight;
+    }
+
+    // UI 업데이트
+    function updateUI(data) {
+      const tbody = document.getElementById('data-tbody');
+
+      if (!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center p-4 text-gray-500">데이터 없음</td></tr>';
+        return;
+      }
+
+      // 최대 20개 행 표시
+      const displayData = data.slice(0, 20);
+
+      tbody.innerHTML = displayData.map((row, index) => `
+        <tr class="border-b border-gray-700/50 hover:bg-gray-800/30" id="row-${index}">
+          <td class="p-2 text-gray-400">${index + 1}</td>
+          <td class="p-2">${row[0] || '-'}</td>
+          <td class="p-2">${row[1] || '-'}</td>
+          <td class="p-2">${row[2] || '-'}</td>
+          <td class="p-2">${row[3] || '-'}</td>
+          <td class="p-2">
+            <span class="px-2 py-1 rounded text-xs ${
+              row[4] === '완료' ? 'bg-green-600' : 'bg-gray-600'
+            }">
+              ${row[4] || '대기'}
+            </span>
+          </td>
+          <td class="p-2">
+            <button onclick="editCell(${index}, 4)" class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-xs rounded">
+              편집
+            </button>
+          </td>
+        </tr>
+      `).join('');
+
+      // 행 수 업데이트
+      document.getElementById('row-count').textContent = data.length;
+
+      addLog(`UI 업데이트: ${displayData.length}개 행 표시`, 'success');
+    }
+
+    // 델타 시각화 업데이트
+    function updateDeltaVisualization(delta) {
+      // 추가된 행
+      const addedDiv = document.getElementById('added-rows');
+      if (delta.added && delta.added.length > 0) {
+        addedDiv.innerHTML = delta.added.map(add =>
+          `<div class="text-green-400">행 ${add.row + 1}: ${add.data.slice(0, 2).join(', ')}...</div>`
+        ).join('');
+      } else {
+        addedDiv.innerHTML = '<div class="text-gray-500">변경사항 없음</div>';
+      }
+
+      // 수정된 행
+      const modifiedDiv = document.getElementById('modified-rows');
+      if (delta.modified && delta.modified.length > 0) {
+        modifiedDiv.innerHTML = delta.modified.map(mod =>
+          `<div class="text-blue-400">행 ${mod.row + 1}: ${mod.cells.length}개 셀 변경</div>`
+        ).join('');
+      } else {
+        modifiedDiv.innerHTML = '<div class="text-gray-500">변경사항 없음</div>';
+      }
+
+      // 삭제된 행
+      const deletedDiv = document.getElementById('deleted-rows');
+      if (delta.deleted && delta.deleted.length > 0) {
+        deletedDiv.innerHTML = delta.deleted.map(del =>
+          `<div class="text-red-400">행 ${del.row + 1} 삭제됨</div>`
+        ).join('');
+      } else {
+        deletedDiv.innerHTML = '<div class="text-gray-500">변경사항 없음</div>';
+      }
+    }
+
+    // 통계 업데이트
+    function updateStats() {
+      if (incrementalManager) {
+        const stats = incrementalManager.getStats();
+
+        document.getElementById('incremental-count').textContent = stats.incrementalUpdates;
+        document.getElementById('full-sync-count').textContent = stats.fullSyncs;
+        document.getElementById('conflicts-resolved').textContent = stats.conflictsResolved;
+        document.getElementById('efficiency').textContent = stats.efficiency;
+
+        // 데이터 절약률 계산 (가정: 증분 모드는 평균 90% 절약)
+        const savings = stats.incrementalUpdates > 0 ? '90%' : '0%';
+        document.getElementById('data-savings').textContent = savings;
+
+        // 버전 표시
+        if (stats.currentVersion) {
+          document.getElementById('version-display').textContent = stats.currentVersion;
+        }
+      }
+    }
+
+    // 증분 모드 초기화
+    async function initializeIncrementalMode() {
+      addLog('증분 업데이트 모드 초기화', 'warning');
+
+      try {
+        incrementalManager = new IncrementalUpdateManager(APPS_SCRIPT_URL);
+
+        // 이벤트 리스너 설정
+        incrementalManager.on('deltaReceived', (data) => {
+          addLog(`델타 수신: +${data.stats.added} ~${data.stats.modified} -${data.stats.deleted}`, 'delta');
+          updateDeltaVisualization(data.delta);
+        });
+
+        incrementalManager.on('deltaApplied', (data) => {
+          addLog(`델타 적용 완료 (${data.elapsed.toFixed(0)}ms)`, 'success');
+          updateUI(data.dataStore);
+          updateStats();
+        });
+
+        incrementalManager.on('fullSyncRequired', (data) => {
+          addLog(`전체 동기화: ${data.reason}`, 'warning');
+          updateUI(data.data);
+          updateStats();
+        });
+
+        incrementalManager.on('conflictDetected', (data) => {
+          addLog(`충돌 감지: ${data.conflicts.length}개 (전략: ${data.strategy})`, 'warning');
+        });
+
+        // 폴링 시작
+        setInterval(async () => {
+          try {
+            await incrementalManager.fetchUpdate();
+          } catch (error) {
+            addLog(`업데이트 오류: ${error.message}`, 'error');
+          }
+        }, 10000);
+
+        addLog('증분 모드 활성화 완료', 'success');
+        document.getElementById('status-text').textContent = '증분 모드 활성';
+
+      } catch (error) {
+        addLog(`초기화 실패: ${error.message}`, 'error');
+      }
+    }
+
+    // Checksum 모드 (Day 2와 동일)
+    function initializeChecksumMode() {
+      addLog('Checksum 모드 전환', 'warning');
+      // ChecksumManager 초기화 로직
+      document.getElementById('status-text').textContent = 'Checksum 모드';
+    }
+
+    // 레거시 모드
+    function initializeLegacyMode() {
+      addLog('레거시 모드 전환', 'warning');
+      document.getElementById('status-text').textContent = '레거시 모드';
+      // 기존 10초 폴링 로직
+    }
+
+    // 모드 전환
+    function switchMode() {
+      const selector = document.getElementById('mode-selector');
+      const newMode = selector.value;
+
+      if (newMode === currentMode) return;
+
+      // 기존 타이머 정리
+      if (legacyInterval) {
+        clearInterval(legacyInterval);
+        legacyInterval = null;
+      }
+
+      currentMode = newMode;
+      document.getElementById('current-mode').textContent =
+        newMode === 'incremental' ? '증분' :
+        newMode === 'checksum' ? 'Checksum' : '레거시';
+
+      switch (newMode) {
+        case 'incremental':
+          initializeIncrementalMode();
+          break;
+        case 'checksum':
+          initializeChecksumMode();
+          break;
+        case 'legacy':
+          initializeLegacyMode();
+          break;
+      }
+
+      addLog(`모드 전환: ${newMode}`, 'success');
+    }
+
+    // 변경 시뮬레이션
+    function simulateChanges() {
+      addLog('변경사항 시뮬레이션 시작', 'warning');
+
+      // 랜덤 변경 시뮬레이션
+      const changes = [
+        { type: 'modify', row: 0, col: 1, value: `수정됨_${Date.now()}` },
+        { type: 'add', data: ['새행', 'B값', 'C값', 'D값', '대기'] },
+        { type: 'modify', row: 1, col: 4, value: '완료' }
+      ];
+
+      changes.forEach((change, index) => {
+        setTimeout(() => {
+          if (change.type === 'modify') {
+            addLog(`셀 (${change.row}, ${change.col}) 수정: ${change.value}`, 'delta');
+          } else if (change.type === 'add') {
+            addLog(`새 행 추가: ${change.data.join(', ')}`, 'delta');
+          }
+        }, index * 1000);
+      });
+    }
+
+    // 강제 새로고침
+    async function forceRefresh() {
+      addLog('강제 새로고침 시작', 'warning');
+
+      if (incrementalManager) {
+        const result = await incrementalManager.forceFullSync();
+        addLog('전체 동기화 완료', 'success');
+      }
+    }
+
+    // 통계 표시
+    function showStats() {
+      if (!incrementalManager) {
+        alert('증분 매니저가 초기화되지 않았습니다');
+        return;
+      }
+
+      const stats = incrementalManager.getStats();
+      const status = incrementalManager.getStatus();
+
+      document.getElementById('incremental-stats').innerHTML = `
+        <div class="flex justify-between">
+          <span>클라이언트 ID:</span>
+          <span class="font-mono text-xs">${stats.clientId}</span>
+        </div>
+        <div class="flex justify-between">
+          <span>데이터 행 수:</span>
+          <span>${stats.dataRows}</span>
+        </div>
+        <div class="flex justify-between">
+          <span>전체 동기화:</span>
+          <span>${stats.fullSyncs}</span>
+        </div>
+        <div class="flex justify-between">
+          <span>증분 업데이트:</span>
+          <span class="text-green-400">${stats.incrementalUpdates}</span>
+        </div>
+        <div class="flex justify-between">
+          <span>델타 적용:</span>
+          <span>${stats.deltasApplied}</span>
+        </div>
+        <div class="flex justify-between">
+          <span>효율성:</span>
+          <span class="text-purple-400">${stats.efficiency}</span>
+        </div>
+      `;
+
+      document.getElementById('conflict-stats').innerHTML = `
+        <div class="flex justify-between">
+          <span>충돌 해결:</span>
+          <span class="text-yellow-400">${stats.conflictsResolved}</span>
+        </div>
+        <div class="flex justify-between">
+          <span>해결 전략:</span>
+          <span>${status.conflictStrategy}</span>
+        </div>
+        <div class="flex justify-between">
+          <span>대기열 길이:</span>
+          <span>${status.queueLength}</span>
+        </div>
+        <div class="flex justify-between">
+          <span>처리 중:</span>
+          <span class="${status.isProcessing ? 'text-yellow-400' : 'text-green-400'}">
+            ${status.isProcessing ? '예' : '아니오'}
+          </span>
+        </div>
+      `;
+
+      document.getElementById('stats-modal').classList.remove('hidden');
+    }
+
+    // 통계 모달 닫기
+    function closeStats() {
+      document.getElementById('stats-modal').classList.add('hidden');
+    }
+
+    // 통계 내보내기
+    function exportStats() {
+      if (incrementalManager) {
+        const stats = incrementalManager.getStats();
+        const blob = new Blob([JSON.stringify(stats, null, 2)], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `incremental_stats_${Date.now()}.json`;
+        a.click();
+        addLog('통계 파일 내보내기 완료', 'success');
+      }
+    }
+
+    // 통계 리셋
+    function resetStats() {
+      if (incrementalManager) {
+        incrementalManager.stats = {
+          fullSyncs: 0,
+          incrementalUpdates: 0,
+          conflictsResolved: 0,
+          deltasApplied: 0,
+          startTime: Date.now()
+        };
+        updateStats();
+        addLog('통계 리셋 완료', 'success');
+      }
+    }
+
+    // 셀 편집
+    function editCell(row, col) {
+      const newValue = prompt(`행 ${row + 1}, 열 ${col + 1} 값을 입력하세요:`);
+      if (newValue !== null && incrementalManager) {
+        incrementalManager.trackLocalChange(row, col, newValue);
+        addLog(`로컬 변경: (${row}, ${col}) = ${newValue}`, 'delta');
+      }
+    }
+
+    // 페이지 로드 시 초기화
+    window.onload = () => {
+      addLog('페이지 로드 완료', 'success');
+
+      // 2초 후 자동 시작
+      setTimeout(() => {
+        initializeIncrementalMode();
+      }, 2000);
+
+      // 30초마다 통계 업데이트
+      setInterval(updateStats, 30000);
+    };
+  </script>
+</body>
+</html>

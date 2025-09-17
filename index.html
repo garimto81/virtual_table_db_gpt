@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 10.2.0
-  Last Updated: 2025-09-16
-  Description: 완료된 핸드 시각적 구분 및 재작업 방지 시스템
+  Version: 10.1.9
+  Last Updated: 2025-09-17
+  Description: Virtual 시트 매칭 팝업 제어 개선
 -->
 <html lang="ko">
 <head>
@@ -12,8 +12,12 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title id="page-title">포커 핸드 모니터링 v10.2.0 - AI 분석 시스템</title>
+  <title id="page-title">포커 핸드 모니터링 v10.1.9 - AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
+  <!-- 성능 모니터링 도구 -->
+  <script src="performance_monitor.js"></script>
+  <script src="test_automation.js"></script>
+  <script src="checksum_manager.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
     
@@ -248,7 +252,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span id="version-display" class="text-xs text-gray-500">v10.2.0</span>
+        <span id="version-display" class="text-xs text-gray-500">v10.1.8</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
@@ -264,7 +268,29 @@
         <button id="settings-btn" class="px-3 py-1 bg-gray-600 text-white rounded text-xs hover:bg-gray-700">
           설정
         </button>
+        <button id="perf-btn" onclick="togglePerformanceDashboard()" class="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700">
+          📊 성능
+        </button>
+        <button id="test-btn" onclick="toggleTestPanel()" class="px-3 py-1 bg-yellow-600 text-white rounded text-xs hover:bg-yellow-700">
+          🧪 테스트
+        </button>
       </div>
+    </div>
+  </div>
+
+  <!-- 성능 모니터링 대시보드 -->
+  <div id="performance-dashboard" style="display: none; background: rgba(30, 41, 59, 0.95); border: 1px solid #334155; border-radius: 8px; padding: 12px; margin: 16px; position: fixed; top: 60px; right: 16px; z-index: 90; min-width: 300px;">
+    <!-- 대시보드 내용은 performance_monitor.js에서 자동 생성 -->
+  </div>
+
+  <!-- 테스트 패널 -->
+  <div id="test-panel" style="display: none; background: rgba(30, 41, 59, 0.95); border: 1px solid #334155; border-radius: 8px; padding: 16px; margin: 16px; position: fixed; bottom: 16px; right: 16px; z-index: 90; max-width: 500px; max-height: 300px; overflow-y: auto;">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-sm font-bold">테스트 실행</h3>
+      <button onclick="runDay1Tests()" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded">Day 1 테스트 실행</button>
+    </div>
+    <div id="test-results" class="text-xs mono" style="color: #94a3b8;">
+      <!-- 테스트 결과 표시 -->
     </div>
   </div>
 
@@ -317,14 +343,6 @@
         POT: <span id="pot-amount">0</span>
       </div>
 
-      <!-- 업데이트 상태 표시 -->
-      <div id="update-status" class="hidden mb-3 p-2 rounded text-sm">
-        <div class="font-semibold mb-1">📊 시트 업데이트 상태</div>
-        <div id="update-status-content" class="text-xs space-y-1">
-          <!-- 동적으로 업데이트 상태 표시 -->
-        </div>
-      </div>
-
       <!-- 보드 카드 -->
       <div class="mb-3">
         <div class="section-header">Board</div>
@@ -350,34 +368,6 @@
       </div>
     </div>
 
-  </div>
-
-  <!-- 대시보드 팝업 메시지 (새로 추가) -->
-  <div id="dashboard-popup" class="hidden fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50
-                                    bg-gray-900 border border-green-500 rounded-lg shadow-2xl p-6 max-w-2xl w-full mx-4
-                                    transition-all duration-300 ease-in-out">
-    <div class="flex justify-between items-start mb-4">
-      <h3 id="popup-title" class="text-xl font-bold text-green-400"></h3>
-      <button onclick="closeDashboardPopup()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
-    </div>
-
-    <div id="popup-content" class="space-y-3 text-sm">
-      <!-- 동적으로 채워질 내용 -->
-    </div>
-
-    <div id="popup-progress" class="hidden mt-4">
-      <div class="bg-gray-700 rounded-full h-2 overflow-hidden">
-        <div id="progress-bar" class="bg-green-500 h-full transition-all duration-300" style="width: 0%"></div>
-      </div>
-      <p id="progress-text" class="text-xs text-gray-400 mt-2"></p>
-    </div>
-
-    <div class="mt-6 flex justify-end">
-      <button onclick="closeDashboardPopup()"
-              class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded transition">
-        확인
-      </button>
-    </div>
   </div>
 
   <!-- 완료 파일명 입력 모달 -->
@@ -612,7 +602,7 @@
     // ====================================
     
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '10.2.0';
+    const APP_VERSION = '10.1.9';
     const BUILD_TIME = '2025-09-16T08:40:00Z';
     
     // 버전 체크 및 강제 업데이트
@@ -730,72 +720,6 @@
     let refreshTimerInterval = null;  // 반복 setInterval용
     let lastHandCount = 0;
     let isInitialLoad = true; // 첫 로딩인지 확인
-
-    // 완료된 핸드 관리 시스템
-    class CompletedHandsManager {
-      constructor() {
-        this.completedHands = new Set();
-        this.storageKey = 'poker_completed_hands_v1';
-        this.loadFromStorage();
-      }
-
-      // 로컬 스토리지에서 로드
-      loadFromStorage() {
-        try {
-          const stored = localStorage.getItem(this.storageKey);
-          if (stored) {
-            const data = JSON.parse(stored);
-            this.completedHands = new Set(data);
-          }
-        } catch (error) {
-          console.error('완료 핸드 로드 오류:', error);
-          this.completedHands = new Set();
-        }
-      }
-
-      // 로컬 스토리지에 저장
-      saveToStorage() {
-        try {
-          const data = Array.from(this.completedHands);
-          localStorage.setItem(this.storageKey, JSON.stringify(data));
-        } catch (error) {
-          console.error('완료 핸드 저장 오류:', error);
-        }
-      }
-
-      // 핸드 완료 처리
-      markAsCompleted(handNumber) {
-        this.completedHands.add(String(handNumber));
-        this.saveToStorage();
-      }
-
-      // 핸드 완료 상태 확인
-      isCompleted(handNumber) {
-        return this.completedHands.has(String(handNumber));
-      }
-
-      // 완료된 핸드 목록 가져오기
-      getCompletedHands() {
-        return Array.from(this.completedHands);
-      }
-
-      // 핸드 완료 상태 제거 (재작업 필요 시)
-      removeFromCompleted(handNumber) {
-        this.completedHands.delete(String(handNumber));
-        this.saveToStorage();
-      }
-
-      // 통계 정보
-      getStats() {
-        return {
-          totalCompleted: this.completedHands.size,
-          completedList: this.getCompletedHands()
-        };
-      }
-    }
-
-    // 완료 핸드 매니저 인스턴스 생성
-    const completedHandsManager = new CompletedHandsManager();
     
     // 최근 5개 핸드만 추적하는 간단한 버퍼
     class RecentHandsBuffer {
@@ -1828,31 +1752,15 @@
       }
       
       listEl.innerHTML = filteredHands.map(hand => {
-        // 완료 상태 확인
-        const isCompleted = completedHandsManager.isCompleted(hand.handNumber);
-
         // 상태에 따른 색상 설정
-        let statusColor;
-        let statusIcon = '';
-
-        if (isCompleted) {
-          // 완료된 핸드 - 회색으로 처리
-          statusColor = 'border-gray-500 bg-gray-800/50 opacity-60';
-          statusIcon = '🏁'; // 처리 완료 아이콘
-        } else if (hand.handEdit) {
-          statusColor = 'border-green-500 bg-green-900/20';
-          statusIcon = '✅'; // 체크 마크
-        } else if (hand.workStatus === '진행중') {
-          statusColor = 'border-yellow-500 bg-yellow-900/20';
-          statusIcon = '⚡'; // 진행 중
-        } else {
-          statusColor = 'border-gray-600 bg-gray-800';
-        }
-
+        const statusColor = hand.handEdit ? 'border-green-500 bg-green-900/20' : 
+                          hand.workStatus === '진행중' ? 'border-yellow-500 bg-yellow-900/20' : 
+                          'border-gray-600 bg-gray-800';
+        
         // 스트리트별 색상
         const streetColors = {
           'preflop': 'text-purple-400',
-          'flop': 'text-blue-400',
+          'flop': 'text-blue-400', 
           'turn': 'text-green-400',
           'river': 'text-orange-400',
           'showdown': 'text-yellow-400'
@@ -1881,24 +1789,22 @@
           '파일 없음';
 
         return `
-        <div class="rounded-lg p-3 cursor-pointer hover:scale-105 transition-all border ${statusColor}"
+        <div class="rounded-lg p-3 cursor-pointer hover:scale-105 transition-all border ${statusColor}" 
              onclick="selectHand('${hand.handNumber}')">
           <div class="flex items-center justify-between mb-1">
-            <span class="text-sm font-bold ${isCompleted ? 'text-gray-400' : 'text-white'}">
-              Hand #${hand.handNumber}
-              ${isCompleted ? ' (완료)' : ''}
-            </span>
-            <span class="text-lg">${statusIcon}</span>
+            <span class="text-sm font-bold text-white">Hand #${hand.handNumber}</span>
+            ${hand.handEdit ? '<span class="text-green-400">✓</span>' : 
+              hand.workStatus === '진행중' ? '<span class="text-yellow-400">⚡</span>' : ''}
           </div>
           <div class="flex items-center justify-between text-xs">
-            <span class="${isCompleted ? 'text-gray-500' : 'text-gray-300'}">${hand.table || '테이블 -'}</span>
+            <span class="text-gray-300">${hand.table || '테이블 -'}</span>
             <span class="${streetColor} font-semibold">${hand.lastStreet || 'Preflop'}</span>
           </div>
           <div class="flex items-center justify-between text-xs mt-1">
-            <span class="${isCompleted ? 'text-gray-600' : 'text-gray-500'}">${hand.lastAction || '-'}</span>
-            <span class="${isCompleted ? 'text-gray-600' : 'text-gray-500'} font-mono">${time}</span>
+            <span class="text-gray-500">${hand.lastAction || '-'}</span>
+            <span class="text-gray-500 font-mono">${time}</span>
           </div>
-          <div class="text-xs ${isCompleted ? 'text-gray-600' : 'text-blue-300'} mt-1 truncate" title="${hand.camFiles?.join(', ') || ''}">
+          <div class="text-xs text-blue-300 mt-1 truncate" title="${hand.camFiles?.join(', ') || ''}">
             📹 ${camFilesText}
           </div>
         </div>
@@ -1974,17 +1880,7 @@
 
       // E열 상태 기반 버튼 업데이트 (비동기)
       console.log(`🔄 핸드 #${handNumber} 선택 완료 - 버튼 상태 업데이트 예약`);
-      // 완료 상태 확인 및 버튼 제어
-      const isCompleted = completedHandsManager.isCompleted(handNumber);
-
-      if (isCompleted) {
-        // 완료된 핸드인 경우 버튼 비활성화
-        disableHandButtons();
-        showUpdateStatus(`🏁 핸드 #${handNumber} 작업 완료 - 재작업 불필요`, 'success');
-      } else {
-        // 완료되지 않은 핸드인 경우 정상 버튼 상태 업데이트
-        setTimeout(() => updateButtonStates(handNumber), 200);
-      } // 약간의 딱레이로 UI 완성 후 실행
+      setTimeout(() => updateButtonStates(handNumber), 200); // 약간의 딱레이로 UI 완성 후 실행
     }
     
     function updateBoardCards(cards) {
@@ -2057,137 +1953,9 @@
     // 알림 함수
     // ====================================
     
-    // 핸드 버튼 상태 제어 함수
-    function disableHandButtons() {
-      const editBtn = document.getElementById('edit-btn');
-      const completeBtn = document.getElementById('complete-btn');
-
-      if (editBtn && completeBtn) {
-        editBtn.disabled = true;
-        editBtn.textContent = '완료됨';
-        editBtn.classList.remove('bg-yellow-600');
-        editBtn.classList.add('bg-gray-600', 'cursor-not-allowed');
-
-        completeBtn.disabled = true;
-        completeBtn.textContent = '완료됨';
-        completeBtn.classList.remove('bg-green-600');
-        completeBtn.classList.add('bg-gray-600', 'cursor-not-allowed');
-      }
-    }
-
-    function enableHandButtons() {
-      const editBtn = document.getElementById('edit-btn');
-      const completeBtn = document.getElementById('complete-btn');
-
-      if (editBtn && completeBtn) {
-        editBtn.disabled = false;
-        editBtn.textContent = '편집';
-        editBtn.classList.remove('bg-gray-600', 'cursor-not-allowed');
-        editBtn.classList.add('bg-yellow-600');
-
-        completeBtn.disabled = true; // 기본적으로 비활성화
-        completeBtn.textContent = '완료';
-        completeBtn.classList.remove('bg-gray-600', 'cursor-not-allowed');
-        completeBtn.classList.add('bg-green-600');
-      }
-    }
-
-    // 업데이트 상태 표시 함수
-    function showUpdateStatus(status, type = 'info') {
-      const statusDiv = document.getElementById('update-status');
-      const contentDiv = document.getElementById('update-status-content');
-
-      if (!statusDiv || !contentDiv) return;
-
-      // 타입에 따른 스타일 적용
-      statusDiv.classList.remove('hidden', 'bg-green-900', 'bg-yellow-900', 'bg-red-900', 'bg-blue-900');
-
-      switch(type) {
-        case 'success':
-          statusDiv.classList.add('bg-green-900', 'border', 'border-green-600');
-          break;
-        case 'warning':
-          statusDiv.classList.add('bg-yellow-900', 'border', 'border-yellow-600');
-          break;
-        case 'error':
-          statusDiv.classList.add('bg-red-900', 'border', 'border-red-600');
-          break;
-        default:
-          statusDiv.classList.add('bg-blue-900', 'border', 'border-blue-600');
-      }
-
-      // 현재 시간 추가
-      const timestamp = new Date().toLocaleTimeString('ko-KR');
-      contentDiv.innerHTML = `<div class="text-gray-300">[${timestamp}] ${status}</div>`;
-    }
-
-    // 대시보드 팝업 메시지 표시 함수
-    function showDashboardPopup(title, content, options = {}) {
-      const popup = document.getElementById('dashboard-popup');
-      const titleEl = document.getElementById('popup-title');
-      const contentEl = document.getElementById('popup-content');
-      const progressEl = document.getElementById('popup-progress');
-
-      if (!popup || !titleEl || !contentEl) return;
-
-      // 제목 설정
-      titleEl.innerHTML = title;
-
-      // 내용 설정 (HTML 지원)
-      contentEl.innerHTML = content;
-
-      // 진행 상태 표시 여부
-      if (options.showProgress) {
-        progressEl.classList.remove('hidden');
-        if (options.progress) {
-          updateProgress(options.progress, options.progressText);
-        }
-      } else {
-        progressEl.classList.add('hidden');
-      }
-
-      // 팝업 표시
-      popup.classList.remove('hidden');
-      popup.style.opacity = '0';
-      setTimeout(() => {
-        popup.style.opacity = '1';
-      }, 10);
-
-      // 자동 닫기 옵션
-      if (options.autoClose && options.autoClose > 0) {
-        setTimeout(() => {
-          closeDashboardPopup();
-        }, options.autoClose);
-      }
-    }
-
-    // 팝업 닫기 함수
-    function closeDashboardPopup() {
-      const popup = document.getElementById('dashboard-popup');
-      if (popup) {
-        popup.style.opacity = '0';
-        setTimeout(() => {
-          popup.classList.add('hidden');
-        }, 300);
-      }
-    }
-
-    // 진행 상태 업데이트 함수
-    function updateProgress(percent, text) {
-      const progressBar = document.getElementById('progress-bar');
-      const progressText = document.getElementById('progress-text');
-
-      if (progressBar) {
-        progressBar.style.width = `${percent}%`;
-      }
-      if (progressText && text) {
-        progressText.textContent = text;
-      }
-    }
-
     function showNotification(message) {
       if (!CONFIG.ENABLE_NOTIFICATIONS) return;
-
+      
       if ('Notification' in window && Notification.permission === 'granted') {
         new Notification('포커 핸드 모니터링', {
           body: message,
@@ -2344,19 +2112,24 @@
 
 
     // Virtual 시트에서 가장 비슷한 시간 찾기 (날짜 제외, 시간만 비교)
-    async function findClosestVirtualRow(targetTime, virtualSheetUrl) {
+    async function findClosestVirtualRow(targetTime, virtualSheetUrl, showProgress = true) {
       console.log('🔍 === Virtual 시트 매칭 시작 ===');
       console.log(`📋 입력 URL: ${virtualSheetUrl}`);
       console.log(`⏰ 타겟 타임스탬프: ${targetTime} (${new Date(targetTime * 1000)})`);
-      
-      // 진행률 모달 표시
-      showProgressModal();
+      console.log(`📊 진행률 표시: ${showProgress}`);
+
+      // 진행률 모달 표시 (명시적으로 요청된 경우만)
+      if (showProgress) {
+        showProgressModal();
+      }
       let isAborted = false;
       
       // 타임아웃 설정 (30초)
       const timeoutId = setTimeout(() => {
         isAborted = true;
-        hideProgressModal();
+        if (showProgress) {
+          hideProgressModal();
+        }
         console.error('❌ Virtual 시트 매칭 타임아웃 (30초 초과)');
       }, 30000);
       
@@ -2635,7 +2408,9 @@
         
         // 최종 결과 처리 및 반환
         clearTimeout(timeoutId);
-        hideProgressModal();
+        if (showProgress) {
+          hideProgressModal();
+        }
         
         if (isAborted) {
           console.error(`❌ === Virtual 시트 매칭 취소 ===`);
@@ -2691,7 +2466,9 @@
         }
       } catch (error) {
         clearTimeout(timeoutId);
-        hideProgressModal();
+        if (showProgress) {
+          hideProgressModal();
+        }
         
         console.error('❌ === Virtual 시트 매칭 실패 ===');
         console.error('❌ 오류 타입:', error.name || 'Unknown');
@@ -2942,36 +2719,13 @@
       console.log('🔍 사용할 URL:', appsScriptUrl);
       
       if (!appsScriptUrl || appsScriptUrl.trim() === '') {
-        showDashboardPopup('⚠️ 설정 필요', `
-          <div class="text-yellow-400">
-            <p class="mb-2">Apps Script URL이 설정되지 않았습니다.</p>
-            <div class="mt-3 text-sm text-gray-300">
-              <p class="font-semibold mb-1">설정 단계:</p>
-              <ol class="list-decimal list-inside space-y-1">
-                <li>설정 버튼 클릭</li>
-                <li>"Apps Script 시트 연동" 섹션 찾기</li>
-                <li>"Apps Script Web App URL" 필드에 URL 입력</li>
-                <li>설정 저장 후 다시 테스트</li>
-              </ol>
-            </div>
-          </div>
-        `, { autoClose: 5000 });
+        alert('⚠️ Apps Script URL이 설정되지 않았습니다.\n\n설정 단계:\n1. 설정 버튼 클릭\n2. "Apps Script 시트 연동" 섹션 찾기\n3. "Apps Script Web App URL" 필드에 URL 입력\n4. 설정 저장 후 다시 테스트');
         return false;
       }
       
       // URL 형식 검증
       if (!appsScriptUrl.includes('script.google.com') || !appsScriptUrl.includes('/exec')) {
-        showDashboardPopup('⚠️ URL 형식 오류', `
-          <div class="text-yellow-400">
-            <p class="mb-2">Apps Script URL 형식이 올바르지 않습니다.</p>
-            <div class="mt-3 text-sm text-gray-300">
-              <p class="font-semibold">올바른 형식:</p>
-              <code class="block bg-gray-700 p-2 rounded mt-1">https://script.google.com/macros/s/[SCRIPT_ID]/exec</code>
-              <p class="mt-2 font-semibold">현재 URL:</p>
-              <code class="block bg-gray-700 p-2 rounded mt-1 break-all">${appsScriptUrl}</code>
-            </div>
-          </div>
-        `, { autoClose: 5000 });
+        alert('⚠️ Apps Script URL 형식이 올바르지 않습니다.\n\n올바른 형식:\nhttps://script.google.com/macros/s/[SCRIPT_ID]/exec\n\n현재 URL:\n' + appsScriptUrl);
         return false;
       }
       
@@ -3013,37 +2767,13 @@
             const data = JSON.parse(responseText);
             console.log('✅ Apps Script 연결 성공:', data);
             
-            showDashboardPopup('✅ 연결 성공', `
-              <div class="text-green-400">
-                <div class="space-y-2">
-                  <p>🔗 서비스: ${data.service || 'Virtual Table Sheet Updater'}</p>
-                  <p>📊 상태: ${data.status}</p>
-                  <p>📈 버전: ${data.version || 'v1.1'}</p>
-                  <p>⏰ 시간: ${data.timestamp ? new Date(data.timestamp).toLocaleString() : new Date().toLocaleString()}</p>
-                  <p>📠 메시지: ${data.message || '서비스 정상 작동'}</p>
-                </div>
-              </div>
-            `, { autoClose: 3000 });
+            alert(`✅ Apps Script 연결 성공!\n\n🔗 서비스: ${data.service || 'Virtual Table Sheet Updater'}\n📊 상태: ${data.status}\n📈 버전: ${data.version || 'v1.1'}\n⏰ 시간: ${data.timestamp ? new Date(data.timestamp).toLocaleString() : new Date().toLocaleString()}\n📠 메시지: ${data.message || '서비스 정상 작동'}`);
             return true;
             
           } catch (jsonError) {
             console.error('❌ JSON 파싱 오류:', jsonError);
             console.log('📄 응답이 JSON이 아님. HTML 응답일 수 있음:', responseText.substring(0, 200));
-            showDashboardPopup('⚠️ 파싱 오류', `
-              <div class="text-yellow-400">
-                <p class="mb-2">Apps Script 응답을 파싱할 수 없습니다.</p>
-                <div class="mt-3 text-sm text-gray-300 space-y-2">
-                  <p><strong>응답 상태:</strong> ${response.status}</p>
-                  <p><strong>응답 내용:</strong></p>
-                  <code class="block bg-gray-700 p-2 rounded">${responseText.substring(0, 100)}...</code>
-                  <p class="mt-3 font-semibold">해결책:</p>
-                  <ul class="list-disc list-inside space-y-1">
-                    <li>Apps Script가 올바르게 배포되었는지 확인</li>
-                    <li>doGet 함수가 JSON 응답을 반환하는지 확인</li>
-                  </ul>
-                </div>
-              </div>
-            `, { autoClose: 5000 });
+            alert(`⚠️ Apps Script 응답을 파싱할 수 없습니다.\n\n응답 상태: ${response.status}\n응답 내용: ${responseText.substring(0, 100)}...\n\n해결책:\n• Apps Script가 올바르게 배포되었는지 확인\n• doGet 함수가 JSON 응답을 반환하는지 확인`);
             return false;
           }
           
@@ -3052,22 +2782,7 @@
           const responseText = await response.text();
           console.log('❌ 오류 응답:', responseText);
           
-          showDashboardPopup('❌ 연결 실패', `
-            <div class="text-red-400">
-              <div class="space-y-2">
-                <p>📊 상태 코드: ${response.status}</p>
-                <p>❌ 오류: ${response.statusText}</p>
-                <p>📄 상세:</p>
-                <code class="block bg-gray-700 p-2 rounded text-xs">${responseText.substring(0, 200)}...</code>
-                <p class="mt-3 font-semibold">해결책:</p>
-                <ul class="list-disc list-inside text-sm space-y-1">
-                  <li>Apps Script URL이 정확한지 확인</li>
-                  <li>웹앱이 "모든 사용자" 액세스로 배포되었는지 확인</li>
-                  <li>Apps Script 실행 권한 확인</li>
-                </ul>
-              </div>
-            </div>
-          `, { autoClose: 5000 });
+          alert(`❌ Apps Script 연결 실패\n\n📊 상태 코드: ${response.status}\n❌ 오류: ${response.statusText}\n📄 상세: ${responseText.substring(0, 200)}...\n\n해결책:\n• Apps Script URL이 정확한지 확인\n• 웹앱이 "모든 사용자" 액세스로 배포되었는지 확인\n• Apps Script 실행 권한 확인`);
           return false;
         }
         
@@ -3084,7 +2799,7 @@
           errorMessage += `🔧 일반적인 해결책:\n• Apps Script URL 형식 확인:\n  https://script.google.com/macros/s/[SCRIPT_ID]/exec\n• 웹앱 배포 상태 확인\n• 실행 권한 설정 확인\n• 브라우저 새로고침 후 재시도`;
         }
         
-        showDashboardPopup('❌ 오류', `<div class="text-red-400">${errorMessage}</div>`, { autoClose: 5000 });
+        alert(errorMessage);
         return false;
         
       } finally {
@@ -3118,29 +2833,12 @@
         
         // API 키 기본 검증
         if (!apiKeyToTest || apiKeyToTest.trim() === '') {
-          showDashboardPopup('⚠️ API 키 필요', `
-            <div class="text-yellow-400">
-              <p class="mb-2">API 키를 입력해주세요.</p>
-              <div class="mt-3 text-sm text-gray-300">
-                <p class="font-semibold mb-1">현재 상태:</p>
-                <ul class="list-disc list-inside space-y-1">
-                  <li>입력 필드에 API 키를 입력했는지 확인</li>
-                  <li>설정이 저장되었는지 확인</li>
-                </ul>
-              </div>
-            </div>
-          `, { autoClose: 4000 });
+          alert('⚠️ API 키를 입력해주세요.\n\n현재 상태:\n• 입력 필드에 API 키를 입력했는지 확인\n• 설정이 저장되었는지 확인');
           return false;
         }
         
         if (!apiKeyToTest.startsWith('AIza')) {
-          showDashboardPopup('⚠️ API 키 형식 오류', `
-            <div class="text-yellow-400">
-              <p class="mb-2">Gemini API 키 형식이 올바르지 않습니다.</p>
-              <p class="text-sm">키는 AIza로 시작해야 합니다.</p>
-              <p class="mt-2 text-sm">현재 키 시작: <code class="bg-gray-700 px-2 py-1 rounded">${apiKeyToTest.substring(0, 10)}...</code></p>
-            </div>
-          `, { autoClose: 4000 });
+          alert('⚠️ Gemini API 키 형식이 올바르지 않습니다.\nAIza로 시작해야 합니다.\n\n현재 키 시작: ' + apiKeyToTest.substring(0, 10) + '...');
           return false;
         }
         
@@ -3153,41 +2851,16 @@
         console.log('📦 테스트 응답:', result);
         
         if (result.includes('❌')) {
-          showDashboardPopup('❌ API 연결 실패', `
-            <div class="text-red-400">
-              <p class="mb-2">${result}</p>
-              <div class="mt-3 text-sm text-gray-300">
-                <p class="font-semibold">해결책:</p>
-                <ul class="list-disc list-inside space-y-1">
-                  <li>API 키가 올바른지 확인</li>
-                  <li>Gemini API 서비스가 활성화되었는지 확인</li>
-                  <li>할당량이 남아있는지 확인</li>
-                </ul>
-              </div>
-            </div>
-          `, { autoClose: 5000 });
+          alert(`❌ Gemini API 연결 실패\n\n${result}\n\n해결책:\n• API 키가 올바른지 확인\n• Gemini API 서비스가 활성화되었는지 확인\n• 할당량이 남아있는지 확인`);
           return false;
         } else {
-          showDashboardPopup('✅ API 연결 성공', `
-            <div class="text-green-400">
-              <p class="mb-2">API 키가 정상적으로 작동합니다.</p>
-              <div class="mt-3">
-                <p class="text-sm font-semibold">응답 내용:</p>
-                <code class="block bg-gray-700 p-2 rounded text-xs mt-1">${result.substring(0, 100)}${result.length > 100 ? '...' : ''}</code>
-              </div>
-            </div>
-          `, { autoClose: 3000 });
+          alert(`✅ Gemini API 연결 성공!\n\n응답 내용:\n${result.substring(0, 100)}${result.length > 100 ? '...' : ''}\n\nAPI 키가 정상적으로 작동합니다.`);
           return true;
         }
         
       } catch (error) {
         console.error('❌ API 테스트 오류:', error);
-        showDashboardPopup('❌ 테스트 오류', `
-          <div class="text-red-400">
-            <p>API 테스트 중 오류가 발생했습니다:</p>
-            <p class="mt-2 text-sm bg-gray-700 p-2 rounded">${error.message}</p>
-          </div>
-        `, { autoClose: 4000 });
+        alert(`❌ API 테스트 중 오류가 발생했습니다:\n\n${error.message}`);
         return false;
         
       } finally {
@@ -4181,9 +3854,9 @@
       try {
         console.log('🚀 Virtual 시트 매칭 및 AI 분석 시작...');
         
-        // 병렬 실행
+        // 병렬 실행 (여기서는 모달이 이미 표시된 상태이므로 progress false)
         const [virtualMatch, aiSummary] = await Promise.all([
-          findClosestVirtualRow(timestamp, virtualSheetUrl),
+          findClosestVirtualRow(timestamp, virtualSheetUrl, false),  // 진행률 모달 숨김
           analyzeHandWithAI(handNumber)
         ]);
         console.log('✅ Promise.all 완료 - UI 업데이트 시작');
@@ -4294,22 +3967,12 @@
       const matchedRowInfo = document.getElementById('matched-row').value;
 
       if (!filename || filename.includes('처리 중') || filename.includes('오류')) {
-        showDashboardPopup('⏳ 처리 중', `
-          <div class="text-yellow-400">
-            <p>처리가 완료될 때까지 기다려주세요.</p>
-            <p class="text-sm mt-2">처리에 실패한 경우 다시 시도해주세요.</p>
-          </div>
-        `, { autoClose: 3000 });
+        alert('처리가 완료될 때까지 기다려주시거나, 처리에 실패한 경우 다시 시도해주세요.');
         return;
       }
 
       if (!summary || summary.includes('처리 중') || summary.includes('처리 실패')) {
-        showDashboardPopup('⏳ 분석 중', `
-          <div class="text-yellow-400">
-            <p>핸드 분석이 완료될 때까지 기다려주세요.</p>
-            <p class="text-sm mt-2">실패한 경우 다시 시도해주세요.</p>
-          </div>
-        `, { autoClose: 3000 });
+        alert('핸드 분석이 완료될 때까지 기다려주시거나, 실패한 경우 다시 시도해주세요.');
         return;
       }
 
@@ -4318,12 +3981,7 @@
       const rowNumber = rowMatch ? parseInt(rowMatch[1]) : null;
 
       if (!rowNumber) {
-        showDashboardPopup('⚠️ 매칭 정보 없음', `
-          <div class="text-yellow-400">
-            <p>매칭된 행 정보를 찾을 수 없습니다.</p>
-            <p class="text-sm mt-2">매칭이 완료되었는지 확인해주세요.</p>
-          </div>
-        `, { autoClose: 3000 });
+        alert('⚠️ 매칭된 행 정보를 찾을 수 없습니다.\n매칭이 완료되었는지 확인해주세요.');
         return;
       }
 
@@ -4380,28 +4038,12 @@
         
         // 성공 알림
         showNotification(`✅ 핸드 #${handNumber} 완료 처리 완료!`, 'success');
-        showDashboardPopup('✅ 완료 처리 성공', `
-          <div class="text-green-400">
-            <p class="font-bold mb-2">핸드 #${handNumber} 완료 처리 성공!</p>
-            <div class="space-y-2 text-sm">
-              <p>📁 파일명: ${filename}</p>
-              <p>🤖 AI 분석: ${summary.substring(0, 50)}...</p>
-              <p>📋 E열 상태: 복사완료</p>
-            </div>
-            <p class="mt-3 text-xs text-gray-300">모든 작업이 완료되었습니다!</p>
-          </div>
-        `, { autoClose: 4000 });
+        alert(`✅ 핸드 #${handNumber} 완료 처리 성공!\n\n📁 파일명: ${filename}\n🤖 AI 분석: ${summary.substring(0, 50)}...\n📋 E열 상태: 복사완료\n\n모든 작업이 완료되었습니다!`);
         
       } catch (error) {
         console.error('❌ 완료 처리 오류:', error);
         showNotification('❌ 시트 업데이트 실패: ' + error.message, 'error');
-        showDashboardPopup('❌ 완료 처리 오류', `
-          <div class="text-red-400">
-            <p class="mb-2">완료 처리 중 오류가 발생했습니다.</p>
-            <p class="text-sm bg-gray-700 p-2 rounded">${error.message}</p>
-            <p class="text-sm mt-2">다시 시도해주세요.</p>
-          </div>
-        `, { autoClose: 4000 });
+        alert(`❌ 완료 처리 중 오류 발생\n\n${error.message}\n\n다시 시도해주세요.`);
       } finally {
         // 버튼 상태 복원
         confirmBtn.disabled = false;
@@ -4420,17 +4062,6 @@
         completeBtn.textContent = '처리 중...';
         editBtn.disabled = true;
 
-        // 진행 상태 팝업 표시
-        // 업데이트 상태 표시
-        showUpdateStatus('🔄 완료 처리 시작...', 'info');
-
-        showDashboardPopup('⏳ 완료 처리 중...', `
-          <div class="text-center py-4">
-            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-400"></div>
-            <p class="mt-4 text-gray-300">Google Sheets 업데이트 준비 중...</p>
-          </div>
-        `, { showProgress: true, progress: 0, progressText: '초기화 중...' });
-
         // 2. 시트 URL 확인
         const sheetUrl = getSheetUrl();
         if (!sheetUrl) {
@@ -4438,14 +4069,12 @@
         }
 
         // 3. 핸드 시간 가져오기
-        updateProgress(20, '핸드 시간 정보 가져오는 중...');
         const handTime = await getHandTimestamp(handNumber);
         if (!handTime) {
           throw new Error('핸드 시간 정보를 가져올 수 없습니다.');
         }
 
         // 4. 시간 매칭 수행
-        updateProgress(40, 'Google Sheets에서 매칭되는 행 찾는 중...');
         const matchResult = await findMatchingRowInVirtualSheet(sheetUrl, handTime);
         const matchedRowData = matchResult ? matchResult.matchedRow : null;
         if (!matchedRowData || !matchedRowData.row) {
@@ -4454,12 +4083,10 @@
         const rowNumber = matchedRowData.row; // 행 번호 추출 (숫자)
 
         // 5. AI 분석 실행
-        updateProgress(60, 'AI 분석 실행 중...');
         const aiAnalysis = await analyzeHandWithAI(handNumber);
         const filename = `${handNumber}_${new Date().toISOString().slice(0,10).replace(/-/g, '')}_completed`;
 
         // 6. 시트 업데이트 (복사완료 상태로)
-        updateProgress(80, 'Google Sheets 업데이트 중...');
         const updateData = {
           action: 'updateSheet',
           sheetUrl: sheetUrl,
@@ -4481,62 +4108,23 @@
           completeBtn.disabled = true;  // 완료 후 비활성화
           editBtn.disabled = true;      // 편집 버튼도 비활성화
 
-          // 상세한 정보를 포함한 대시보드 팝업 메시지
-          const popupContent = `
-            <div class="space-y-4">
-              <div class="bg-gray-800 rounded-lg p-4">
-                <h4 class="text-green-400 font-semibold mb-3">📊 Google Sheets 업데이트 정보</h4>
-                <div class="grid grid-cols-2 gap-3 text-sm">
-                  <div class="flex items-center space-x-2">
-                    <span class="text-gray-400">📍 시트 위치:</span>
-                    <span class="text-white font-mono">${rowNumber}번째 행</span>
-                  </div>
-                  <div class="flex items-center space-x-2">
-                    <span class="text-gray-400">📁 D열 (핸드번호):</span>
-                    <span class="text-white font-mono">${handNumber}</span>
-                  </div>
-                  <div class="flex items-center space-x-2">
-                    <span class="text-gray-400">📝 E열 (상태):</span>
-                    <span class="text-green-400 font-semibold">복사완료 ✅</span>
-                  </div>
-                  <div class="flex items-center space-x-2">
-                    <span class="text-gray-400">📂 F열 (파일명):</span>
-                    <span class="text-white font-mono text-xs">${filename}</span>
-                  </div>
-                </div>
-              </div>
+          // 상세한 정보를 포함한 팝업 메시지
+          const detailMessage = `✅ 완료 처리되었습니다!
 
-              <div class="bg-gray-800 rounded-lg p-4">
-                <h4 class="text-blue-400 font-semibold mb-2">🤖 AI 분석 내용</h4>
-                <p class="text-gray-300 text-sm">${aiAnalysis.substring(0, 100)}...</p>
-              </div>
+📊 Google Sheets 업데이트 정보:
+━━━━━━━━━━━━━━━━━━━━━━━━
+📍 시트 위치: ${rowNumber}번째 행
+📁 D열 (핸드번호): ${handNumber}
+📝 E열 (상태): 복사완료 ✅
+📂 F열 (파일명): ${filename}
+🤖 H열 (AI분석): ${aiAnalysis.substring(0, 50)}...
 
-              <div class="bg-gray-800 rounded-lg p-4">
-                <div class="flex items-center space-x-2">
-                  <span class="text-gray-400">⏰ 처리 시간:</span>
-                  <span class="text-white">${new Date(handTime * 1000).toLocaleString('ko-KR')}</span>
-                </div>
-              </div>
+⏰ 시간: ${new Date(handTime * 1000).toLocaleString('ko-KR')}
+━━━━━━━━━━━━━━━━━━━━━━━━
 
-              <div class="text-center pt-2">
-                <span class="text-green-400 text-lg">✨ 모든 작업이 성공적으로 완료되었습니다!</span>
-              </div>
-            </div>
-          `;
+✨ 모든 작업이 성공적으로 완료되었습니다!`;
 
-          showDashboardPopup('✅ 완료 처리 성공', popupContent, { autoClose: 5000 });
-
-          // 업데이트 상태 표시
-          showUpdateStatus(`✅ 핸드 #${handNumber} 업데이트 완료 - E열: 복사완료`, 'success');
-
-          // 핸드를 완료된 것으로 표시
-          completedHandsManager.markAsCompleted(handNumber);
-
-          // 핸드 목록 업데이트 (시각적 표시를 위해)
-          updateHandList();
-
-          // 버튼 비활성화
-          disableHandButtons();
+          alert(detailMessage);
 
           // 로컬 상태 업데이트
           updateHandEditStatus(handNumber, true, true);
@@ -4552,22 +4140,7 @@
         completeBtn.textContent = '완료';
         editBtn.disabled = false;
 
-        // 오류 대시보드 팝업
-        const errorContent = `
-          <div class="space-y-4">
-            <div class="bg-red-900 bg-opacity-30 rounded-lg p-4">
-              <h4 class="text-red-400 font-semibold mb-2">오류 내용</h4>
-              <p class="text-white">${error.message}</p>
-            </div>
-            <div class="bg-gray-800 rounded-lg p-3">
-              <p class="text-gray-300 text-sm">다시 시도해주세요. 문제가 계속되면 설정을 확인하세요.</p>
-            </div>
-          </div>
-        `;
-        showDashboardPopup('❌ 완료 처리 실패', errorContent);
-
-        // 업데이트 상태 표시
-        showUpdateStatus(`❌ 완료 처리 실패: ${error.message}`, 'error');
+        alert(`❌ 완료 처리 중 오류가 발생했습니다.\n\n${error.message}`);
       }
     }
 
@@ -4631,59 +4204,23 @@
           // 로컬 상태 업데이트
           updateHandEditStatus(handNumber, false, true); // 마지막 매개변수는 skipServerCall
 
-          // 상세한 정보를 포함한 대시보드 팝업 메시지
-          const popupContent = `
-            <div class="space-y-4">
-              <div class="bg-gray-800 rounded-lg p-4">
-                <h4 class="text-yellow-400 font-semibold mb-3">📊 Google Sheets 업데이트 정보</h4>
-                <div class="grid grid-cols-2 gap-3 text-sm">
-                  <div class="flex items-center space-x-2">
-                    <span class="text-gray-400">📍 시트 위치:</span>
-                    <span class="text-white font-mono">${rowNumber}번째 행</span>
-                  </div>
-                  <div class="flex items-center space-x-2">
-                    <span class="text-gray-400">📁 D열 (핸드번호):</span>
-                    <span class="text-white font-mono">${handNumber}</span>
-                  </div>
-                  <div class="flex items-center space-x-2">
-                    <span class="text-gray-400">📝 E열 (상태):</span>
-                    <span class="text-yellow-400 font-semibold">미완료</span>
-                  </div>
-                  <div class="flex items-center space-x-2">
-                    <span class="text-gray-400">📂 F열 (파일명):</span>
-                    <span class="text-white font-mono text-xs">${filename}</span>
-                  </div>
-                </div>
-              </div>
+          // 상세한 정보를 포함한 팝업 메시지
+          const detailMessage = `✅ 편집 모드로 전환되었습니다!
 
-              <div class="bg-gray-800 rounded-lg p-4">
-                <h4 class="text-blue-400 font-semibold mb-2">🤖 AI 분석 내용</h4>
-                <p class="text-gray-300 text-sm">${aiAnalysis.substring(0, 100)}...</p>
-              </div>
+📊 Google Sheets 업데이트 정보:
+━━━━━━━━━━━━━━━━━━━━━━━━
+📍 시트 위치: ${rowNumber}번째 행
+📁 D열 (핸드번호): ${handNumber}
+📝 E열 (상태): 미완료
+📂 F열 (파일명): ${filename}
+🤖 H열 (AI분석): ${aiAnalysis.substring(0, 50)}...
 
-              <div class="bg-gray-800 rounded-lg p-4">
-                <div class="flex items-center space-x-2">
-                  <span class="text-gray-400">⏰ 처리 시간:</span>
-                  <span class="text-white">${new Date(handTime * 1000).toLocaleString('ko-KR')}</span>
-                </div>
-              </div>
+⏰ 시간: ${new Date(handTime * 1000).toLocaleString('ko-KR')}
+━━━━━━━━━━━━━━━━━━━━━━━━
 
-              <div class="text-center pt-2 bg-yellow-900 bg-opacity-30 rounded-lg p-3">
-                <span class="text-yellow-400">💡 다음 단계: "완료" 버튼을 클릭하여 최종 처리하세요.</span>
-              </div>
-            </div>
-          `;
+💡 다음 단계: "완료" 버튼을 클릭하여 최종 처리하세요.`;
 
-          showDashboardPopup('✅ 편집 모드 전환 완료', popupContent, { autoClose: 5000 });
-
-          // 업데이트 상태 표시
-          showUpdateStatus(`✏️ 핸드 #${handNumber} 편집 모드 전환 - E열: 미완료`, 'warning');
-
-          // 핸드가 편집 중이므로 완료 목록에서 제거 (재작업)
-          completedHandsManager.removeFromCompleted(handNumber);
-
-          // 핸드 목록 업데이트
-          updateHandList();
+          alert(detailMessage);
         } else {
           throw new Error(result?.message || '시트 업데이트에 실패했습니다.');
         }
@@ -4696,22 +4233,7 @@
         editBtn.disabled = false;
         completeBtn.disabled = true;
 
-        // 오류 대시보드 팝업
-        const errorContent = `
-          <div class="space-y-4">
-            <div class="bg-red-900 bg-opacity-30 rounded-lg p-4">
-              <h4 class="text-red-400 font-semibold mb-2">오류 내용</h4>
-              <p class="text-white">${error.message}</p>
-            </div>
-            <div class="bg-gray-800 rounded-lg p-3">
-              <p class="text-gray-300 text-sm">다시 시도해주세요. 문제가 계속되면 설정을 확인하세요.</p>
-            </div>
-          </div>
-        `;
-        showDashboardPopup('❌ 편집 처리 실패', errorContent);
-
-        // 업데이트 상태 표시
-        showUpdateStatus(`❌ 편집 처리 실패: ${error.message}`, 'error');
+        alert('❌ 편집 처리 중 오류가 발생했습니다:\n\n' + error.message + '\n\n다시 시도해 주세요.');
       }
     }
 
@@ -5023,20 +4545,12 @@
       const matchedRowText = document.getElementById('update-matched-row').textContent;
       
       if (!filename) {
-        showDashboardPopup('⚠️ 파일명 필요', `
-          <div class="text-yellow-400">
-            <p>파일명을 입력해주세요.</p>
-          </div>
-        `, { autoClose: 2000 });
+        alert('⚠️ 파일명을 입력해주세요.');
         return;
       }
       
       if (!currentHand) {
-        showDashboardPopup('⚠️ 핸드 선택 필요', `
-          <div class="text-yellow-400">
-            <p>현재 선택된 핸드가 없습니다.</p>
-          </div>
-        `, { autoClose: 2000 });
+        alert('⚠️ 현재 선택된 핸드가 없습니다.');
         return;
       }
       
@@ -5055,12 +4569,7 @@
       }
       
       if (!matchedRow) {
-        showDashboardPopup('⚠️ 매칭 필요', `
-          <div class="text-yellow-400">
-            <p>매칭된 행 정보를 찾을 수 없습니다.</p>
-            <p class="text-sm mt-2">먼저 Virtual 시트 매칭을 완료해주세요.</p>
-          </div>
-        `, { autoClose: 3000 });
+        alert('⚠️ 매칭된 행 정보를 찾을 수 없습니다.\n먼저 Virtual 시트 매칭을 완료해주세요.');
         return;
       }
       
@@ -5076,15 +4585,7 @@
         const result = await updateSheetData(matchedRow, currentHand, filename, aiAnalysis);
         
         if (result.success) {
-          showDashboardPopup('✅ 시트 업데이트 성공', `
-            <div class="text-green-400">
-              <div class="space-y-2">
-                <p>📍 행: ${matchedRow}</p>
-                <p>📁 파일명: ${filename}</p>
-                <p>🤖 AI 분석: ${aiAnalysis.substring(0, 30)}...</p>
-              </div>
-            </div>
-          `, { autoClose: 3000 });
+          alert(`✅ 시트 업데이트 성공!\n\n📍 행: ${matchedRow}\n📁 파일명: ${filename}\n🤖 AI 분석: ${aiAnalysis.substring(0, 30)}...`);
           document.getElementById('sheet-update-modal').classList.add('hidden');
           
           // 완료 처리도 같이 실행
@@ -5096,20 +4597,12 @@
           currentHand = null;
           
         } else {
-          showDashboardPopup('❌ 시트 업데이트 실패', `
-            <div class="text-red-400">
-              <p>오류: ${result.message}</p>
-            </div>
-          `, { autoClose: 3000 });
+          alert(`❌ 시트 업데이트 실패\n\n오류: ${result.message}`);
         }
         
       } catch (error) {
         console.error('시트 업데이트 오류:', error);
-        showDashboardPopup('❌ 시트 업데이트 오류', `
-          <div class="text-red-400">
-            <p>${error.message}</p>
-          </div>
-        `, { autoClose: 3000 });
+        alert(`❌ 시트 업데이트 오류\n\n${error.message}`);
         
       } finally {
         // 버튼 복구
@@ -5363,27 +4856,14 @@
       console.log('   URL:', debugInfo.sheetUrl);
       
       if (!debugInfo.sheetUrl) {
-        showDashboardPopup('❌ 시트 URL 필요', `
-          <div class="text-red-400">
-            <p>시트 URL이 설정되지 않았습니다.</p>
-            <p class="text-sm mt-2">설정 버튼을 클릭하여 URL을 입력하세요.</p>
-          </div>
-        `, { autoClose: 3000 });
+        alert('❌ 시트 URL이 설정되지 않았습니다.\n설정 버튼을 클릭하여 URL을 입력하세요.');
         return;
       }
       
       // URL 형식 검증
       const urlMatch = debugInfo.sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
       if (!urlMatch) {
-        showDashboardPopup('❌ URL 형식 오류', `
-          <div class="text-red-400">
-            <p>잘못된 Google Sheets URL 형식입니다.</p>
-            <div class="mt-2">
-              <p class="text-sm font-semibold">올바른 형식:</p>
-              <code class="block bg-gray-700 p-2 rounded text-xs mt-1">https://docs.google.com/spreadsheets/d/[ID]/edit</code>
-            </div>
-          </div>
-        `, { autoClose: 3000 });
+        alert('❌ 잘못된 Google Sheets URL 형식\n\n올바른 형식:\nhttps://docs.google.com/spreadsheets/d/[ID]/edit');
         return;
       }
       
@@ -5562,36 +5042,13 @@
                 console.warn('   ⚠️ verifyUpdate 액션이 지원되지 않습니다.');
                 alert(`✅ 시트 업데이트 성공!\n\n📍 행 번호: ${testRow}\n📁 F열(파일명): ${testUpdateData.filename}\n🤖 H열(AI분석): ${testUpdateData.aiAnalysis}\n\n⚠️ 검증 기능 미지원 (Apps Script 업데이트 필요)\nGoogle Sheets에서 직접 확인하세요.`);
               } else {
-                showDashboardPopup('⚠️ 검증 실패', `
-                  <div class="text-yellow-400">
-                    <p class="mb-2">업데이트 성공 보고되었으나 검증 실패</p>
-                    <p class="text-sm mb-3">${verifyResult.message || '실제 시트 데이터 불일치'}</p>
-                    <div class="text-sm text-gray-300">
-                      <p class="font-semibold mb-1">가능한 원인:</p>
-                      <ol class="list-decimal list-inside space-y-1">
-                        <li>권한 문제로 읽기 실패</li>
-                        <li>시트 ID 또는 GID 불일치</li>
-                        <li>캐시 지연</li>
-                      </ol>
-                      <p class="mt-3">Google Sheets를 직접 확인하고 몇 분 후 다시 시도해보세요.</p>
-                    </div>
-                  </div>
-                `, { autoClose: 5000 });
+                alert(`⚠️ 업데이트 성공 보고되었으나 검증 실패\n\n${verifyResult.message || '실제 시트 데이터 불일치'}\n\n가능한 원인:\n1. 권한 문제로 읽기 실패\n2. 시트 ID 또는 GID 불일치\n3. 캐시 지연\n\nGoogle Sheets를 직접 확인하고\n몇 분 후 다시 시도해보세요.`);
               }
             }
             
           } catch (verifyError) {
             console.warn('   검증 과정 건너뜀:', verifyError.message);
-            showDashboardPopup('✅ 시트 업데이트 성공', `
-              <div class="text-green-400">
-                <div class="space-y-2">
-                  <p>📍 행 번호: ${testRow}</p>
-                  <p>📁 F열(파일명): ${testUpdateData.filename}</p>
-                  <p>🤖 H열(AI분석): ${testUpdateData.aiAnalysis}</p>
-                </div>
-                <p class="text-sm text-gray-300 mt-3">Google Sheets에서 직접 확인하세요.</p>
-              </div>
-            `, { autoClose: 4000 });
+            alert(`✅ 시트 업데이트 성공!\n\n📍 행 번호: ${testRow}\n📁 F열(파일명): ${testUpdateData.filename}\n🤖 H열(AI분석): ${testUpdateData.aiAnalysis}\n\nGoogle Sheets에서 직접 확인하세요.`);
           }
           
         } else {
@@ -5613,20 +5070,7 @@
           troubleshootMsg = '\n🔧 해결책: Apps Script 로그와 문서 확인';
         }
         
-        showDashboardPopup('❌ 시트 업데이트 실패', `
-          <div class="text-red-400">
-            <p class="mb-2">오류: ${error.message}</p>
-            <p class="text-sm mb-3">${troubleshootMsg}</p>
-            <div class="text-sm text-gray-300">
-              <p class="font-semibold mb-1">추가 진단:</p>
-              <ol class="list-decimal list-inside space-y-1">
-                <li>F12 > Console 로그 확인</li>
-                <li>Apps Script 실행 로그 확인</li>
-                <li>문제해결 가이드 참조</li>
-              </ol>
-            </div>
-          </div>
-        `, { autoClose: 5000 });
+        alert(`❌ 시트 업데이트 실패\n\n오류: ${error.message}${troubleshootMsg}\n\n추가 진단:\n1. F12 > Console 로그 확인\n2. Apps Script 실행 로그 확인\n3. 문제해결 가이드 참조`);
       }
       
       console.log('\n🔍 === 디버귵 종료 ===');
@@ -5640,6 +5084,55 @@
         clearInterval(refreshTimerInterval);
       }
     });
+
+    // 테스트 및 성능 모니터링 함수들
+    function togglePerformanceDashboard() {
+      const dashboard = document.getElementById('performance-dashboard');
+      dashboard.style.display = dashboard.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function toggleTestPanel() {
+      const panel = document.getElementById('test-panel');
+      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
+
+    async function runDay1Tests() {
+      const resultsDiv = document.getElementById('test-results');
+      resultsDiv.innerHTML = '<div class="text-yellow-400">🔄 테스트 실행 중...</div>';
+
+      try {
+        const automation = new TestAutomation();
+        const results = await automation.testDay1_PerformanceMonitoring();
+
+        let html = '<div class="space-y-2">';
+        html += `<div class="text-white font-bold">Day 1 테스트 결과</div>`;
+        html += `<div>총 테스트: ${results.total}</div>`;
+        html += `<div class="text-green-400">✅ 통과: ${results.passed}</div>`;
+        html += `<div class="text-red-400">❌ 실패: ${results.failed}</div>`;
+
+        if (results.failed > 0) {
+          html += '<div class="mt-2 text-yellow-400">재작업 필요:</div>';
+          results.details
+            .filter(d => d.status === 'FAIL')
+            .forEach(d => {
+              html += `<div class="ml-2 text-xs">• ${d.name}: ${d.action}</div>`;
+            });
+        }
+
+        html += '</div>';
+        resultsDiv.innerHTML = html;
+
+        // 테스트 결과에 따른 Todo 업데이트
+        if (results.failed === 0) {
+          console.log('✅ Day 1 테스트 모두 통과');
+        } else {
+          console.log('❌ 일부 테스트 실패 - 재작업 필요');
+        }
+
+      } catch (error) {
+        resultsDiv.innerHTML = `<div class="text-red-400">❌ 테스트 실행 오류: ${error.message}</div>`;
+      }
+    }
   </script>
 </body>
 </html>

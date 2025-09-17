@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Table DB - Adaptive Polling Mode</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .metric-card {
+            transition: all 0.3s ease;
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-active { background-color: #10b981; animation: pulse 2s infinite; }
+        .status-normal { background-color: #3b82f6; }
+        .status-idle { background-color: #6b7280; }
+        .status-background { background-color: #ef4444; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .activity-bar {
+            height: 4px;
+            background: linear-gradient(90deg, #ef4444, #f59e0b, #10b981);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        .data-table {
+            font-size: 12px;
+        }
+
+        .row-added {
+            background-color: rgba(16, 185, 129, 0.2);
+            animation: highlight 1s ease-out;
+        }
+
+        .row-modified {
+            background-color: rgba(59, 130, 246, 0.2);
+            animation: highlight 1s ease-out;
+        }
+
+        .row-deleted {
+            background-color: rgba(239, 68, 68, 0.2);
+            animation: slideOut 0.5s ease-out;
+        }
+
+        @keyframes highlight {
+            0% { background-color: rgba(255, 255, 255, 0.3); }
+            100% { background-color: transparent; }
+        }
+
+        @keyframes slideOut {
+            0% { opacity: 1; transform: translateX(0); }
+            100% { opacity: 0; transform: translateX(-100%); }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+    <!-- 헤더 -->
+    <div class="border-b border-gray-700 p-4">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold">Virtual Table DB</h1>
+                <p class="text-gray-400">Adaptive Polling Mode v10.4.0</p>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div id="connection-status" class="flex items-center">
+                    <span class="status-indicator status-normal"></span>
+                    <span class="text-sm">연결됨</span>
+                </div>
+                <div id="polling-status" class="flex items-center">
+                    <span id="polling-indicator" class="status-indicator status-normal"></span>
+                    <span id="polling-text" class="text-sm">일반 모드</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto p-6">
+        <!-- 제어 패널 -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <!-- 폴링 제어 -->
+            <div class="bg-gray-800 rounded-lg p-6">
+                <h3 class="text-lg font-semibold mb-4">📊 폴링 제어</h3>
+                <div class="space-y-4">
+                    <button id="start-adaptive" class="w-full bg-green-600 hover:bg-green-700 px-4 py-2 rounded">
+                        적응형 폴링 시작
+                    </button>
+                    <button id="stop-polling" class="w-full bg-red-600 hover:bg-red-700 px-4 py-2 rounded">
+                        폴링 중지
+                    </button>
+                    <div class="border-t border-gray-600 pt-4">
+                        <label class="block text-sm text-gray-400 mb-2">모드 전환</label>
+                        <select id="polling-mode" class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2">
+                            <option value="adaptive">적응형 (스마트)</option>
+                            <option value="incremental">증분 (고정 10초)</option>
+                            <option value="checksum">체크섬 (고정 10초)</option>
+                            <option value="legacy">레거시 (고정 10초)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 사용자 활동 모니터 -->
+            <div class="bg-gray-800 rounded-lg p-6">
+                <h3 class="text-lg font-semibold mb-4">👤 사용자 활동</h3>
+                <div class="space-y-3">
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span>활동 수준</span>
+                            <span id="activity-score">0</span>
+                        </div>
+                        <div class="bg-gray-700 rounded-full h-2">
+                            <div id="activity-bar" class="activity-bar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-400 space-y-1">
+                        <div>마지막 활동: <span id="last-activity">-</span></div>
+                        <div>마지막 편집: <span id="last-editing">-</span></div>
+                        <div>현재 상태: <span id="current-activity">일반</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 폴링 통계 -->
+            <div class="bg-gray-800 rounded-lg p-6">
+                <h3 class="text-lg font-semibold mb-4">📈 폴링 통계</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">현재 간격:</span>
+                        <span id="current-interval">10초</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">총 폴링:</span>
+                        <span id="total-polls">0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">절약된 폴링:</span>
+                        <span id="saved-polls" class="text-green-400">0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">효율성:</span>
+                        <span id="efficiency" class="text-blue-400">0%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 실시간 메트릭 -->
+        <div class="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+            <div class="metric-card bg-gray-800 rounded-lg p-4">
+                <div class="text-xs text-gray-400 mb-1">API 호출/시간</div>
+                <div id="api-calls-per-hour" class="text-xl font-bold text-blue-400">0</div>
+            </div>
+            <div class="metric-card bg-gray-800 rounded-lg p-4">
+                <div class="text-xs text-gray-400 mb-1">데이터 전송량</div>
+                <div id="data-transferred" class="text-xl font-bold text-purple-400">0KB</div>
+            </div>
+            <div class="metric-card bg-gray-800 rounded-lg p-4">
+                <div class="text-xs text-gray-400 mb-1">평균 응답시간</div>
+                <div id="avg-response-time" class="text-xl font-bold text-yellow-400">0ms</div>
+            </div>
+            <div class="metric-card bg-gray-800 rounded-lg p-4">
+                <div class="text-xs text-gray-400 mb-1">배터리 절약</div>
+                <div id="battery-savings" class="text-xl font-bold text-green-400">0%</div>
+            </div>
+            <div class="metric-card bg-gray-800 rounded-lg p-4">
+                <div class="text-xs text-gray-400 mb-1">상태 변경</div>
+                <div id="state-changes" class="text-xl font-bold text-orange-400">0</div>
+            </div>
+            <div class="metric-card bg-gray-800 rounded-lg p-4">
+                <div class="text-xs text-gray-400 mb-1">운영시간</div>
+                <div id="uptime" class="text-xl font-bold text-cyan-400">0s</div>
+            </div>
+        </div>
+
+        <!-- 데이터 테이블 -->
+        <div class="bg-gray-800 rounded-lg overflow-hidden">
+            <div class="p-4 border-b border-gray-700">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-lg font-semibold">🗂️ 데이터 테이블</h3>
+                    <div class="flex items-center space-x-4">
+                        <span class="text-sm text-gray-400">마지막 업데이트: <span id="last-update">-</span></span>
+                        <div id="delta-indicator" class="text-xs px-2 py-1 rounded bg-gray-700">
+                            대기 중
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full data-table">
+                    <thead>
+                        <tr class="bg-gray-700 border-b border-gray-600">
+                            <th class="p-2 text-left">#</th>
+                            <th class="p-2 text-left">A</th>
+                            <th class="p-2 text-left">B</th>
+                            <th class="p-2 text-left">C</th>
+                            <th class="p-2 text-left">D</th>
+                            <th class="p-2 text-left">E</th>
+                            <th class="p-2 text-left">F</th>
+                            <th class="p-2 text-left">G</th>
+                            <th class="p-2 text-left">H</th>
+                            <th class="p-2 text-left">I</th>
+                            <th class="p-2 text-left">J</th>
+                        </tr>
+                    </thead>
+                    <tbody id="data-tbody">
+                        <tr>
+                            <td colspan="11" class="p-8 text-center text-gray-400">
+                                데이터를 로드하는 중...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 활동 로그 (디버깅용) -->
+    <div class="fixed bottom-4 right-4 w-80 bg-gray-800 rounded-lg p-4 max-h-60 overflow-y-auto text-xs" id="activity-log" style="display: none;">
+        <div class="flex justify-between items-center mb-2">
+            <span class="font-semibold">활동 로그</span>
+            <button id="toggle-log" class="text-gray-400 hover:text-white">✖</button>
+        </div>
+        <div id="log-content" class="space-y-1"></div>
+    </div>
+
+    <!-- 스크립트 로드 -->
+    <script src="performance_monitor.js"></script>
+    <script src="incremental_manager.js"></script>
+    <script src="adaptive_polling_manager.js"></script>
+
+    <script>
+        // 전역 변수
+        let performanceMonitor;
+        let incrementalManager;
+        let adaptivePollingManager;
+        let currentMode = 'adaptive';
+
+        // Apps Script URL (실제 URL로 교체 필요)
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+
+        // 초기화
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('🚀 Adaptive Polling Mode 초기화 시작');
+
+            try {
+                // 성능 모니터 초기화
+                performanceMonitor = new PerformanceMonitor();
+
+                // 증분 업데이트 매니저 초기화
+                incrementalManager = initializeIncrementalManager(APPS_SCRIPT_URL);
+
+                // 적응형 폴링 매니저 초기화
+                adaptivePollingManager = initializeAdaptivePolling(incrementalManager);
+
+                // UI 이벤트 리스너 설정
+                setupEventListeners();
+
+                // 메트릭 업데이트 시작
+                startMetricsUpdate();
+
+                console.log('✅ 모든 시스템 초기화 완료');
+
+            } catch (error) {
+                console.error('❌ 초기화 오류:', error);
+                alert('시스템 초기화에 실패했습니다. 페이지를 새로고침해주세요.');
+            }
+        });
+
+        // 이벤트 리스너 설정
+        function setupEventListeners() {
+            // 폴링 제어 버튼
+            document.getElementById('start-adaptive').addEventListener('click', () => {
+                if (adaptivePollingManager) {
+                    adaptivePollingManager.startPolling();
+                    logActivity('적응형 폴링 시작');
+                }
+            });
+
+            document.getElementById('stop-polling').addEventListener('click', () => {
+                if (adaptivePollingManager) {
+                    adaptivePollingManager.stopPolling();
+                    logActivity('폴링 중지');
+                }
+            });
+
+            // 모드 전환
+            document.getElementById('polling-mode').addEventListener('change', (e) => {
+                switchPollingMode(e.target.value);
+            });
+
+            // 활동 로그 토글
+            document.getElementById('toggle-log').addEventListener('click', () => {
+                const log = document.getElementById('activity-log');
+                log.style.display = 'none';
+            });
+
+            // 디버깅용 로그 표시 (Ctrl+Shift+L)
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && e.shiftKey && e.key === 'L') {
+                    const log = document.getElementById('activity-log');
+                    log.style.display = log.style.display === 'none' ? 'block' : 'none';
+                }
+            });
+
+            // 적응형 폴링 이벤트 리스너
+            if (adaptivePollingManager) {
+                adaptivePollingManager.on('stateChanged', updatePollingStatus);
+                adaptivePollingManager.on('intervalChanged', updatePollingInterval);
+            }
+        }
+
+        // 폴링 모드 전환
+        function switchPollingMode(mode) {
+            currentMode = mode;
+
+            // 기존 폴링 중지
+            if (adaptivePollingManager) {
+                adaptivePollingManager.stopPolling();
+            }
+
+            switch (mode) {
+                case 'adaptive':
+                    if (adaptivePollingManager) {
+                        adaptivePollingManager.startPolling();
+                    }
+                    break;
+
+                case 'incremental':
+                    // 증분 모드로 전환
+                    if (incrementalManager) {
+                        startFixedPolling(10000, () => incrementalManager.fetchUpdate());
+                    }
+                    break;
+
+                case 'checksum':
+                    // 체크섬 모드로 전환 (구현 필요)
+                    startFixedPolling(10000, () => console.log('Checksum polling'));
+                    break;
+
+                case 'legacy':
+                    // 레거시 모드로 전환 (구현 필요)
+                    startFixedPolling(10000, () => console.log('Legacy polling'));
+                    break;
+            }
+
+            logActivity(`모드 전환: ${mode}`);
+        }
+
+        // 고정 폴링 시작
+        function startFixedPolling(interval, pollFunction) {
+            if (window.fixedPollingTimer) {
+                clearInterval(window.fixedPollingTimer);
+            }
+
+            window.fixedPollingTimer = setInterval(pollFunction, interval);
+            console.log(`고정 폴링 시작: ${interval}ms`);
+        }
+
+        // 폴링 상태 업데이트
+        function updatePollingStatus(data) {
+            const indicator = document.getElementById('polling-indicator');
+            const text = document.getElementById('polling-text');
+
+            // 상태 표시 업데이트
+            indicator.className = `status-indicator status-${data.newState}`;
+
+            const stateNames = {
+                'active': '활성 편집',
+                'normal': '일반 활동',
+                'idle': '대기 상태',
+                'background': '백그라운드'
+            };
+
+            text.textContent = stateNames[data.newState] || data.newState;
+
+            // 상태 변경 카운트 업데이트
+            const stateChanges = document.getElementById('state-changes');
+            if (adaptivePollingManager) {
+                const stats = adaptivePollingManager.getStats();
+                stateChanges.textContent = stats.stateChanges;
+            }
+
+            logActivity(`상태 변경: ${data.oldState} → ${data.newState}`);
+        }
+
+        // 폴링 간격 업데이트
+        function updatePollingInterval(data) {
+            const currentInterval = document.getElementById('current-interval');
+            currentInterval.textContent = `${(data.interval / 1000).toFixed(1)}초`;
+
+            logActivity(`폴링 간격 변경: ${data.interval}ms`);
+        }
+
+        // 사용자 활동 업데이트
+        function updateUserActivity() {
+            if (!adaptivePollingManager) return;
+
+            const tracker = adaptivePollingManager.activityTracker;
+            if (!tracker) return;
+
+            const activity = tracker.getActivityLevel();
+
+            // 활동 점수 및 바 업데이트
+            document.getElementById('activity-score').textContent = activity.score;
+            document.getElementById('activity-bar').style.width = Math.min(parseFloat(activity.score), 100) + '%';
+
+            // 시간 정보 업데이트
+            document.getElementById('last-activity').textContent = formatDuration(activity.lastActivity);
+            document.getElementById('last-editing').textContent = formatDuration(activity.lastEditing);
+            document.getElementById('current-activity').textContent = tracker.getCurrentState();
+        }
+
+        // 메트릭 업데이트
+        function updateMetrics() {
+            if (performanceMonitor) {
+                const metrics = performanceMonitor.getMetrics();
+
+                document.getElementById('api-calls-per-hour').textContent =
+                    Math.round((metrics.totalRequests / metrics.uptime) * 3600);
+
+                document.getElementById('data-transferred').textContent =
+                    formatBytes(metrics.totalDataTransferred);
+
+                document.getElementById('avg-response-time').textContent =
+                    metrics.averageResponseTime.toFixed(0) + 'ms';
+
+                document.getElementById('uptime').textContent =
+                    formatDuration(metrics.uptime * 1000);
+            }
+
+            if (adaptivePollingManager) {
+                const stats = adaptivePollingManager.getStats();
+
+                document.getElementById('total-polls').textContent = stats.totalPolls;
+                document.getElementById('saved-polls').textContent = stats.savedPolls;
+                document.getElementById('efficiency').textContent = stats.efficiency;
+
+                // 배터리 절약 계산 (간격이 길수록 절약)
+                const baseInterval = 10000; // 기본 10초
+                const currentInterval = adaptivePollingManager.currentInterval;
+                const savings = Math.max(0, ((currentInterval - baseInterval) / currentInterval) * 100);
+                document.getElementById('battery-savings').textContent = savings.toFixed(1) + '%';
+            }
+
+            // 사용자 활동 업데이트
+            updateUserActivity();
+        }
+
+        // 메트릭 업데이트 시작
+        function startMetricsUpdate() {
+            setInterval(updateMetrics, 1000);
+        }
+
+        // 활동 로그
+        function logActivity(message) {
+            const logContent = document.getElementById('log-content');
+            const timestamp = new Date().toLocaleTimeString();
+
+            const logEntry = document.createElement('div');
+            logEntry.className = 'text-gray-300';
+            logEntry.textContent = `${timestamp}: ${message}`;
+
+            logContent.appendChild(logEntry);
+
+            // 최대 50개 로그만 유지
+            while (logContent.children.length > 50) {
+                logContent.removeChild(logContent.firstChild);
+            }
+
+            logContent.scrollTop = logContent.scrollHeight;
+        }
+
+        // 유틸리티 함수들
+        function formatDuration(ms) {
+            if (ms < 1000) return ms + 'ms';
+            if (ms < 60000) return (ms / 1000).toFixed(1) + 's';
+            if (ms < 3600000) return (ms / 60000).toFixed(1) + 'm';
+            return (ms / 3600000).toFixed(1) + 'h';
+        }
+
+        function formatBytes(bytes) {
+            if (bytes < 1024) return bytes + 'B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + 'KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + 'MB';
+        }
+
+        // 전역 상태 업데이트 함수
+        window.updatePollingStatus = updatePollingStatus;
+        window.logActivity = logActivity;
+    </script>
+</body>
+</html>
