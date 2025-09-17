@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>페이지 새로고침 상태 동기화 테스트 - v11.2.2</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .header {
+      background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+      color: white;
+      padding: 30px;
+      border-radius: 10px;
+      margin-bottom: 30px;
+    }
+    .test-section {
+      background: white;
+      padding: 25px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .test-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 15px;
+      border-bottom: 2px solid #27ae60;
+      padding-bottom: 10px;
+    }
+    .problem-solution {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin: 20px 0;
+    }
+    .problem, .solution {
+      padding: 15px;
+      border-radius: 8px;
+    }
+    .problem {
+      background: #fed7d7;
+      border-left: 4px solid #e53e3e;
+    }
+    .solution {
+      background: #c6f6d5;
+      border-left: 4px solid #38a169;
+    }
+    .problem h4, .solution h4 {
+      margin-top: 0;
+      margin-bottom: 10px;
+    }
+    .test-steps {
+      background: #ebf8ff;
+      border-left: 4px solid #3182ce;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    .test-steps h4 {
+      margin-top: 0;
+      color: #2c5282;
+    }
+    .test-steps ol {
+      margin-bottom: 0;
+    }
+    .test-steps li {
+      margin-bottom: 5px;
+    }
+    .code-block {
+      background: #2d3748;
+      color: #e2e8f0;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 10px 0;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      overflow-x: auto;
+    }
+    button {
+      background: #27ae60;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 5px;
+      font-weight: 600;
+      cursor: pointer;
+      margin: 5px;
+      transition: all 0.3s;
+    }
+    button:hover {
+      background: #229954;
+      transform: translateY(-2px);
+    }
+    .status-demo {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      margin: 15px 0;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 5px;
+    }
+    .hand-item-demo {
+      padding: 10px;
+      background: #1f2937;
+      color: white;
+      border-radius: 5px;
+      border: 1px solid #374151;
+      min-width: 150px;
+    }
+    .status-indicator {
+      font-size: 16px;
+      transition: all 0.3s ease;
+      cursor: help;
+    }
+    .status-empty { color: #94a3b8; }
+    .status-pending {
+      color: #fbbf24;
+      animation: pulse 2s infinite;
+    }
+    .status-completed { color: #10b981; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .flow-diagram {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 15px 0;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 5px;
+    }
+    .flow-step {
+      padding: 8px 12px;
+      background: #667eea;
+      color: white;
+      border-radius: 4px;
+      text-align: center;
+      min-width: 100px;
+      font-size: 12px;
+    }
+    .flow-step.new {
+      background: #27ae60;
+      border: 2px solid #229954;
+    }
+    .flow-arrow {
+      font-size: 18px;
+      color: #666;
+    }
+    .before-after {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin: 20px 0;
+    }
+    .before, .after {
+      padding: 15px;
+      border-radius: 8px;
+    }
+    .before {
+      background: #fed7d7;
+      border-left: 4px solid #e53e3e;
+    }
+    .after {
+      background: #c6f6d5;
+      border-left: 4px solid #38a169;
+    }
+    .highlight {
+      background: #ffeaa7;
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🔄 페이지 새로고침 상태 동기화 해결</h1>
+    <p>Version 11.2.2 - 편집 버튼 상태가 새로고침 후에도 유지되도록 수정</p>
+    <p>핵심 문제: 페이지 새로고침 시 각 핸드의 실제 상태와 UI 버튼 상태 불일치</p>
+  </div>
+
+  <!-- 문제 상황 설명 -->
+  <div class="test-section">
+    <div class="test-title">🎯 문제 상황 분석</div>
+
+    <div class="problem-solution">
+      <div class="problem">
+        <h4>❌ 기존 문제</h4>
+        <p><strong>시나리오:</strong></p>
+        <ol>
+          <li>핸드 선택 → 편집 버튼 클릭</li>
+          <li>편집 완료 → 시트에 "미완료" 상태 저장</li>
+          <li>페이지 새로고침 (F5)</li>
+          <li><span class="highlight">UI에서는 여전히 편집 가능 상태로 표시</span></li>
+          <li>실제로는 "미완료" 상태인데 버튼이 잘못 표시됨</li>
+        </ol>
+      </div>
+
+      <div class="solution">
+        <h4>✅ 해결책</h4>
+        <p><strong>개선사항:</strong></p>
+        <ol>
+          <li>페이지 로드 시 <code>initializeAllHandsStatus()</code> 실행</li>
+          <li>모든 핸드의 실제 시트 상태 확인</li>
+          <li>UI 상태 표시기 동기화</li>
+          <li>현재 선택된 핸드의 버튼 상태 복원</li>
+          <li>Phase 2 캐시를 활용하여 성능 최적화</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <!-- 구현된 기능 설명 -->
+  <div class="test-section">
+    <div class="test-title">🔧 구현된 기능</div>
+
+    <h4>1. 초기화 함수 추가</h4>
+    <div class="code-block">
+// init() 함수에 추가 (라인 5747-5751)
+setTimeout(async () => {
+  console.log('🔄 페이지 로드 완료 - 전체 핸드 상태 동기화 시작...');
+  await initializeAllHandsStatus();
+}, 2000); // 2초 후 실행 (캐시 준비 대기)
+    </div>
+
+    <h4>2. 전체 핸드 상태 동기화 함수</h4>
+    <div class="code-block">
+async function initializeAllHandsStatus() {
+  // 1. 캐시 준비 확인
+  await sheetDataCache.ensureFresh();
+
+  // 2. 모든 핸드 요소 찾기
+  const handElements = document.querySelectorAll('.hand-item');
+
+  // 3. 일괄 상태 확인 (Phase 2 캐시 활용)
+  const statusResults = {};
+  for (const handNumber of handNumbers) {
+    const handTime = await getHandTimestamp(handNumber);
+    const cachedRow = sheetDataCache.findClosestRow(handTime);
+    if (cachedRow) {
+      statusResults[handNumber] = cachedRow.status;
+    }
+  }
+
+  // 4. UI 업데이트 (상태 표시기 + 버튼)
+  updateHandStatusIndicators(statusResults);
+  updateCurrentHandButtons();
+}
+    </div>
+
+    <h4>3. 시각적 상태 표시기</h4>
+    <div class="status-demo">
+      <div class="hand-item-demo">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span>Hand #123</span>
+          <span class="status-indicator status-empty" title="미처리">⚪</span>
+        </div>
+      </div>
+      <div class="hand-item-demo">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span>Hand #124</span>
+          <span class="status-indicator status-pending" title="편집됨 - 완료 대기">📝</span>
+        </div>
+      </div>
+      <div class="hand-item-demo">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span>Hand #125</span>
+          <span class="status-indicator status-completed" title="처리 완료">✅</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 새로운 플로우 -->
+  <div class="test-section">
+    <div class="test-title">🔄 개선된 페이지 로드 플로우</div>
+
+    <div class="flow-diagram">
+      <div class="flow-step">페이지 로드</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">캐시 초기화</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step new">2초 대기</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step new">상태 동기화</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step new">UI 업데이트</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">사용 준비</div>
+    </div>
+
+    <p><strong>핵심 개선점:</strong> <span class="highlight">상태 동기화</span> 단계가 추가되어 실제 시트 상태와 UI가 일치합니다.</p>
+  </div>
+
+  <!-- 테스트 시나리오 -->
+  <div class="test-section">
+    <div class="test-title">🧪 테스트 시나리오</div>
+
+    <div class="test-steps">
+      <h4>시나리오 A: 편집 후 새로고침</h4>
+      <ol>
+        <li>메인 애플리케이션에서 임의의 핸드 선택</li>
+        <li>편집 버튼 클릭 → 확인 → 성공 메시지 대기</li>
+        <li>페이지 새로고침 (F5 또는 Ctrl+R)</li>
+        <li><strong>확인:</strong> 해당 핸드가 📝 상태로 표시되는지</li>
+        <li><strong>확인:</strong> 해당 핸드 선택 시 완료 버튼이 활성화되는지</li>
+      </ol>
+    </div>
+
+    <div class="test-steps">
+      <h4>시나리오 B: 완료 후 새로고침</h4>
+      <ol>
+        <li>편집된 핸드(📝 상태) 선택</li>
+        <li>완료 버튼 클릭 → 확인 → 성공 메시지 대기</li>
+        <li>페이지 새로고침 (F5 또는 Ctrl+R)</li>
+        <li><strong>확인:</strong> 해당 핸드가 ✅ 상태로 표시되는지</li>
+        <li><strong>확인:</strong> 해당 핸드 선택 시 모든 버튼이 비활성화되는지</li>
+      </ol>
+    </div>
+
+    <button onclick="openMainApp()">메인 애플리케이션에서 테스트</button>
+    <button onclick="openDevConsole()">개발자 콘솔 확인 방법</button>
+  </div>
+
+  <!-- 기대 효과 -->
+  <div class="test-section">
+    <div class="test-title">📊 기대 효과</div>
+
+    <div class="before-after">
+      <div class="before">
+        <h4>수정 전 (v11.2.1)</h4>
+        <ul>
+          <li>편집 후 새로고침 시 상태 불일치</li>
+          <li>사용자가 혼란스러워함</li>
+          <li>중복 편집 시도 가능성</li>
+          <li>데이터 무결성 문제</li>
+        </ul>
+      </div>
+
+      <div class="after">
+        <h4>수정 후 (v11.2.2)</h4>
+        <ul>
+          <li>새로고침 후에도 정확한 상태 표시</li>
+          <li>직관적인 사용자 경험</li>
+          <li>데이터 일관성 보장</li>
+          <li>Phase 2 캐시로 빠른 응답</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 로그 확인 -->
+  <div class="test-section">
+    <div class="test-title">📋 확인할 로그 메시지</div>
+
+    <p>페이지 로드 시 개발자 콘솔(F12)에서 다음 메시지들을 확인하세요:</p>
+
+    <div class="code-block">
+🔄 === 전체 핸드 상태 동기화 시작 ===
+📊 표시된 핸드 수: 10개
+🔍 상태 확인 대상: 10개 핸드
+📊 캐시 성능: 8개 적중, 2개 미스
+✅ UI 업데이트 완료: 6개 핸드
+🔄 현재 핸드 #123 버튼 상태 업데이트: 미완료
+✅ === 전체 핸드 상태 동기화 완료 ===
+    </div>
+
+    <p><strong>성공 지표:</strong></p>
+    <ul>
+      <li>캐시 적중률이 높을수록 좋음 (80% 이상)</li>
+      <li>UI 업데이트된 핸드 수 확인</li>
+      <li>오류 메시지가 없어야 함</li>
+    </ul>
+  </div>
+
+  <script>
+    function openMainApp() {
+      window.open('http://localhost:8080/index.html', '_blank');
+      alert('메인 애플리케이션이 새 탭에서 열렸습니다.\n\n테스트 순서:\n1. 핸드 선택 후 편집 실행\n2. 성공 메시지 확인\n3. F5로 새로고침\n4. 상태 표시 확인\n5. 버튼 상태 확인');
+    }
+
+    function openDevConsole() {
+      alert('개발자 콘솔 확인 방법:\n\n1. F12 키를 누르거나 우클릭 → "검사"\n2. Console 탭 클릭\n3. 페이지 로드 시 상태 동기화 로그 확인\n\n중요한 로그:\n• "🔄 === 전체 핸드 상태 동기화 시작 ==="\n• "📊 캐시 성능: X개 적중, Y개 미스"\n• "✅ === 전체 핸드 상태 동기화 완료 ==="');
+    }
+
+    // 상태 표시기 데모 애니메이션
+    document.addEventListener('DOMContentLoaded', () => {
+      const pendingIndicator = document.querySelector('.status-pending');
+      console.log('📄 페이지 새로고침 상태 동기화 테스트 페이지 로드됨');
+    });
+  </script>
+</body>
+</html>

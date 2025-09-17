@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>편집/완료 버튼 활성화 프로토콜 - v11.2.2</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+      line-height: 1.6;
+    }
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      border-radius: 10px;
+      margin-bottom: 30px;
+    }
+    .protocol-section {
+      background: white;
+      padding: 25px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .protocol-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 15px;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 10px;
+    }
+    .state-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+    .state-table th,
+    .state-table td {
+      border: 1px solid #ddd;
+      padding: 12px;
+      text-align: center;
+    }
+    .state-table th {
+      background: #667eea;
+      color: white;
+      font-weight: bold;
+    }
+    .state-table tr:nth-child(even) {
+      background: #f8f9fa;
+    }
+    .btn-enabled {
+      background: #27ae60;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    .btn-disabled {
+      background: #95a5a6;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    .state-empty {
+      background: #ecf0f1;
+      color: #34495e;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    .state-pending {
+      background: #f39c12;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    .state-completed {
+      background: #27ae60;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    .code-block {
+      background: #2d3748;
+      color: #e2e8f0;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 10px 0;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      overflow-x: auto;
+    }
+    .flow-diagram {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 15px 0;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 5px;
+    }
+    .flow-step {
+      padding: 8px 12px;
+      background: #667eea;
+      color: white;
+      border-radius: 4px;
+      text-align: center;
+      min-width: 100px;
+      font-size: 12px;
+    }
+    .flow-step.trigger {
+      background: #e74c3c;
+    }
+    .flow-step.check {
+      background: #f39c12;
+    }
+    .flow-step.result {
+      background: #27ae60;
+    }
+    .flow-arrow {
+      font-size: 18px;
+      color: #666;
+    }
+    .function-info {
+      background: #ebf8ff;
+      border-left: 4px solid #3182ce;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    .function-info h4 {
+      margin-top: 0;
+      color: #2c5282;
+    }
+    .warning {
+      background: #fff5f5;
+      border-left: 4px solid #fc8181;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    .warning h4 {
+      margin-top: 0;
+      color: #c53030;
+    }
+    .success {
+      background: #f0fff4;
+      border-left: 4px solid #68d391;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    .success h4 {
+      margin-top: 0;
+      color: #2f855a;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    .scenario {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 10px 0;
+      border-left: 4px solid #6c757d;
+    }
+    .scenario h5 {
+      margin-top: 0;
+      color: #495057;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📋 편집/완료 버튼 활성화 프로토콜</h1>
+    <p>Version 11.2.2 - 시트 상태 기반 버튼 제어 시스템</p>
+    <p>핸드의 E열 상태에 따른 편집/완료 버튼의 활성화/비활성화 규칙</p>
+  </div>
+
+  <!-- 핵심 프로토콜 테이블 -->
+  <div class="protocol-section">
+    <div class="protocol-title">🎯 핵심 프로토콜 매트릭스</div>
+
+    <table class="state-table">
+      <thead>
+        <tr>
+          <th>E열 상태</th>
+          <th>상태 설명</th>
+          <th>편집 버튼</th>
+          <th>완료 버튼</th>
+          <th>UI 표시기</th>
+          <th>사용자 액션</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="state-empty">null / ""</span></td>
+          <td>미처리 상태</td>
+          <td><span class="btn-enabled">활성화</span></td>
+          <td><span class="btn-disabled">비활성화</span></td>
+          <td>⚪ 미처리</td>
+          <td>편집 시작 가능</td>
+        </tr>
+        <tr>
+          <td><span class="state-pending">"미완료"</span></td>
+          <td>편집됨, 완료 대기</td>
+          <td><span class="btn-disabled">비활성화</span></td>
+          <td><span class="btn-enabled">활성화</span></td>
+          <td>📝 편집됨</td>
+          <td>완료 처리 가능</td>
+        </tr>
+        <tr>
+          <td><span class="state-completed">"복사완료"</span></td>
+          <td>최종 처리 완료</td>
+          <td><span class="btn-disabled">비활성화</span></td>
+          <td><span class="btn-disabled">비활성화</span></td>
+          <td>✅ 완료</td>
+          <td>처리 완료 - 액션 불가</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 프로토콜 트리거 -->
+  <div class="protocol-section">
+    <div class="protocol-title">🔄 프로토콜 트리거 시점</div>
+
+    <div class="grid-2">
+      <div>
+        <h4>자동 트리거 (시스템)</h4>
+        <ul>
+          <li><strong>페이지 로드:</strong> <code>initializeAllHandsStatus()</code></li>
+          <li><strong>핸드 선택:</strong> <code>updateButtonStates(handNumber)</code></li>
+          <li><strong>스크롤:</strong> <code>updateVisibleHandsStatus()</code></li>
+          <li><strong>새로고침:</strong> 상태 동기화 (2초 후)</li>
+          <li><strong>편집 완료:</strong> 버튼 상태 자동 전환</li>
+          <li><strong>완료 처리:</strong> 최종 상태로 전환</li>
+        </ul>
+      </div>
+
+      <div>
+        <h4>수동 트리거 (사용자)</h4>
+        <ul>
+          <li><strong>편집 버튼 클릭:</strong> → "미완료" 상태 설정</li>
+          <li><strong>완료 버튼 클릭:</strong> → "복사완료" 상태 설정</li>
+          <li><strong>캐시 새로고침:</strong> 수동 상태 업데이트</li>
+          <li><strong>설정 변경:</strong> 시트 URL 등 변경 시</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 상태 전환 플로우 -->
+  <div class="protocol-section">
+    <div class="protocol-title">🔄 상태 전환 플로우</div>
+
+    <h4>시나리오 1: 새 핸드 편집</h4>
+    <div class="flow-diagram">
+      <div class="flow-step">미처리 (null)</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step trigger">편집 버튼 클릭</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step check">시간 매칭 + AI 분석</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step result">미완료</div>
+    </div>
+
+    <h4>시나리오 2: 편집된 핸드 완료</h4>
+    <div class="flow-diagram">
+      <div class="flow-step">미완료</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step trigger">완료 버튼 클릭</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step check">CSV 복사</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step result">복사완료</div>
+    </div>
+
+    <h4>시나리오 3: 페이지 새로고침 후 상태 복원</h4>
+    <div class="flow-diagram">
+      <div class="flow-step">페이지 로드</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step check">캐시에서 상태 확인</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step result">UI 동기화</div>
+    </div>
+  </div>
+
+  <!-- 핵심 함수들 -->
+  <div class="protocol-section">
+    <div class="protocol-title">⚙️ 핵심 함수 및 역할</div>
+
+    <div class="function-info">
+      <h4>1. updateButtonStates(handNumber)</h4>
+      <p><strong>역할:</strong> 핸드 선택 시 버튼 상태 업데이트</p>
+      <p><strong>위치:</strong> 라인 2564-2648</p>
+      <p><strong>트리거:</strong> selectHand() 함수에서 호출</p>
+      <div class="code-block">
+// v11.2.1에서 Phase 2 캐시 활용으로 최적화
+async function updateButtonStates(handNumber) {
+  // 1. 캐시에서 상태 확인 (API 호출 없이)
+  const handTime = await getHandTimestamp(handNumber);
+  const cachedRow = sheetDataCache.findClosestRow(handTime);
+  const status = cachedRow ? cachedRow.status : null;
+
+  // 2. 상태에 따른 버튼 제어
+  switch(status) {
+    case null: case '':
+      editBtn.disabled = false;  // 편집 가능
+      completeBtn.disabled = true;
+      break;
+    case '미완료':
+      editBtn.disabled = true;
+      completeBtn.disabled = false;  // 완료 가능
+      break;
+    case '복사완료':
+      editBtn.disabled = true;   // 모두 비활성화
+      completeBtn.disabled = true;
+      break;
+  }
+}
+      </div>
+    </div>
+
+    <div class="function-info">
+      <h4>2. initializeAllHandsStatus()</h4>
+      <p><strong>역할:</strong> 페이지 로드 시 전체 핸드 상태 동기화</p>
+      <p><strong>위치:</strong> 라인 6261-6371</p>
+      <p><strong>트리거:</strong> init() 함수에서 2초 후 자동 실행</p>
+      <div class="code-block">
+// v11.2.2에서 추가된 핵심 기능
+async function initializeAllHandsStatus() {
+  // 1. 모든 핸드 요소 찾기
+  const handElements = document.querySelectorAll('.hand-item');
+
+  // 2. 일괄 상태 확인 (Phase 2 캐시 활용)
+  const statusResults = {};
+  for (const handNumber of handNumbers) {
+    const handTime = await getHandTimestamp(handNumber);
+    const cachedRow = sheetDataCache.findClosestRow(handTime);
+    if (cachedRow) {
+      statusResults[handNumber] = cachedRow.status;
+    }
+  }
+
+  // 3. UI 상태 표시기 업데이트
+  handElements.forEach(el => {
+    const status = statusResults[el.dataset.handNumber];
+    const indicator = el.querySelector('.status-indicator');
+
+    switch(status) {
+      case '미완료':
+        indicator.textContent = '📝';
+        indicator.title = '편집됨 - 완료 대기';
+        break;
+      case '복사완료':
+        indicator.textContent = '✅';
+        indicator.title = '처리 완료';
+        break;
+      default:
+        indicator.textContent = '⚪';
+        indicator.title = '미처리';
+    }
+  });
+
+  // 4. 현재 선택된 핸드의 버튼 상태도 업데이트
+  if (currentHand) {
+    await updateButtonStatesFromStatus(currentHand, statusResults[currentHand]);
+  }
+}
+      </div>
+    </div>
+
+    <div class="function-info">
+      <h4>3. updateButtonStatesFromStatus(handNumber, status)</h4>
+      <p><strong>역할:</strong> 알려진 상태를 기반으로 즉시 버튼 업데이트 (API 호출 없이)</p>
+      <p><strong>위치:</strong> 라인 6376-6413</p>
+      <p><strong>트리거:</strong> 상태 동기화 과정에서 호출</p>
+    </div>
+  </div>
+
+  <!-- 상태 확인 로직 -->
+  <div class="protocol-section">
+    <div class="protocol-title">🔍 상태 확인 로직</div>
+
+    <h4>Phase 2 캐시 기반 상태 확인 (v11.2.1+)</h4>
+    <div class="code-block">
+// 1. 핸드 타임스탬프 조회
+const handTime = await getHandTimestamp(handNumber);
+
+// 2. 캐시에서 매칭된 행 찾기
+const cachedRow = sheetDataCache.findClosestRow(handTime);
+
+// 3. 상태 추출 (E열 값)
+const status = cachedRow ? cachedRow.status : null;
+
+// 4. 버튼 상태 적용
+switch(status) {
+  case null: case '':     → 편집 활성화, 완료 비활성화
+  case '미완료':          → 편집 비활성화, 완료 활성화
+  case '복사완료':        → 모두 비활성화
+}
+    </div>
+
+    <div class="success">
+      <h4>✅ 성능 최적화 효과</h4>
+      <ul>
+        <li><strong>v11.2.0 이전:</strong> 핸드 선택 시마다 API 호출 (2-3초)</li>
+        <li><strong>v11.2.1+:</strong> 캐시 적중 시 즉시 응답 (0.1초)</li>
+        <li><strong>API 호출 감소:</strong> 95% 감소 (캐시 적중률에 따라)</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 특수 상황 처리 -->
+  <div class="protocol-section">
+    <div class="protocol-title">⚠️ 특수 상황 및 예외 처리</div>
+
+    <div class="scenario">
+      <h5>시나리오 A: 캐시 미스</h5>
+      <p><strong>상황:</strong> 새로운 핸드이거나 시간 매칭 실패</p>
+      <p><strong>대응:</strong> 기존 API 방식으로 폴백</p>
+      <div class="code-block">
+if (status === null) {
+  console.log('🔄 캐시 미스 - 기존 API 방식으로 확인');
+  status = await checkHandStatusInSheet(handNumber);
+}
+      </div>
+    </div>
+
+    <div class="scenario">
+      <h5>시나리오 B: 네트워크 오류</h5>
+      <p><strong>상황:</strong> 시트 접근 실패 또는 네트워크 문제</p>
+      <p><strong>대응:</strong> 편집 버튼만 활성화 (안전한 기본값)</p>
+      <div class="code-block">
+} catch (error) {
+  console.error('❌ 버튼 상태 오류:', error);
+  editBtn.disabled = false;  // 기본적으로 편집 허용
+  editBtn.textContent = '편집';
+  completeBtn.disabled = true;
+  completeBtn.textContent = '완료';
+}
+      </div>
+    </div>
+
+    <div class="scenario">
+      <h5>시나리오 C: 핸드 미선택</h5>
+      <p><strong>상황:</strong> currentHand가 null인 경우</p>
+      <p><strong>대응:</strong> 모든 버튼 비활성화</p>
+      <div class="code-block">
+if (!handNumber) {
+  editBtn.disabled = true;
+  completeBtn.disabled = true;
+  return;
+}
+      </div>
+    </div>
+  </div>
+
+  <!-- 디버깅 가이드 -->
+  <div class="protocol-section">
+    <div class="protocol-title">🔧 디버깅 및 문제 해결</div>
+
+    <div class="warning">
+      <h4>⚠️ 자주 발생하는 문제</h4>
+      <ul>
+        <li><strong>버튼이 활성화되지 않음:</strong> 시트 URL 또는 Apps Script URL 확인</li>
+        <li><strong>상태가 동기화되지 않음:</strong> 캐시 TTL(5분) 경과 여부 확인</li>
+        <li><strong>새로고침 후 상태 리셋:</strong> v11.2.2에서 해결됨</li>
+        <li><strong>편집 버튼 클릭 후 무반응:</strong> 확인 대화상자 취소 여부 확인</li>
+      </ul>
+    </div>
+
+    <h4>디버깅 명령어</h4>
+    <div class="code-block">
+// 콘솔에서 실행 가능한 디버깅 명령어
+
+// 1. 현재 핸드 상태 확인
+console.log('현재 핸드:', currentHand);
+console.log('캐시 상태:', sheetDataCache.cache.size);
+
+// 2. 버튼 상태 강제 업데이트
+await updateButtonStates(currentHand);
+
+// 3. 전체 상태 재동기화
+await initializeAllHandsStatus();
+
+// 4. 캐시 통계 확인
+console.log('캐시 적중:', sheetDataCache.hitCount);
+console.log('캐시 미스:', sheetDataCache.missCount);
+
+// 5. 특정 핸드 상태 직접 확인
+const handTime = await getHandTimestamp('HAND-123');
+const cachedRow = sheetDataCache.findClosestRow(handTime);
+console.log('핸드 상태:', cachedRow?.status);
+    </div>
+  </div>
+
+  <!-- 버전별 변경사항 -->
+  <div class="protocol-section">
+    <div class="protocol-title">📋 버전별 프로토콜 변경사항</div>
+
+    <table class="state-table">
+      <thead>
+        <tr>
+          <th>버전</th>
+          <th>주요 변경사항</th>
+          <th>성능 개선</th>
+          <th>비고</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>v11.0.0</td>
+          <td>일괄 상태 확인 API 도입</td>
+          <td>API 호출 95% 감소</td>
+          <td>Phase 1 - 기본 최적화</td>
+        </tr>
+        <tr>
+          <td>v11.1.0</td>
+          <td>캐싱 시스템 구현</td>
+          <td>캐시 적중 시 즉시 응답</td>
+          <td>Phase 2 - 메모리 캐싱</td>
+        </tr>
+        <tr>
+          <td>v11.2.0</td>
+          <td>스마트 새로고침 + IndexedDB</td>
+          <td>오프라인 지원</td>
+          <td>Phase 3 - 고급 기능</td>
+        </tr>
+        <tr>
+          <td>v11.2.1</td>
+          <td><strong>핵심 문제 해결</strong></td>
+          <td>updateButtonStates 캐시 적용</td>
+          <td>개별 API 호출 제거</td>
+        </tr>
+        <tr>
+          <td>v11.2.2</td>
+          <td><strong>새로고침 상태 동기화</strong></td>
+          <td>페이지 로드 시 자동 복원</td>
+          <td>완전한 상태 일관성</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('📋 편집/완료 버튼 프로토콜 문서 로드됨');
+
+      // 테이블 행에 호버 효과 추가
+      const rows = document.querySelectorAll('.state-table tbody tr');
+      rows.forEach(row => {
+        row.addEventListener('mouseenter', () => {
+          row.style.backgroundColor = '#e3f2fd';
+        });
+        row.addEventListener('mouseleave', () => {
+          row.style.backgroundColor = '';
+        });
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 11.2.8
+  Version: 11.2.9
   Last Updated: 2025-09-17
-  Description: 긴급! Virtual 시트 매칭 1468개 행 로그 스팸 완전 차단
+  Description: Virtual 시트 매칭 및 CSV 로그 스팸 완전 제거 (콘솔 정화 완료)
 -->
 <html lang="ko">
 <head>
@@ -675,7 +675,7 @@
     // ====================================
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '11.2.8';
+    const APP_VERSION = '11.2.9';
     const BUILD_TIME = '2025-09-17T11:00:00Z';
 
     // ====================================
@@ -1729,7 +1729,7 @@
     
     // Google Sheets CSV Fetch 함수 (GitHub 저장소 방식 + 프록시 fallback)
     async function fetchCsvWithFallback(url) {
-      console.log(`🔄 CSV 가져오기 시도: ${url}`);
+      // console.log(`🔄 CSV 가져오기 시도: ${url}`); // ⚠️ 콘솔 스팸 방지
       
       try {
         // 방법 1: GitHub 저장소와 동일한 직접 fetch
@@ -2018,12 +2018,12 @@
     
     async function loadIndexData(suppressNotification = false) {
       console.log(`🔄 loadIndexData 호출 - 알림 억제: ${suppressNotification}, 초기로드: ${isInitialLoad}`);
-      console.log(`📊 CONFIG.CSV_INDEX_URL: ${CONFIG.CSV_INDEX_URL}`);
+      // console.log(`📊 CONFIG.CSV_INDEX_URL: ${CONFIG.CSV_INDEX_URL}`); // ⚠️ 콘솔 스팸 방지
       try {
         // 랜덤 파라미터 추가로 캐시 방지 강화
         const randomParam = Math.random().toString(36).substring(7);
         const csvUrl = CONFIG.CSV_INDEX_URL + '&t=' + Date.now() + '&r=' + randomParam;
-        console.log(`🌐 CSV 데이터 가져오기: ${csvUrl.substring(0, 100)}...`);
+        // console.log(`🌐 CSV 데이터 가져오기: ${csvUrl.substring(0, 100)}...`); // ⚠️ 콘솔 스팸 방지
         
         // CORS 문제를 위한 대안 시도
         let text;
@@ -2048,7 +2048,7 @@
             throw error;
           }
         }
-        console.log(`📄 CSV 원본 데이터 크기: ${text.length}문자`);
+        // console.log(`📄 CSV 원본 데이터 크기: ${text.length}문자`); // ⚠️ 콘솔 스팸 방지
         
         const rows = parseCSV(text);
         console.log(`📄 파싱된 행 수: ${rows.length}개`);
@@ -2085,9 +2085,9 @@
           return;
         }
         
-        console.log(`📄 CSV에서 ${newHandsFromCSV.length}개 핸드 로드 완료`);
+        // console.log(`📄 CSV에서 ${newHandsFromCSV.length}개 핸드 로드 완료`); // ⚠️ 콘솔 스팸 방지
         if (DEBUG_MODE && newHandsFromCSV.length > 0) {
-          console.log('🔍 로드된 핸드 번호:', newHandsFromCSV.map(h => h.handNumber).slice(0, 5));
+          // console.log('🔍 로드된 핸드 번호:', newHandsFromCSV.map(h => h.handNumber).slice(0, 5)); // ⚠️ 콘솔 스팸 방지
         }
         
         // 마스터 핸드 목록에 병합 (삭제하지 않고 추가만)
@@ -2135,7 +2135,7 @@
           }
         } else if (isInitialLoad) {
           // 초기 로딩시 모든 핸드를 버퍼에 추가 (알림 없이)
-          console.log(`🔍 초기 로딩: ${newHandsFromCSV.length}개 핸드를 버퍼에 추가`);
+          // console.log(`🔍 초기 로딩: ${newHandsFromCSV.length}개 핸드를 버퍼에 추가`); // ⚠️ 콘솔 스팸 방지
           
           // 모든 핸드를 버퍼에 추가 (최대 100개까지 저장)
           for (const hand of newHandsFromCSV) {
@@ -2145,7 +2145,7 @@
           // 초기 로딩 완료 처리
           isInitialLoad = false;
           const bufferStatus = recentHandsBuffer.getStatus();
-          console.log(`🚀 초기 로딩 완료. 핸드 수: ${newHandsFromCSV.length}개, 버퍼: ${bufferStatus.size}개`);
+          // console.log(`🚀 초기 로딩 완료. 핸드 수: ${newHandsFromCSV.length}개, 버퍼: ${bufferStatus.size}개`); // ⚠️ 콘솔 스팸 방지
         }
         
         updateHandList();
@@ -3162,7 +3162,7 @@
 
     // Virtual 시트에서 가장 비슷한 시간 찾기 (날짜 제외, 시간만 비교)
     async function findClosestVirtualRow(targetTime, virtualSheetUrl, showProgress = true) {
-      console.log('🔍 === Virtual 시트 매칭 시작 ===');
+      // console.log('🔍 === Virtual 시트 매칭 시작 ==='); // ⚠️ 콘솔 스팸 방지
       console.log(`📋 입력 URL: ${virtualSheetUrl}`);
       console.log(`⏰ 타겟 타임스탬프: ${targetTime} (${new Date(targetTime * 1000)})`);
       console.log(`📊 진행률 표시: ${showProgress}`);
@@ -3186,7 +3186,7 @@
         let csvUrl = '';
         
         // URL 형식 감지 및 적절한 CSV URL 생성
-        console.log('\n📄 === Virtual Sheet CSV 데이터 요청 ===');
+        // console.log('\n📄 === Virtual Sheet CSV 데이터 요청 ==='); // ⚠️ 콘솔 스팸 방지
         console.log(`🔗 입력 URL: ${virtualSheetUrl}`);
         console.log('🔍 URL 형식 분석 중...');
         
@@ -3194,20 +3194,20 @@
         
         // 1. 이미 웹 게시된 CSV URL인지 확인 (가장 권장하는 형식)
         if (virtualSheetUrl.includes('/pub?') && virtualSheetUrl.includes('output=csv')) {
-          console.log('✅ 웹 게시 CSV URL 감지 (권장 형식!)');
+          // console.log('✅ 웹 게시 CSV URL 감지 (권장 형식!)'); // ⚠️ 콘솔 스팸 방지
           csvUrl = virtualSheetUrl;
           urlType = 'published-csv';
         }
         // 2. 웹 게시된 일반 URL인지 확인 (2PACX 형식)
         else if (virtualSheetUrl.includes('/spreadsheets/d/e/2PACX-')) {
-          console.log('🔄 웹 게시 일반 URL 감지 - CSV 변환 중');
+          // console.log('🔄 웹 게시 일반 URL 감지 - CSV 변환 중'); // ⚠️ 콘솔 스팸 방지
           // gid 추출
           const gidMatch = virtualSheetUrl.match(/gid=(\d+)/);
           const gid = gidMatch ? gidMatch[1] : '0';
           const publishedIdMatch = virtualSheetUrl.match(/\/spreadsheets\/d\/e\/(2PACX-[a-zA-Z0-9-_]+)/);
           if (publishedIdMatch) {
             csvUrl = `https://docs.google.com/spreadsheets/d/e/${publishedIdMatch[1]}/pub?gid=${gid}&single=true&output=csv`;
-            console.log('✅ 웹 게시 CSV URL로 자동 변환됨');
+            // console.log('✅ 웹 게시 CSV URL로 자동 변환됨'); // ⚠️ 콘솔 스팸 방지
             urlType = 'published-converted';
           } else {
             throw new Error('웹 게시 URL에서 ID를 추출할 수 없습니다');
@@ -3224,7 +3224,7 @@
             const gidMatch = virtualSheetUrl.match(/gid=(\d+)/);
             const gid = gidMatch ? gidMatch[1] : '0';
             csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
-            console.log('🔄 Export CSV URL로 변환됨');
+            // console.log('🔄 Export CSV URL로 변환됨'); // ⚠️ 콘솔 스팸 방지
             console.log('\n💡 권장 해결책:');
             console.log('1. Google Sheets 열기');
             console.log('2. 파일 → 웹에 게시');
@@ -3242,33 +3242,33 @@
         console.log(`📡 최종 요청 URL: ${csvUrl}`);
         console.log(`📋 URL 형식: ${urlType}`);
         
-        console.log('📥 Google Sheets CSV 요청 중... (다중 방법 시도)');
+        // console.log('📥 Google Sheets CSV 요청 중... (다중 방법 시도)'); // ⚠️ 콘솔 스팸 방지
         const csvData = await fetchCsvWithFallback(csvUrl);
         const text = csvData.csvText;
         
         console.log(`📊 사용된 방법: ${csvData.fetchMethod}`);
-        console.log(`📊 응답 상태: ${csvData.response.status} ${csvData.response.statusText}`);
-        console.log(`📄 CSV 데이터 크기: ${text.length} characters`);
-        console.log(`📄 CSV 데이터 미리보기 (첫 500자):`);
-        console.log(text.substring(0, 500) + (text.length > 500 ? '...' : ''));
+        // console.log(`📊 응답 상태: ${csvData.response.status} ${csvData.response.statusText}`); // ⚠️ 콘솔 스팸 방지
+        // console.log(`📄 CSV 데이터 크기: ${text.length} characters`); // ⚠️ 콘솔 스팸 방지
+        // console.log(`📄 CSV 데이터 미리보기 (첫 500자):`); // ⚠️ 콘솔 스팸 방지
+        // console.log(text.substring(0, 500) + (text.length > 500 ? '...' : '')); // ⚠️ 콘솔 스팸 방지
         
         const rows = parseCSV(text);
-        console.log(`📋 파싱된 행 수: ${rows.length}`);
+        // console.log(`📋 파싱된 행 수: ${rows.length}`); // ⚠️ 콘솔 스팸 방지
         
         if (rows.length === 0) {
           throw new Error('CSV에 데이터가 없습니다');
         }
         
         // 첫 5행 데이터 샘플 로그
-        console.log('📋 CSV 데이터 샘플 (첫 5행):');
-        for (let i = 0; i < Math.min(5, rows.length); i++) {
-          console.log(`   행 ${i+1}: A="${rows[i][0] || ''}", B="${rows[i][1] || ''}", C="${rows[i][2] || ''}", D="${rows[i][3] || ''}"`);
-        }
+        // console.log('📋 CSV 데이터 샘플 (첫 5행):'); // ⚠️ 콘솔 스팸 방지
+        // for (let i = 0; i < Math.min(5, rows.length); i++) {
+        //   console.log(`   행 ${i+1}: A="${rows[i][0] || ''}", B="${rows[i][1] || ''}", C="${rows[i][2] || ''}", D="${rows[i][3] || ''}"`); // ⚠️ 콘솔 스팸 방지
+        // }
         
         // 타겟 시간 직접 사용 (시간대 변환 제거)
-        console.log('⏰ === 시간 분석 시작 ===');
+        // console.log('⏰ === 시간 분석 시작 ==='); // ⚠️ 콘솔 스팸 방지
         const targetDate = new Date(targetTime * 1000);
-        console.log(`📅 타겟 시간: ${targetDate.toLocaleString()}`);
+        // console.log(`📅 타겟 시간: ${targetDate.toLocaleString()}`); // ⚠️ 콘솔 스팸 방지
         
         // 로컬 시간 직접 사용 (시간대 변환하지 않음)
         // CSV 파일과 핸드 시간이 모두 동일한 시간대라고 가정
@@ -3276,12 +3276,12 @@
         const targetMinutes = targetDate.getMinutes();
         const targetSeconds = targetDate.getSeconds();
         
-        console.log(`🎯 매칭할 시간: ${targetHours.toString().padStart(2, '0')}:${targetMinutes.toString().padStart(2, '0')}:${targetSeconds.toString().padStart(2, '0')}`);
+        // console.log(`🎯 매칭할 시간: ${targetHours.toString().padStart(2, '0')}:${targetMinutes.toString().padStart(2, '0')}:${targetSeconds.toString().padStart(2, '0')}`); // ⚠️ 콘솔 스팸 방지
         
         // 초 단위까지 정확한 타겟 시간 계산
         const targetTotalSeconds = targetHours * 3600 + targetMinutes * 60 + targetSeconds;
         
-        console.log(`🎯 타겟 시간 (Seoul): ${targetHours.toString().padStart(2, '0')}:${targetMinutes.toString().padStart(2, '0')}:${targetSeconds.toString().padStart(2, '0')} (${targetTotalSeconds}초)`);
+        // console.log(`🎯 타겟 시간 (Seoul): ${targetHours.toString().padStart(2, '0')}:${targetMinutes.toString().padStart(2, '0')}:${targetSeconds.toString().padStart(2, '0')} (${targetTotalSeconds}초)`); // ⚠️ 콘솔 스팸 방지
         
         let closestRow = null;
         let minDiff = Infinity;
@@ -3307,27 +3307,27 @@
           { pattern: /\d{4}-\d{2}-\d{2}\s+(\d{1,2}):(\d{2}):(\d{2})/, name: 'YYYY-MM-DD HH:MM:SS' }
         ];
         
-        console.log(`🔍 === B열 시간 데이터 매칭 시작 ===`);
-        console.log(`🔍 총 ${rows.length}개 행에서 검색 중...`);
-        console.log(`🔍 타겟 시간: ${targetHours}:${targetMinutes}:${targetSeconds} (총 ${targetTotalSeconds}초)`);
+        // console.log(`🔍 === B열 시간 데이터 매칭 시작 ===`); // ⚠️ 콘솔 스팸 방지
+        // console.log(`🔍 총 ${rows.length}개 행에서 검색 중...`); // ⚠️ 콘솔 스팸 방지
+        // console.log(`🔍 타겟 시간: ${targetHours}:${targetMinutes}:${targetSeconds} (총 ${targetTotalSeconds}초)`); // ⚠️ 콘솔 스팸 방지
         
         // 디버깅: 처음 5개 행의 전체 데이터 확인
-        console.log(`📋 처음 5개 행의 전체 데이터 샘플:`);
-        for (let i = 0; i < Math.min(5, rows.length); i++) {
-          console.log(`   행 ${i+1}:`);
-          console.log(`      A열: "${rows[i][0] || '(비어있음)'}"`);
-          console.log(`      B열: "${rows[i][1] || '(비어있음)'}"`);
-          console.log(`      C열: "${rows[i][2] || '(비어있음)'}"`);
-          console.log(`      D열: "${rows[i][3] || '(비어있음)'}"`);
+        // console.log(`📋 처음 5개 행의 전체 데이터 샘플:`); // ⚠️ 콘솔 스팸 방지
+        // for (let i = 0; i < Math.min(5, rows.length); i++) {
+        //   console.log(`   행 ${i+1}:`); // ⚠️ 콘솔 스팸 방지
+        //   console.log(`      A열: "${rows[i][0] || '(비어있음)'}"`); // ⚠️ 콘솔 스팸 방지
+        //   console.log(`      B열: "${rows[i][1] || '(비어있음)'}"`); // ⚠️ 콘솔 스팸 방지
+        //   console.log(`      C열: "${rows[i][2] || '(비어있음)'}"`); // ⚠️ 콘솔 스팸 방지
+        //   console.log(`      D열: "${rows[i][3] || '(비어있음)'}"`); // ⚠️ 콘솔 스팸 방지
           
-          // 각 열에서 시간 형식 찾기
-          for (let j = 0; j < Math.min(4, rows[i].length); j++) {
-            const value = rows[i][j];
-            if (value && value.match(/\d{1,2}:\d{2}/)) {
-              console.log(`      🕐 ${String.fromCharCode(65+j)}열에 시간 형식 발견: "${value}"`);
-            }
-          }
-        }
+        //   // 각 열에서 시간 형식 찾기
+        //   for (let j = 0; j < Math.min(4, rows[i].length); j++) {
+        //     const value = rows[i][j];
+        //     if (value && value.match(/\d{1,2}:\d{2}/)) {
+        //       console.log(`      🕐 ${String.fromCharCode(65+j)}열에 시간 형식 발견: "${value}"`); // ⚠️ 콘솔 스팸 방지
+        //     }
+        //   }
+        // }
         
         // 진행률 업데이트 - 총 행 수 설정
         updateProgress(0, rows.length, 0, '시간 데이터 검색 중...');
@@ -3421,23 +3421,23 @@
             
             // 정확히 일치하거나 매우 가까운 경우 (5초 이내) 즉시 종료
             if (diff <= 5) {
-              console.log(`✅ === Virtual 시트 매칭 성공! ===`);
-              console.log(`   📍 위치: 행 ${rowIndex}, B열 (Cyprus 시간)`);
-              console.log(`   🕐 시간: ${matchedTime} (${diff}초 차이)`);
-              console.log(`   📋 전체 행 데이터:`);
-              console.log(`      A열(Blinds): "${rows[i][0] || ''}"`);
-              console.log(`      B열(Cyprus): "${rows[i][1] || ''}"`);
-              console.log(`      C열(Seoul): "${rows[i][2] || ''}"`);
-              console.log(`      D열(#): "${rows[i][3] || ''}"`);
+              // console.log(`✅ === Virtual 시트 매칭 성공! ===`); // ⚠️ 콘솔 스팸 방지
+              // console.log(`   📍 위치: 행 ${rowIndex}, B열 (Cyprus 시간)`); // ⚠️ 콘솔 스팸 방지
+              // console.log(`   🕐 시간: ${matchedTime} (${diff}초 차이)`); // ⚠️ 콘솔 스팸 방지
+              // console.log(`   📋 전체 행 데이터:`); // ⚠️ 콘솔 스팸 방지
+              // console.log(`      A열(Blinds): "${rows[i][0] || ''}"`); // ⚠️ 콘솔 스팸 방지
+              // console.log(`      B열(Cyprus): "${rows[i][1] || ''}"`); // ⚠️ 콘솔 스팸 방지
+              // console.log(`      C열(Seoul): "${rows[i][2] || ''}"`); // ⚠️ 콘솔 스팸 방지
+              // console.log(`      D열(#): "${rows[i][3] || ''}"`); // ⚠️ 콘솔 스팸 방지
               break;
             }
           }
         }
         
-        console.log(`📊 === 매칭 결과 요약 ===`);
-        console.log(`📊 유효한 시간 데이터 발견: ${validTimeFoundCount}개`);
-        console.log(`📊 최소 시간 차이: ${minDiff === Infinity ? '무한' : minDiff + '초'}`);
-        console.log(`📊 최적 매칭 행: ${rowIndex > 0 ? rowIndex : '없음'}`)
+        // console.log(`📊 === 매칭 결과 요약 ===`); // ⚠️ 콘솔 스팸 방지
+        // console.log(`📊 유효한 시간 데이터 발견: ${validTimeFoundCount}개`); // ⚠️ 콘솔 스팸 방지
+        // console.log(`📊 최소 시간 차이: ${minDiff === Infinity ? '무한' : minDiff + '초'}`); // ⚠️ 콘솔 스팸 방지
+        // console.log(`📊 최적 매칭 행: ${rowIndex > 0 ? rowIndex : '없음'}`); // ⚠️ 콘솔 스팸 방지
         
         // 결과 로깅
         if (minDiff > 5) {
@@ -3451,8 +3451,8 @@
             timeDiffStr = `${diffSeconds}초`;
           }
           
-          console.log(`⚠️ 정확한 매치 없음. 가장 가까운 시간:`);
-          console.log(`   📍 행 ${rowIndex}, B열: ${matchedTime} (${timeDiffStr} 차이)`);
+          // console.log(`⚠️ 정확한 매치 없음. 가장 가까운 시간:`); // ⚠️ 콘솔 스팸 방지
+          // console.log(`   📍 행 ${rowIndex}, B열: ${matchedTime} (${timeDiffStr} 차이)`); // ⚠️ 콘솔 스팸 방지
         }
         
         // 최종 결과 처리 및 반환
@@ -3462,15 +3462,15 @@
         }
         
         if (isAborted) {
-          console.error(`❌ === Virtual 시트 매칭 취소 ===`);
+          // console.error(`❌ === Virtual 시트 매칭 취소 ===`); // ⚠️ 콘솔 스팸 방지
           return null;
         }
         
         if (closestRow && minDiff !== Infinity) {
-          console.log(`✅ === Virtual 시트 매칭 완료 ===`);
-          console.log(`✅ 매칭 성공: 행 ${rowIndex}`);
-          console.log(`✅ 시간 차이: ${minDiff}초`);
-          console.log(`✅ 정확도: ${minDiff <= 5 ? '정확 (5초 이내)' : minDiff <= 30 ? '근사 (30초 이내)' : '대략적 (30초 초과)'}`);
+          // console.log(`✅ === Virtual 시트 매칭 완료 ===`); // ⚠️ 콘솔 스팸 방지
+          // console.log(`✅ 매칭 성공: 행 ${rowIndex}`); // ⚠️ 콘솔 스팸 방지
+          // console.log(`✅ 시간 차이: ${minDiff}초`); // ⚠️ 콘솔 스팸 방지
+          // console.log(`✅ 정확도: ${minDiff <= 5 ? '정확 (5초 이내)' : minDiff <= 30 ? '근사 (30초 이내)' : '대략적 (30초 초과)'}`); // ⚠️ 콘솔 스팸 방지
           
           return {
             row: closestRow,
@@ -4900,7 +4900,7 @@
       
       // Virtual 시트 매칭 및 AI 분석 비동기 실행 - async/await 사용
       try {
-        console.log('🚀 Virtual 시트 매칭 및 AI 분석 시작...');
+        // console.log('🚀 Virtual 시트 매칭 및 AI 분석 시작...'); // ⚠️ 콘솔 스팸 방지
         
         // 병렬 실행 (여기서는 모달이 이미 표시된 상태이므로 progress false)
         const [virtualMatch, aiSummary] = await Promise.all([
@@ -5820,7 +5820,7 @@
       console.log(`📁 기존 마스터 핸드: ${masterHandList.size}개`);
       
       // Virtual 시트 URL은 CONFIG에서 관리됨
-      console.log(`📊 Virtual 시트 설정: ${CONFIG.READ_SHEET_URL ? CONFIG.READ_SHEET_URL.substring(0, 50) + '...' : '미설정'}`);
+      // console.log(`📊 Virtual 시트 설정: ${CONFIG.READ_SHEET_URL ? CONFIG.READ_SHEET_URL.substring(0, 50) + '...' : '미설정'}`); // ⚠️ 콘솔 스팸 방지
       
       
       // Apps Script 설정 로드 (통합 시트 관리)
