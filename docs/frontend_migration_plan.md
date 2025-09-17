@@ -19,7 +19,7 @@
 - `verifyUpdate` → `appsScriptClient.verifyUpdate` 사용하여 버튼 상태 갱신.
 
 ## 4단계: 시간 매칭 & 진행률
-- `findClosestVirtualRow` 함수 이관 → `services/timeMatcher.js` (예정).
+- `findClosestVirtualRow` 함수 이관 → `services/timeMatcher.js` 완료 (AbortController 적용).
 - 진행률 모달/알림 → `ui/progress.js`, `ui/notifications.js` 확장.
 - 취소 플래그(`AbortController`) 포함하여 긴 작업 제어.
 

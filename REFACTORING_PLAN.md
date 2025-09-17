@@ -49,7 +49,7 @@
    - [ ] 폴백 요약 pure 함수 정의 및 테스트
    - [ ] Gemini 호출 옵션/모델 설정 모듈화
 5. **시간 매칭 & 완료 프로세스**
-   - [ ] `findClosestVirtualRow` 리팩토링 및 AbortController 통합
+   - [x] `findClosestVirtualRow` 리팩토링 및 AbortController 통합
    - [ ] 진행 상태 이벤트 매핑 (`progressBus.emit`) 치환
    - [ ] `status` 응답 검증 UX 정비
 6. **설정 & 검증 UI**
