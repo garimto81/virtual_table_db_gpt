@@ -1,0 +1,121 @@
+# Virtual Table DB 리팩토링 계획서
+
+## 1. 개요
+- **목표**: Virtual Table DB Claude 프로젝트의 프론트엔드와 Google Apps Script 백엔드를 구조화하고, 데이터 파이프라인을 안정화하여 유지보수성과 확장성을 높인다.
+- **범위**: `index.html` 기반 대시보드, `apps_script.gs` 백엔드, CSV/Sheets 연동 구성, 배포 및 운영 지원 도구.
+- **기간**: 3주 (준비 3일, 구현 12일, 안정화 6일, 회고 3일)
+- **성과물**: 리팩토링된 코드, 자동화된 점검 스크립트, 업데이트된 문서 세트.
+
+## 2. 주요 이슈 요약
+1. **진행률 UI 중복 정의**: `updateProgress` 함수 중복으로 진행 바 UI가 동작하지 않음.
+2. **AI 분석 호출 오류**: `analyzeHandWithAI`가 잘못된 인자를 받아 항상 실패하며 오류 시 `handData` 스코프 문제로 예외 재발생.
+3. **Apps Script 액션 불일치**: 프론트엔드는 `verifyUpdate`를 기대하지만 백엔드는 미구현.
+4. **시트 상태 컬럼 미반영**: 프론트엔드에서 `status`를 보내도 Apps Script가 E열에 파일명을 덮어써 워크플로우 상태가 기록되지 않음.
+5. **프로그레스 취소 플래그**: `isAborted` 스코프 문제로 취소가 반영되지 않음.
+6. **하드코딩된 리소스 URL**: CSV/Apps Script/Type 시트 URL이 코드에 상수로 박혀 맞춤형 배포가 어려움.
+7. **Index 시트 라우팅 정확도 부족**: 부분 문자열 일치로 오검증 가능성 존재.
+8. **로그 및 예외 처리 난잡**: 운영 환경에서도 디버그 로그가 과도하며 예외 메시지가 일관되지 않음.
+
+## 3. 리팩토링 원칙
+- **모듈화**: 데이터 접근, 뷰 렌더링, 서비스 호출 로직을 분리해 테스트 가능하도록 개선.
+- **구성 분리**: 모든 외부 리소스 URL과 키는 설정 모듈 및 저장소(localStorage)로 단일화.
+- **API 계약 명확화**: 프론트엔드와 Apps Script 간 JSON 스키마를 명시하고 변경 시 버전 태그 필수.
+- **관측성 확보**: 주요 작업(시트 업데이트, AI 호출, CSV 로드)에 대해 상태 팝업/로그/리턴 값 통일.
+- **테스트 우선**: 핵심 로직(시간 매칭, 상태 업데이트, AI 분석 폴백)을 단위 테스트 혹은 시뮬레이터로 검증.
+
+## 4. 세부 작업 계획
+
+### 4.1 준비 단계 (D-3)
+- [ ] 현행 코드 스냅샷 저장 및 버전 태깅.
+- [ ] 기존 Google Sheets 구조, Apps Script 배포 상태 정리.
+- [ ] 리팩토링 브랜치(`refactor/main-structure`) 생성.
+- [ ] 헬스 체크용 샘플 CSV/시트 준비.
+
+### 4.2 프론트엔드 리팩토링 (D1~D6)
+1. **구조 분할** (`src/` 디렉터리 신설)
+   - [ ] `app.js`, `services/`, `ui/`, `utils/` 등 모듈 파일로 분리.
+   - [ ] 빌드 파이프라인 없이 ES Modules 기반으로 로딩.
+2. **데이터 서비스 개선**
+   - [ ] CSV 로딩/파싱 로직을 `services/csvService.js`로 이동.
+   - [ ] 로컬 캐시(메모리) + 타임스탬프를 활용한 재사용.
+   - [ ] URL 구성값을 `configManager` 모듈에서 제공.
+3. **상태 관리 및 UI**
+   - [ ] 공용 진행률 모듈(`ui/progress.js`) 작성 후 중복 제거.
+   - [ ] 완료/편집 버튼 상태 업데이트 로직을 Promise 기반으로 재작성.
+   - [ ] Notification/Popup을 `ui/notifications.js`에서 일괄 관리.
+4. **AI 분석 워크플로우**
+   - [ ] `analyzeHandWithAI(handNumber)` → `analyzeHandWithAI({ handNumber, handData })`로 명세 변경.
+   - [ ] 에러 시 폴백이 동작하도록 try/catch 블록 재정비.
+   - [ ] Gemini API 호출 옵션(모델, 타임아웃) 설정화.
+5. **시간 매칭 & 완료 프로세스**
+   - [ ] `findClosestVirtualRow`를 모듈화하고 취소 플래그를 `AbortController` 기반으로 개편.
+   - [ ] 진행 상태 업데이트를 이벤트 기반으로 전환 (예: `progressBus.emit`).
+   - [ ] 완료 처리 시 `status` 값을 명확히 전달하고, 응답 검증 메시지를 개선.
+6. **설정 & 검증 UI**
+   - [ ] 설정 모달을 컴포넌트화, 입력 검증 메시지 국제화(ko) 정비.
+   - [ ] Apps Script/Gemini 테스트 결과를 카드형 UI로 표준화.
+
+### 4.3 백엔드(Apps Script) 리팩토링 (D4~D10)
+1. **프로젝트 구조 개선**
+   - [ ] 공통 유틸(로그, 응답 생성, 시트 접근)을 모듈 함수로 분리.
+   - [ ] `handleSheetUpdate`, `handleIndexUpdate`, `handleHandAnalysis` 등을 별도 파일로 관리 (CLASP 사용 검토).
+2. **API 액션 정합성**
+   - [ ] `verifyUpdate` 액션 구현: 요청된 행의 E/F/H열 상태를 반환.
+   - [ ] `updateSheet`가 `status` 필드를 인식해 E열에 기록, G열 등 확장 필드 추가 여지 마련.
+   - [ ] 레거시 `updateHand`는 `updateSheet` 래퍼로 단순화.
+3. **데이터 검증 & 에러 처리**
+   - [ ] 시트 URL/GID 검증 로직 강화, 실패 시 명확한 메시지 반환.
+   - [ ] `openSheetByUrl` 실패 시 예외 대신 상태 코드 반환.
+   - [ ] 로그 레벨(Info/Error)을 구분해 콘솔 출력.
+4. **테스트 코드**
+   - [ ] `test/SheetUpdate.test.gs` : Mock SpreadsheetApp으로 CRUD 검증.
+   - [ ] `test/VerifyUpdate.test.gs` : 상태 확인 액션 테스트.
+   - [ ] `test/AnalysisFallback.test.gs` : Gemini 미사용 시 폴백 확인.
+
+### 4.4 구성 및 배포 (D8~D12)
+- [ ] `.env.example` (Apps Script Properties) 및 `config.sample.json` 작성.
+- [ ] GitHub Pages 빌드 스크립트(`npm run build-pages`) 마련.
+- [ ] 버전 정보(`APP_VERSION`, `BUILD_TIME`) 자동화 스크립트 추가.
+- [ ] 배포 체크리스트 문서화 (`docs/DEPLOYMENT_CHECKLIST.md`).
+
+### 4.5 안정화 및 QA (D12~D18)
+- [ ] CSV 업로드, 시트 업데이트, AI 분석, 완료 처리에 대한 통합 시나리오 테스트.
+- [ ] 브라우저 호환성(Chrome/Edge) 수동 검증.
+- [ ] 로그/Alert 정상 작동 확인, 운영 모드에서 디버그 로그 최소화.
+- [ ] 사용자 피드백 수집 및 수정 라운드.
+
+### 4.6 문서화 & 회고 (D18~D21)
+- [ ] README, PROJECT_DOCUMENTATION, TROUBLESHOOTING 최신화.
+- [ ] 리팩토링 결과 보고서 및 Next Step 제안 작성.
+- [ ] 팀 회고 미팅 정리 및 백로그 갱신.
+
+## 5. 일정 요약 (Gantt 개요)
+- **준비**: D-3 ~ D0
+- **프론트엔드**: D1 ~ D6
+- **백엔드**: D4 ~ D10 (프론트 작업과 병행)
+- **설정/배포**: D8 ~ D12
+- **안정화/QA**: D12 ~ D18
+- **문서/회고**: D18 ~ D21
+
+## 6. 리스크 및 대응
+| 리스크 | 영향 | 대응 전략 |
+| --- | --- | --- |
+| Google Sheets 권한 변경으로 API 실패 | 높음 | 자동 권한 체크 + 실패 시 UX 가이드 제공 |
+| Gemini API 한도 초과 | 중간 | 폴백 분석 강화, 호출 횟수 제한, 캐시 도입 |
+| 모듈 분리 후 레거시 기능 누락 | 높음 | 단계별 브랜치 병합 & 통합 테스트 스크립트 실행 |
+| 일정 지연 | 중간 | 주간 점검 미팅, 우선순위 조정 |
+
+## 7. 기대 효과
+- 유지보수가 용이한 모듈 구조 확보.
+- 실시간 작업 현황 및 상태 체크 기능 정상화.
+- 다양한 배포 시나리오에서 재사용 가능한 설정 체계 구축.
+- AI 분석 실패 시 안정적인 폴백과 사용자 안내 제공.
+- 문서와 코드가 일치하는 운영 가이드라인 정립.
+
+## 8. 후속 제안
+- 장기적으로는 React/Vite 기반 SPA 전환 및 Tailwind 빌드 파이프라인 도입 검토.
+- Apps Script 대안으로 Cloud Run + Firestore 구조 매핑 검토.
+- 실시간 알림(WebSocket/SignalR) 도입을 위한 이벤트 스트림 설계 연구.
+
+---
+문의나 피드백은 이슈 트래커 혹은 Slack 채널을 사용해주세요.
