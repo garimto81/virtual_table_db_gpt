@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 11.2.6
+  Version: 11.2.7
   Last Updated: 2025-09-17
-  Description: 오류 수정 - 없는 JS 파일 참조 제거, localDataStore 변수명 불일치 수정
+  Description: 긴급 수정 - 콘솔 스팸 완전 제거 (1초마다 통계 업데이트 및 과다 로그 비활성화)
 -->
 <html lang="ko">
 <head>
@@ -675,7 +675,7 @@
     // ====================================
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '11.2.6';
+    const APP_VERSION = '11.2.7';
     const BUILD_TIME = '2025-09-17T11:00:00Z';
 
     // ====================================
@@ -891,9 +891,10 @@
           }
         }
 
-        console.log(`📊 [Phase 2] 캐시 적중률: ${this.getHitRate()}%`);
-        console.log(`   - 캐시 적중: ${Object.keys(results).length}개`);
-        console.log(`   - 캐시 미스: ${notInCache.length}개`);
+        // ⚠️ 캐시 통계 로그 비활성화 - 콘솔 스팸 방지
+        // console.log(`📊 [Phase 2] 캐시 적중률: ${this.getHitRate()}%`);
+        // console.log(`   - 캐시 적중: ${Object.keys(results).length}개`);
+        // console.log(`   - 캐시 미스: ${notInCache.length}개`);
 
         // 캐시에 없는 항목은 Phase 1 방식으로 처리
         if (notInCache.length > 0) {
@@ -1026,7 +1027,7 @@
           await updateVisibleHandsStatus();
 
           const duration = performance.now() - startTime;
-          console.log(`✅ [Phase 3] 스마트 새로고침 완료: ${duration.toFixed(0)}ms`);
+          // console.log(`✅ [Phase 3] 스마트 새로고침 완료: ${duration.toFixed(0)}ms`); // ⚠️ 콘솔 스팸 방지
 
           // 변경 감지
           const hasChanges = allHands.length > 0;
@@ -1060,7 +1061,7 @@
           this.performRefresh();
         }, this.refreshInterval);
 
-        console.log(`⏱️ 다음 새로고침: ${this.refreshInterval / 1000}초 후`);
+        // console.log(`⏱️ 다음 새로고침: ${this.refreshInterval / 1000}초 후`); // ⚠️ 콘솔 스팸 방지
       }
 
       /**
@@ -6464,8 +6465,8 @@
       console.log(`🔄 버튼 상태 업데이트: 핸드 #${handNumber} → ${status}`);
     }
 
-    // 주기적으로 캐시 통계 업데이트
-    setInterval(updateAllStatsUI, 1000);
+    // ⚠️ 주기적 통계 업데이트 비활성화 - 콘솔 스팸 방지
+    // setInterval(updateAllStatsUI, 1000); // 1초마다 실행되어 과도한 로그 발생
 
     window.addEventListener('beforeunload', () => {
       if (refreshTimerInitial) {
