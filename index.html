@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 11.2.7
+  Version: 11.2.8
   Last Updated: 2025-09-17
-  Description: 긴급 수정 - 콘솔 스팸 완전 제거 (1초마다 통계 업데이트 및 과다 로그 비활성화)
+  Description: 긴급! Virtual 시트 매칭 1468개 행 로그 스팸 완전 차단
 -->
 <html lang="ko">
 <head>
@@ -675,7 +675,7 @@
     // ====================================
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '11.2.7';
+    const APP_VERSION = '11.2.8';
     const BUILD_TIME = '2025-09-17T11:00:00Z';
 
     // ====================================
@@ -3378,7 +3378,7 @@
             continue;
           }
           
-          console.log(`🔍 행 ${i+1} ${columnName}열 검사: "${cellValue}"`);
+          // console.log(`🔍 행 ${i+1} ${columnName}열 검사: "${cellValue}"`); // ⚠️ 콘솔 스팸 방지 (1468행 모두 로그)
           
           let hours, minutes, seconds = 0;
           let timeMatch = null;
@@ -3392,13 +3392,13 @@
               minutes = parseInt(timeMatch[2]);
               seconds = timeMatch[3] ? parseInt(timeMatch[3]) : 0;
               matchedPatternName = name;
-              console.log(`   ✅ 패턴 매칭: ${name} → ${hours}:${minutes}:${seconds}`);
+              // console.log(`   ✅ 패턴 매칭: ${name} → ${hours}:${minutes}:${seconds}`); // ⚠️ 콘솔 스팸 방지
               break;
             }
           }
           
           if (!timeMatch) {
-            console.log(`   ❌ 시간 형식 매칭 실패`);
+            // console.log(`   ❌ 시간 형식 매칭 실패`); // ⚠️ 콘솔 스팸 방지
             continue;
           }
           
@@ -3408,7 +3408,7 @@
           const cellTotalSeconds = hours * 3600 + minutes * 60 + seconds;
           const diff = Math.abs(cellTotalSeconds - targetTotalSeconds);
           
-          console.log(`   📊 시간 차이: ${diff}초 (현재 최소: ${minDiff}초)`);
+          // console.log(`   📊 시간 차이: ${diff}초 (현재 최소: ${minDiff}초)`); // ⚠️ 콘솔 스팸 방지
           
           // 가장 가까운 시간 업데이트
           if (diff < minDiff) {
@@ -3417,7 +3417,7 @@
             rowIndex = i + 1;
             matchedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
             
-            console.log(`   🎯 새로운 최적 매칭: 행 ${rowIndex}, 차이 ${diff}초`);
+            // console.log(`   🎯 새로운 최적 매칭: 행 ${rowIndex}, 차이 ${diff}초`); // ⚠️ 콘솔 스팸 방지
             
             // 정확히 일치하거나 매우 가까운 경우 (5초 이내) 즉시 종료
             if (diff <= 5) {
