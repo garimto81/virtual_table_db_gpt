@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 10.2.2
+  Version: 11.0.0
   Last Updated: 2025-09-17
-  Description: 문서 업데이트 및 안정성 개선
+  Description: Phase 1 성능 최적화 - 일괄 상태 확인 API
 -->
 <html lang="ko">
 <head>
@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title id="page-title">포커 핸드 모니터링 v10.2.2 - AI 분석 시스템</title>
+  <title id="page-title">포커 핸드 모니터링 v11.0.0 - AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <!-- 성능 모니터링 도구 -->
   <script src="performance_monitor.js"></script>
@@ -602,7 +602,7 @@
     // ====================================
     
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '10.2.2';
+    const APP_VERSION = '11.0.0';
     const BUILD_TIME = '2025-09-16T08:40:00Z';
     
     // 버전 체크 및 강제 업데이트
@@ -1652,17 +1652,118 @@
     // UI 업데이트 함수
     // ====================================
 
-    // E열 상태 확인 함수 추가
+    // ====================================
+    // Phase 1 성능 최적화 - 일괄 상태 확인
+    // ====================================
+
+    /**
+     * 여러 핸드의 상태를 한 번에 확인 (Phase 1 최적화)
+     * @param {Array} handNumbers - 확인할 핸드 번호 배열
+     * @returns {Object} 핸드별 상태 정보
+     */
+    async function checkAllHandsStatus(handNumbers) {
+      const startTime = performance.now();
+      console.log(`🚀 [Phase 1] ${handNumbers.length}개 핸드 일괄 상태 확인 시작...`);
+
+      try {
+        // 1. 모든 핸드의 타임스탬프를 병렬로 가져오기
+        const timestamps = await Promise.all(
+          handNumbers.map(async (handNum) => {
+            const time = await getHandTimestamp(handNum);
+            return { handNumber: handNum, timestamp: time };
+          })
+        );
+
+        // 유효한 타임스탬프만 필터링
+        const validHands = timestamps.filter(item => item.timestamp);
+        if (validHands.length === 0) {
+          console.log('⚠️ 유효한 타임스탬프가 없음');
+          return {};
+        }
+
+        // 2. 시트에서 매칭되는 행 번호 찾기 (병렬 처리)
+        const sheetUrl = getSheetUrl();
+        const rowMatches = await Promise.all(
+          validHands.map(async (item) => {
+            const result = await findMatchingRowInVirtualSheet(sheetUrl, item.timestamp, false);
+            const row = result?.matchedRow?.row;
+            return { handNumber: item.handNumber, row: row };
+          })
+        );
+
+        // 유효한 행 번호만 추출
+        const validRows = rowMatches.filter(item => item.row);
+        if (validRows.length === 0) {
+          console.log('⚠️ 매칭되는 행이 없음');
+          return {};
+        }
+
+        // 3. Apps Script에 일괄 상태 확인 요청
+        const batchData = {
+          action: 'batchVerify',
+          sheetUrl: sheetUrl,
+          rows: validRows.map(item => item.row)
+        };
+
+        const response = await fetch(getAppsScriptUrl(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify(batchData)
+        });
+
+        const batchResult = await response.json();
+
+        if (batchResult.status !== 'success') {
+          throw new Error(batchResult.message || '일괄 확인 실패');
+        }
+
+        // 4. 결과를 핸드 번호별로 매핑
+        const statusMap = {};
+        validRows.forEach(item => {
+          const rowData = batchResult.data[item.row];
+          if (rowData) {
+            statusMap[item.handNumber] = rowData.status || '';
+          }
+        });
+
+        const duration = performance.now() - startTime;
+        console.log(`✅ [Phase 1] 일괄 확인 완료: ${duration.toFixed(0)}ms`);
+        console.log(`📊 성능: ${handNumbers.length}개 핸드, ${validRows.length}개 행, 1회 API 호출`);
+
+        return statusMap;
+
+      } catch (error) {
+        console.error('❌ [Phase 1] 일괄 상태 확인 오류:', error);
+        // 오류 시 기존 방식으로 폴백
+        return await checkHandsStatusFallback(handNumbers);
+      }
+    }
+
+    /**
+     * 폴백: 기존 개별 확인 방식
+     */
+    async function checkHandsStatusFallback(handNumbers) {
+      console.log('⚠️ 폴백 모드: 개별 상태 확인');
+      const results = {};
+
+      for (const handNum of handNumbers) {
+        results[handNum] = await checkHandStatusInSheet(handNum);
+      }
+
+      return results;
+    }
+
+    // 기존 개별 상태 확인 함수 (호환성 유지)
     async function checkHandStatusInSheet(handNumber) {
       try {
         const handTime = await getHandTimestamp(handNumber);
         if (!handTime) return null;
 
-        const result = await findMatchingRowInVirtualSheet(getSheetUrl(), handTime, false);  // 상태 확인 시 팝업 표시 안 함
+        const result = await findMatchingRowInVirtualSheet(getSheetUrl(), handTime, false);
         const matchedRowData = result ? result.matchedRow : null;
         if (!matchedRowData || !matchedRowData.row) return null;
 
-        const rowNumber = matchedRowData.row; // 행 번호 추출 (숫자)
+        const rowNumber = matchedRowData.row;
 
         const statusData = {
           action: 'verifyUpdate',
@@ -1745,18 +1846,94 @@
       }
     }
 
-    function updateHandList() {
+    /**
+     * Phase 1 최적화 - 화면에 보이는 핸드만 상태 확인
+     */
+    async function updateVisibleHandsStatus() {
+      const startTime = performance.now();
+
+      // 화면에 보이는 핸드 요소 찾기
+      const handElements = document.querySelectorAll('#hand-list > div');
+      const visibleHands = [];
+
+      handElements.forEach(el => {
+        const rect = el.getBoundingClientRect();
+        // 뷰포트 내에 있거나 곧 보일 위치에 있는 요소
+        if (rect.top < window.innerHeight + 200 && rect.bottom > -200) {
+          const handNum = el.dataset.handNumber;
+          if (handNum) {
+            visibleHands.push(handNum);
+          }
+        }
+      });
+
+      if (visibleHands.length === 0) return;
+
+      console.log(`👁️ ${visibleHands.length}개의 보이는 핸드 상태 확인`);
+
+      // Phase 1: 일괄 상태 확인
+      const statuses = await checkAllHandsStatus(visibleHands);
+
+      // UI 업데이트
+      for (const [handNum, status] of Object.entries(statuses)) {
+        const element = document.querySelector(`[data-hand-number="${handNum}"]`);
+        if (element) {
+          // 상태에 따른 시각적 표시 업데이트
+          updateHandElementStatus(element, status);
+        }
+      }
+
+      const duration = performance.now() - startTime;
+      console.log(`✅ 보이는 핸드 상태 업데이트 완료: ${duration.toFixed(0)}ms`);
+    }
+
+    /**
+     * 핸드 요소의 상태 표시 업데이트
+     */
+    function updateHandElementStatus(element, status) {
+      // 기존 상태 클래스 제거
+      element.classList.remove('border-green-500', 'border-yellow-500', 'border-gray-600');
+      element.classList.remove('bg-green-900/20', 'bg-yellow-900/20', 'bg-gray-800');
+
+      // 상태 아이콘 업데이트
+      const statusIcon = element.querySelector('.status-icon') || document.createElement('span');
+      statusIcon.className = 'status-icon';
+
+      switch(status) {
+        case '복사완료':
+          element.classList.add('border-green-500', 'bg-green-900/20');
+          statusIcon.innerHTML = '<span class="text-green-400">✓</span>';
+          break;
+        case '미완료':
+          element.classList.add('border-yellow-500', 'bg-yellow-900/20');
+          statusIcon.innerHTML = '<span class="text-yellow-400">⚡</span>';
+          break;
+        default:
+          element.classList.add('border-gray-600', 'bg-gray-800');
+          statusIcon.innerHTML = '';
+      }
+
+      // 상태 아이콘이 없으면 추가
+      if (!element.querySelector('.status-icon')) {
+        const header = element.querySelector('.flex.items-center.justify-between');
+        if (header) {
+          header.appendChild(statusIcon);
+        }
+      }
+    }
+
+    async function updateHandList() {
       console.log(`📋 updateHandList 호출 - 총 핸드 수: ${allHands.length}`);
       const listEl = document.getElementById('hand-list');
       const tableFilter = document.getElementById('table-filter').value;
       const statusFilter = document.getElementById('status-filter').value;
-      
+
       let filteredHands = allHands;
-      
+
       if (tableFilter) {
         filteredHands = filteredHands.filter(h => h.table === tableFilter);
       }
-      
+
       if (statusFilter) {
         filteredHands = filteredHands.filter(h => {
           if (statusFilter === 'completed') return h.handEdit;
@@ -1764,7 +1941,8 @@
           return true;
         });
       }
-      
+
+      // Phase 1 최적화: data-hand-number 속성 추가
       listEl.innerHTML = filteredHands.map(hand => {
         // 상태에 따른 색상 설정
         const statusColor = hand.handEdit ? 'border-green-500 bg-green-900/20' : 
@@ -1803,12 +1981,13 @@
           '파일 없음';
 
         return `
-        <div class="rounded-lg p-3 cursor-pointer hover:scale-105 transition-all border ${statusColor}" 
-             onclick="selectHand('${hand.handNumber}')">
+        <div class="rounded-lg p-3 cursor-pointer hover:scale-105 transition-all border ${statusColor}"
+             onclick="selectHand('${hand.handNumber}')"
+             data-hand-number="${hand.handNumber}">
           <div class="flex items-center justify-between mb-1">
             <span class="text-sm font-bold text-white">Hand #${hand.handNumber}</span>
-            ${hand.handEdit ? '<span class="text-green-400">✓</span>' : 
-              hand.workStatus === '진행중' ? '<span class="text-yellow-400">⚡</span>' : ''}
+            <span class="status-icon">${hand.handEdit ? '<span class="text-green-400">✓</span>' :
+              hand.workStatus === '진행중' ? '<span class="text-yellow-400">⚡</span>' : ''}</span>
           </div>
           <div class="flex items-center justify-between text-xs">
             <span class="text-gray-300">${hand.table || '테이블 -'}</span>
@@ -1846,6 +2025,11 @@
       if (currentTable && tables.includes(currentTable)) {
         tableFilterEl.value = currentTable;
       }
+
+      // Phase 1: 핸드 리스트 렌더링 완료 후 상태 확인
+      setTimeout(() => {
+        updateVisibleHandsStatus();
+      }, 100);
     }
     
     function updateStats() {
@@ -4746,6 +4930,19 @@
 
       // 초기 버튼 상태 설정 (핸드 선택 전에는 비활성화)
       initializeButtonStates();
+
+      // Phase 1: 스크롤 이벤트로 보이는 핸드 상태 업데이트
+      let scrollDebounceTimer;
+      const handListContainer = document.getElementById('hand-list-container');
+      if (handListContainer) {
+        handListContainer.addEventListener('scroll', () => {
+          clearTimeout(scrollDebounceTimer);
+          scrollDebounceTimer = setTimeout(() => {
+            console.log('📜 스크롤 감지 - 보이는 핸드 상태 확인');
+            updateVisibleHandsStatus();
+          }, 500); // 스크롤 후 500ms 대기
+        });
+      }
 
       // 마스터 핸드 목록 로드
       loadMasterHandList();

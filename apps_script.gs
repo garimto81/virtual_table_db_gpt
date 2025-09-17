@@ -111,21 +111,31 @@ function doPost(e) {
         result = handleIndexUpdate(requestData);
         break;
         
+      case 'batchVerify':
+        // 일괄 상태 확인 - Phase 1 성능 최적화
+        result = handleBatchVerify(requestData);
+        break;
+
+      case 'verifyUpdate':
+        // 단일 행 상태 확인 (기존 호환성)
+        result = handleVerifyUpdate(requestData);
+        break;
+
       case 'test':
         result = {
           status: 'success',
           message: 'Apps Script 연결 성공!',
           timestamp: new Date().toISOString(),
-          version: 'v3.4.1',
+          version: 'v3.5.0',
           receivedData: requestData
         };
         break;
-        
+
       default:
         result = {
           status: 'error',
           message: `알 수 없는 액션: ${action}`,
-          availableActions: ['updateSheet', 'updateHand', 'analyzeHand', 'updateIndex', 'test']
+          availableActions: ['updateSheet', 'updateHand', 'analyzeHand', 'updateIndex', 'batchVerify', 'verifyUpdate', 'test']
         };
     }
     
@@ -437,7 +447,147 @@ function updateIndexSheet(indexSheetUrl, handNumber, filename) {
 }
 
 // ========================================
-// 8. 유틸리티 함수들
+// 8. Phase 1 성능 최적화 - 일괄 처리 함수들
+// ========================================
+
+/**
+ * 여러 행의 상태를 한 번에 확인하는 일괄 처리 함수
+ * @param {Object} data - { sheetUrl, rows: [행번호 배열] }
+ * @returns {Object} 각 행의 상태 정보
+ */
+function handleBatchVerify(data) {
+  console.log('🚀 [Phase 1] 일괄 상태 확인 시작...');
+
+  try {
+    const { sheetUrl, rows } = data;
+
+    if (!sheetUrl || !rows || !Array.isArray(rows)) {
+      return {
+        status: 'error',
+        message: 'sheetUrl과 rows 배열이 필요합니다'
+      };
+    }
+
+    console.log(`📊 확인할 행 개수: ${rows.length}개`);
+    const startTime = new Date().getTime();
+
+    // 시트 열기
+    const sheet = openSheetByUrl(sheetUrl);
+    if (!sheet) {
+      return {
+        status: 'error',
+        message: '시트를 열 수 없습니다'
+      };
+    }
+
+    // 전체 데이터를 한 번에 가져오기 (성능 최적화)
+    const maxRow = Math.max(...rows.filter(r => !isNaN(r)));
+    const minRow = Math.min(...rows.filter(r => !isNaN(r)));
+
+    // 범위 최적화: 필요한 범위만 가져오기
+    const rangeRows = maxRow - minRow + 1;
+    const range = sheet.getRange(minRow, 1, rangeRows, 9); // A-I열
+    const values = range.getValues();
+
+    // 결과 객체 생성
+    const results = {};
+
+    rows.forEach(rowNum => {
+      if (isNaN(rowNum) || rowNum < minRow || rowNum > maxRow) {
+        results[rowNum] = {
+          error: '유효하지 않은 행 번호'
+        };
+        return;
+      }
+
+      const rowIndex = rowNum - minRow;
+      const rowData = values[rowIndex];
+
+      results[rowNum] = {
+        row: rowNum,
+        time: rowData[1] || '',        // B열: 시간
+        status: rowData[4] || '',       // E열: 상태 (빈값/미완료/복사완료)
+        filename: rowData[5] || '',     // F열: 파일명
+        analysis: rowData[7] || '',     // H열: AI 분석
+        lastUpdate: rowData[8] || ''    // I열: 업데이트 시간
+      };
+    });
+
+    const endTime = new Date().getTime();
+    const duration = endTime - startTime;
+
+    console.log(`✅ 일괄 확인 완료: ${duration}ms`);
+
+    return {
+      status: 'success',
+      message: `${rows.length}개 행 일괄 확인 완료`,
+      data: results,
+      performance: {
+        duration: duration,
+        rowsChecked: rows.length,
+        avgTimePerRow: Math.round(duration / rows.length)
+      }
+    };
+
+  } catch (error) {
+    console.error('❌ 일괄 확인 오류:', error);
+    return {
+      status: 'error',
+      message: error.toString()
+    };
+  }
+}
+
+/**
+ * 단일 행 상태 확인 (기존 호환성 유지)
+ * @param {Object} data - { sheetUrl, rowNumber }
+ * @returns {Object} 행의 상태 정보
+ */
+function handleVerifyUpdate(data) {
+  console.log('📋 단일 행 상태 확인...');
+
+  try {
+    const { sheetUrl, rowNumber } = data;
+
+    if (!sheetUrl || !rowNumber) {
+      return {
+        status: 'error',
+        message: 'sheetUrl과 rowNumber가 필요합니다'
+      };
+    }
+
+    const sheet = openSheetByUrl(sheetUrl);
+    if (!sheet) {
+      return {
+        status: 'error',
+        message: '시트를 열 수 없습니다'
+      };
+    }
+
+    const row = parseInt(rowNumber);
+    const rowData = sheet.getRange(row, 1, 1, 9).getValues()[0];
+
+    return {
+      status: 'success',
+      data: {
+        row: row,
+        columnE: rowData[4] || '',  // E열 상태
+        columnF: rowData[5] || '',  // F열 파일명
+        columnH: rowData[7] || ''   // H열 AI 분석
+      }
+    };
+
+  } catch (error) {
+    console.error('❌ 상태 확인 오류:', error);
+    return {
+      status: 'error',
+      message: error.toString()
+    };
+  }
+}
+
+// ========================================
+// 9. 유틸리티 함수들 (기존)
 // ========================================
 function openSheetByUrl(url) {
   try {
