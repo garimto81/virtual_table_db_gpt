@@ -7,13 +7,13 @@
 
 ## 현재 산출물
 - `src/`
-  - `app.js`: 대시보드 부트스트랩 진입점(향후 `index.html`에서 import 후 실행).
-  - `services/csvService.js`: CSV 로드 + 캐시 프락시 스텁.
-  - `utils/csv.js`: 기존 CSV 파서 로직을 모듈화.
-  - `utils/configManager.js`: localStorage 기반 설정 병합기.
-  - `state/progressBus.js`: 진행률 이벤트 버스.
-  - `ui/progress.js`, `ui/notifications.js`, `ui/dashboard.js`: UI 계층 스켈레톤.
-- 향후 TODO: `ui/handList.js`, `ui/detailPanel.js`, `services/appsScriptClient.js`, `analysis/handSummary.js` 등.
+  - `app.js`: 대시보드 부트스트랩 (CSV 로드 → 리스트 렌더 → 상세 패널 표시).
+  - `services/`: `csvService.js`, `indexParser.js`, `handParser.js`, `appsScriptClient.js` 등 데이터 계층 정리.
+  - `utils/`: CSV, config, cards, number 유틸 모듈.
+  - `state/`: 전역 상태(`appState`).
+  - `ui/`: 리스트/디테일/알림/프로그레스 모듈.
+- `demo/index.html`: 모듈 기반 UI 동작 확인용 경량 페이지.
+- TODO: `services/appsScriptClient` 실제 호출 구현, `findClosestVirtualRow` 이관, 버튼 핸들러 고도화.
 
 ## 로드맵
 1. **ESM 로더 이식**

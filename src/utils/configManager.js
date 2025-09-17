@@ -7,15 +7,27 @@ const DEFAULTS = {
     appsScript: '',
   },
   mainSheetUrl: '',
-  enableNotifications: true,
-  enableSound: true,
+  features: {
+    enableNotifications: true,
+    enableSound: true,
+    debugMode: false,
+  }
 };
 
-export async function initializeConfig(overrides = {}) {
+export async function initializeConfig(overrides = {}, defaults = {}) {
   const persisted = readFromLocalStorage();
-  const config = mergeDeep(DEFAULTS, persisted, overrides);
+  const config = mergeDeep(DEFAULTS, defaults, persisted, overrides);
   writeToLocalStorage(config);
   return config;
+}
+
+export async function loadConfigFile(url) {
+  if (!url) return {};
+  const response = await fetch(url, { headers: { 'Cache-Control': 'no-cache' } });
+  if (!response.ok) {
+    throw new Error(`구성 파일을 불러오지 못했습니다: ${response.status} ${response.statusText}`);
+  }
+  return response.json();
 }
 
 function readFromLocalStorage() {

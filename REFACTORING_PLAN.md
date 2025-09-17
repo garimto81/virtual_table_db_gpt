@@ -39,11 +39,11 @@
 2. **데이터 서비스 개선**
    - [x] `services/csvService.js` 캐시 포함 스텁 작성
    - [x] `utils/csv.js` 공통 파서 분리
-   - [ ] Apps Script API 클라이언트 분리 (`services/appsScriptClient.js`)
+   - [x] Apps Script API 클라이언트 분리 (`services/appsScriptClient.js`)
 3. **상태 관리 및 UI**
    - [x] 진행률 버스(`state/progressBus.js`) 및 `ui/progress.js` 스켈레톤 구성
    - [x] 알림 관리자(`ui/notifications.js`) 초안 작성
-   - [ ] 상세 UI 컴포넌트 분리 (`ui/handList.js`, `ui/detailPanel.js`)
+   - [x] 상세 UI 컴포넌트 분리 (`ui/handList.js`, `ui/detailPanel.js`)
 4. **AI 분석 워크플로우**
    - [ ] `analyzeHandWithAI` 모듈화 기초 코드 이식
    - [ ] 폴백 요약 pure 함수 정의 및 테스트
