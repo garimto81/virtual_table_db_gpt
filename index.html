@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 11.3.0
+  Version: 11.3.1
   Last Updated: 2025-09-17
-  Description: 긴급! 자동 새로고침 완전 중단 - 푸시 기반 시스템 전환
+  Description: 핵심 수정! 개별 Virtual 시트 매칭 완전 차단 - 캐시 전용 모드
 -->
 <html lang="ko">
 <head>
@@ -675,7 +675,7 @@
     // ====================================
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '11.3.0';
+    const APP_VERSION = '11.3.1';
     const BUILD_TIME = '2025-09-17T11:00:00Z';
 
     // ====================================
@@ -2583,30 +2583,26 @@
     // 기존 개별 상태 확인 함수 (호환성 유지)
     async function checkHandStatusInSheet(handNumber) {
       try {
+        // ⚠️ Virtual 시트 매칭 비활성화 - 캐시만 사용
+        console.log(`🔍 핸드 #${handNumber} 상태 확인: 캐시 전용 모드`);
+
         const handTime = await getHandTimestamp(handNumber);
         if (!handTime) return null;
 
-        const result = await findMatchingRowInVirtualSheet(getSheetUrl(), handTime, false);
-        const matchedRowData = result ? result.matchedRow : null;
-        if (!matchedRowData || !matchedRowData.row) return null;
+        // 캐시에서만 확인, Virtual 시트 매칭 건너뛰기
+        if (sheetDataCache) {
+          await sheetDataCache.ensureFresh();
+          const cachedRow = sheetDataCache.findClosestRow(handTime);
+          if (cachedRow) {
+            console.log(`✅ 캐시 적중: 핸드 #${handNumber} 상태 = ${cachedRow.status}`);
+            return cachedRow.status;
+          }
+        }
 
-        const rowNumber = matchedRowData.row;
+        // 캐시 미스 시 Virtual 시트 매칭 대신 null 반환 (편집 가능 상태)
+        console.log(`⚠️ 캐시 미스: 핸드 #${handNumber} - 편집 가능 상태로 설정`);
+        return null;
 
-        const statusData = {
-          action: 'verifyUpdate',
-          sheetUrl: getSheetUrl(),
-          rowNumber: rowNumber
-        };
-
-        const response = await fetch(getAppsScriptUrl(), {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain' },
-          body: JSON.stringify(statusData)
-        });
-
-        const statusResult = await response.json();
-        console.log(`📋 핸드 #${handNumber} 상태 확인 결과:`, statusResult);
-        return statusResult.data?.columnE || null;
       } catch (error) {
         console.error('❌ E열 상태 확인 오류:', error);
         return null;
