@@ -33,27 +33,29 @@
 
 ### 4.2 프론트엔드 리팩토링 (D1~D6)
 1. **구조 분할** (`src/` 디렉터리 신설)
-   - [ ] `app.js`, `services/`, `ui/`, `utils/` 등 모듈 파일로 분리.
-   - [ ] 빌드 파이프라인 없이 ES Modules 기반으로 로딩.
+   - [x] `src/` 기본 디렉터리 구성 및 `app.js` 부트스트랩 스켈레톤 추가 (2025-09-17)
+   - [x] `services/`, `ui/`, `utils/`, `state/` 하위 구조 초안 정의
+   - [ ] ES Module 로더를 `index.html`에 적용
 2. **데이터 서비스 개선**
-   - [ ] CSV 로딩/파싱 로직을 `services/csvService.js`로 이동.
-   - [ ] 로컬 캐시(메모리) + 타임스탬프를 활용한 재사용.
-   - [ ] URL 구성값을 `configManager` 모듈에서 제공.
+   - [x] `services/csvService.js` 캐시 포함 스텁 작성
+   - [x] `utils/csv.js` 공통 파서 분리
+   - [ ] Apps Script API 클라이언트 분리 (`services/appsScriptClient.js`)
 3. **상태 관리 및 UI**
-   - [ ] 공용 진행률 모듈(`ui/progress.js`) 작성 후 중복 제거.
-   - [ ] 완료/편집 버튼 상태 업데이트 로직을 Promise 기반으로 재작성.
-   - [ ] Notification/Popup을 `ui/notifications.js`에서 일괄 관리.
+   - [x] 진행률 버스(`state/progressBus.js`) 및 `ui/progress.js` 스켈레톤 구성
+   - [x] 알림 관리자(`ui/notifications.js`) 초안 작성
+   - [ ] 상세 UI 컴포넌트 분리 (`ui/handList.js`, `ui/detailPanel.js`)
 4. **AI 분석 워크플로우**
-   - [ ] `analyzeHandWithAI(handNumber)` → `analyzeHandWithAI({ handNumber, handData })`로 명세 변경.
-   - [ ] 에러 시 폴백이 동작하도록 try/catch 블록 재정비.
-   - [ ] Gemini API 호출 옵션(모델, 타임아웃) 설정화.
+   - [ ] `analyzeHandWithAI` 모듈화 기초 코드 이식
+   - [ ] 폴백 요약 pure 함수 정의 및 테스트
+   - [ ] Gemini 호출 옵션/모델 설정 모듈화
 5. **시간 매칭 & 완료 프로세스**
-   - [ ] `findClosestVirtualRow`를 모듈화하고 취소 플래그를 `AbortController` 기반으로 개편.
-   - [ ] 진행 상태 업데이트를 이벤트 기반으로 전환 (예: `progressBus.emit`).
-   - [ ] 완료 처리 시 `status` 값을 명확히 전달하고, 응답 검증 메시지를 개선.
+   - [ ] `findClosestVirtualRow` 리팩토링 및 AbortController 통합
+   - [ ] 진행 상태 이벤트 매핑 (`progressBus.emit`) 치환
+   - [ ] `status` 응답 검증 UX 정비
 6. **설정 & 검증 UI**
-   - [ ] 설정 모달을 컴포넌트화, 입력 검증 메시지 국제화(ko) 정비.
-   - [ ] Apps Script/Gemini 테스트 결과를 카드형 UI로 표준화.
+   - [x] `configManager`로 설정 병합 로직 초안 작성
+   - [ ] 설정 모달 컴포넌트 분리 및 검증 문구 재설계
+   - [ ] Apps Script/Gemini 테스트 카드화
 
 ### 4.3 백엔드(Apps Script) 리팩토링 (D4~D10)
 1. **프로젝트 구조 개선**
