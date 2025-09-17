@@ -675,7 +675,7 @@
     // ====================================
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '11.4.0';
+    const APP_VERSION = '11.4.1';
     const BUILD_TIME = '2025-09-17T11:00:00Z';
 
     // ====================================
@@ -740,6 +740,16 @@
 
           // CSV 파싱 (parseCSV 함수 사용)
           const rows = parseCSV(csvText);
+
+          console.log(`📋 CSV 파싱 완료: ${rows.length}개 행`);
+
+          // 처음 3개 행 디버깅
+          if (rows.length > 0) {
+            console.log('🔍 CSV 샘플 (처음 3행):');
+            for (let i = 0; i < Math.min(3, rows.length); i++) {
+              console.log(`   행 ${i + 1}: B열="${rows[i][1]}", E열="${rows[i][4]}"`);
+            }
+          }
 
           // 캐시 초기화
           this.cache.clear();
@@ -826,20 +836,25 @@
       parseTimeToTimestamp(timeStr) {
         if (!timeStr) return null;
 
-        // HH:MM:SS 형식
-        const timeParts = timeStr.match(/(\d{1,2}):(\d{2}):?(\d{2})?/);
+        // 문자열로 변환 (숫자일 수도 있음)
+        const str = String(timeStr).trim();
+
+        // 이미 타임스탬프인 경우 (10자리 숫자)
+        const timestamp = parseInt(str);
+        if (!isNaN(timestamp) && timestamp > 1000000000) {
+          return timestamp;
+        }
+
+        // HH:MM:SS 또는 HH:MM 형식
+        const timeParts = str.match(/(\d{1,2}):(\d{2}):?(\d{2})?/);
         if (timeParts) {
           const today = new Date();
           today.setHours(parseInt(timeParts[1]), parseInt(timeParts[2]), parseInt(timeParts[3] || 0), 0);
           return Math.floor(today.getTime() / 1000);
         }
 
-        // 이미 타임스탬프인 경우
-        const timestamp = parseInt(timeStr);
-        if (!isNaN(timestamp)) {
-          return timestamp;
-        }
-
+        // 디버깅: 파싱 실패한 값 로그
+        console.log(`⚠️ 시간 파싱 실패: "${str}"`);
         return null;
       }
 
