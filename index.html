@@ -675,7 +675,7 @@
     // ====================================
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '11.4.2';
+    const APP_VERSION = '11.4.4';
     const BUILD_TIME = '2025-09-17T11:00:00Z';
 
     // ====================================
@@ -886,37 +886,55 @@
           return null;
         }
 
-        // 정확한 매칭 먼저 시도
-        if (this.timeIndex.has(targetTimestamp)) {
-          const rows = this.timeIndex.get(targetTimestamp);
-          if (rows.length > 0) {
-            this.hitCount++;
-            const found = this.cache.get(rows[0]);
-            console.log(`🎯 정확한 매칭: 타임스탬프 ${targetTimestamp} → 행 ${rows[0]}, 상태: "${found?.status || ''}"`);
-            return found;
+        // Hand 시트의 타임스탬프에서 시간 부분만 추출
+        const targetDate = new Date(targetTimestamp * 1000);
+        const targetHours = targetDate.getHours();
+        const targetMinutes = targetDate.getMinutes();
+        const targetTimeString = `${targetHours.toString().padStart(2, '0')}:${targetMinutes.toString().padStart(2, '0')}`;
+
+        console.log(`🔍 매칭 시도: 타임스탬프 ${targetTimestamp} → 시간 ${targetTimeString}`);
+
+        // 시간 문자열로 직접 매칭 시도
+        let closestRow = null;
+        let exactMatch = false;
+
+        // 모든 캐시 항목을 순회하며 시간 문자열 비교
+        for (const [rowNum, data] of this.cache) {
+          // Virtual 시트의 시간 문자열과 비교
+          if (data.time === targetTimeString) {
+            closestRow = data;
+            exactMatch = true;
+            console.log(`✅ 시간 매칭 성공: "${targetTimeString}" → 행 ${rowNum}, 상태: "${data.status || ''}"`);
+            break;
           }
         }
 
-        // 근사 매칭 (±tolerance 초)
-        let closestRow = null;
-        let minDiff = Infinity;
-        let matchedTimestamp = null;
+        // 정확한 매칭이 없으면 근사 매칭 시도 (±1분)
+        if (!closestRow) {
+          const targetTotalMinutes = targetHours * 60 + targetMinutes;
 
-        for (const [timestamp, rows] of this.timeIndex) {
-          const diff = Math.abs(timestamp - targetTimestamp);
-          if (diff <= tolerance && diff < minDiff) {
-            minDiff = diff;
-            closestRow = this.cache.get(rows[0]);
-            matchedTimestamp = timestamp;
+          for (const [rowNum, data] of this.cache) {
+            const timeParts = data.time.match(/(\d+):(\d+)/);
+            if (timeParts) {
+              const hours = parseInt(timeParts[1]);
+              const minutes = parseInt(timeParts[2]);
+              const totalMinutes = hours * 60 + minutes;
+              const diff = Math.abs(totalMinutes - targetTotalMinutes);
+
+              if (diff <= 3) { // ±3분 허용
+                closestRow = data;
+                console.log(`🔄 근사 매칭: "${targetTimeString}" ≈ "${data.time}" (${diff}분 차이), 상태: "${data.status || ''}"`);
+                break;
+              }
+            }
           }
         }
 
         if (closestRow) {
           this.hitCount++;
-          console.log(`🔄 근사 매칭: 타임스탬프 ${targetTimestamp} → ${matchedTimestamp} (차이: ${minDiff}초), 상태: "${closestRow?.status || ''}"`);
         } else {
           this.missCount++;
-          console.log(`❌ 매칭 실패: 타임스탬프 ${targetTimestamp}에서 ±${tolerance}초 내 데이터 없음`);
+          console.log(`❌ 매칭 실패: 시간 ${targetTimeString}에 해당하는 데이터 없음`);
         }
 
         return closestRow;
@@ -5921,6 +5939,135 @@
 
     // 전역에서 사용 가능하도록 노출
     window.analyzeEColumnData = analyzeEColumnData;
+
+    // 시간 매칭 테스트 함수
+    window.testTimeMatching = async function(handNumber) {
+      console.log('🧪 ============ 시간 매칭 종합 테스트 시작 ============');
+      console.log(`📌 테스트 대상: 핸드 #${handNumber}`);
+
+      // 1. Hand 시트에서 타임스탬프 가져오기
+      const handTimestamp = await getHandTimestamp(handNumber);
+      if (!handTimestamp) {
+        console.error('❌ 핸드 타임스탬프를 찾을 수 없음');
+        return;
+      }
+
+      const handDate = new Date(handTimestamp * 1000);
+      console.log('\n📊 [1] Hand 시트 데이터:');
+      console.log(`   - 타임스탬프: ${handTimestamp}`);
+      console.log(`   - 날짜/시간: ${handDate.toLocaleString()}`);
+      console.log(`   - 시간만: ${handDate.getHours()}:${handDate.getMinutes().toString().padStart(2,'0')}:${handDate.getSeconds().toString().padStart(2,'0')}`);
+
+      // 2. 캐시 데이터 확인
+      console.log('\n📊 [2] 캐시 데이터 분석:');
+      await sheetDataCache.ensureFresh();
+
+      // 목표 시간 문자열들
+      const targetHour = handDate.getHours();
+      const targetMin = handDate.getMinutes();
+      const targetTimeStr = `${targetHour.toString().padStart(2,'0')}:${targetMin.toString().padStart(2,'0')}`;
+      const targetTimeNoZero = `${targetHour}:${targetMin.toString().padStart(2,'0')}`;
+
+      console.log(`   - 찾는 시간: "${targetTimeStr}" 또는 "${targetTimeNoZero}"`);
+
+      // 캐시에서 정확한 매칭 찾기
+      let exactMatches = [];
+      let nearMatches = [];
+
+      for (const [rowNum, data] of sheetDataCache.cache) {
+        // 정확한 매칭
+        if (data.time === targetTimeStr || data.time === targetTimeNoZero) {
+          exactMatches.push({row: rowNum, data: data});
+        }
+
+        // 근접 매칭 (±5분)
+        const timeParts = data.time.match(/(\d+):(\d+)/);
+        if (timeParts) {
+          const cacheHour = parseInt(timeParts[1]);
+          const cacheMin = parseInt(timeParts[2]);
+          const cacheTotalMin = cacheHour * 60 + cacheMin;
+          const targetTotalMin = targetHour * 60 + targetMin;
+          const diff = Math.abs(cacheTotalMin - targetTotalMin);
+
+          if (diff <= 5 && diff > 0) {
+            nearMatches.push({
+              row: rowNum,
+              data: data,
+              diff: diff,
+              time: data.time
+            });
+          }
+        }
+      }
+
+      console.log(`\n   🎯 정확한 매칭 (${targetTimeStr}):`);
+      if (exactMatches.length > 0) {
+        exactMatches.forEach(m => {
+          console.log(`      - 행 ${m.row}: 시간="${m.data.time}", 상태="${m.data.status || '(빈값)'}", 타임스탬프=${m.data.timestamp}`);
+        });
+      } else {
+        console.log('      ❌ 없음');
+      }
+
+      console.log(`\n   📍 근접 매칭 (±5분):`);
+      nearMatches.sort((a, b) => a.diff - b.diff);
+      nearMatches.forEach(m => {
+        console.log(`      - 행 ${m.row}: 시간="${m.time}" (${m.diff}분 차이), 상태="${m.data.status || '(빈값)'}"`);
+      });
+
+      // 3. parseTimeToTimestamp 테스트
+      console.log('\n📊 [3] parseTimeToTimestamp 함수 테스트:');
+      const testTimes = [targetTimeStr, targetTimeNoZero, "10:14", "10:18"];
+      testTimes.forEach(time => {
+        const parsed = sheetDataCache.parseTimeToTimestamp(time);
+        const parsedDate = parsed ? new Date(parsed * 1000) : null;
+        console.log(`   - "${time}" → ${parsed} ${parsedDate ? `(${parsedDate.toLocaleTimeString()})` : '(파싱 실패)'}`);
+      });
+
+      // 4. 현재 findClosestRow 동작 테스트
+      console.log('\n📊 [4] findClosestRow 함수 실행:');
+      const result = sheetDataCache.findClosestRow(handTimestamp);
+      if (result) {
+        console.log(`   ✅ 매칭 결과:`);
+        console.log(`      - 행: ${result.row}`);
+        console.log(`      - 시간: "${result.time}"`);
+        console.log(`      - 상태: "${result.status || '(빈값)'}"`);
+        console.log(`      - 타임스탬프: ${result.timestamp}`);
+      } else {
+        console.log('   ❌ 매칭 실패');
+      }
+
+      // 5. 캐시 시간 인덱스 분석
+      console.log('\n📊 [5] 시간 인덱스 분석:');
+      console.log(`   - 총 타임스탬프 개수: ${sheetDataCache.timeIndex.size}`);
+
+      // 타임스탬프 범위 확인
+      const timestamps = Array.from(sheetDataCache.timeIndex.keys()).sort((a, b) => a - b);
+      if (timestamps.length > 0) {
+        const minTime = new Date(timestamps[0] * 1000);
+        const maxTime = new Date(timestamps[timestamps.length - 1] * 1000);
+        console.log(`   - 최소: ${timestamps[0]} (${minTime.toLocaleString()})`);
+        console.log(`   - 최대: ${timestamps[timestamps.length - 1]} (${maxTime.toLocaleString()})`);
+
+        // Hand 타임스탬프가 범위 내에 있는지
+        if (handTimestamp < timestamps[0] || handTimestamp > timestamps[timestamps.length - 1]) {
+          console.log(`   ⚠️ Hand 타임스탬프 ${handTimestamp}가 캐시 범위를 벗어남!`);
+        }
+      }
+
+      // 6. 618-622행 근처 데이터 확인
+      console.log('\n📊 [6] 618-622행 데이터:');
+      for (let i = 618; i <= 622; i++) {
+        const data = sheetDataCache.cache.get(i);
+        if (data) {
+          console.log(`   - 행 ${i}: 시간="${data.time}", 상태="${data.status || '(빈값)'}", 타임스탬프=${data.timestamp}`);
+        } else {
+          console.log(`   - 행 ${i}: (캐시에 없음)`);
+        }
+      }
+
+      console.log('\n🧪 ============ 테스트 완료 ============');
+    };
 
     document.getElementById('edit-btn').addEventListener('click', async () => {
       if (currentHand) {
