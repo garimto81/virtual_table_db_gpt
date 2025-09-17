@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title id="page-title">포커 핸드 모니터링 v11.3.6 - AI 분석 시스템</title>
+  <title id="page-title">포커 핸드 모니터링 v11.3.7 - AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <!-- 성능 모니터링 도구 - 통합됨 (외부 파일 제거) -->
   <style>
@@ -675,7 +675,7 @@
     // ====================================
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '11.3.6';
+    const APP_VERSION = '11.3.7';
     const BUILD_TIME = '2025-09-17T11:00:00Z';
 
     // ====================================
@@ -2611,6 +2611,7 @@
         }
 
         // Virtual 시트 매칭으로 실제 상태 확인
+        console.log(`\n🔵🔵🔵 [상태 확인] 핸드 #${handNumber} Virtual 시트 매칭 시작 🔵🔵🔵`);
         const matchResult = await findClosestVirtualRow(handTime, virtualSheetUrl, false);
         if (matchResult && matchResult.row) {
           let status = matchResult.status || '';
@@ -2622,15 +2623,12 @@
             console.log(`🔧 [checkHandStatusInSheet] 따옴표 제거 후: "${status}"`);
           }
 
-          console.log(`✅ Virtual 시트 매칭 성공: 핸드 #${handNumber}`);
-          console.log(`   📊 매칭된 행 정보:`, {
-            row: matchResult.row,
-            rowIndex: matchResult.rowIndex,
-            time: matchResult.time,
-            status: `"${status}"`,
-            filename: matchResult.filename,
-            timeDiff: Math.abs(handTime - (matchResult.timestamp || 0))
-          });
+          console.log(`🔵 [상태 확인] 핸드 #${handNumber} 매칭 결과:`);
+          console.log(`   - 핸드 타임스탬프: ${handTime} (${new Date(handTime * 1000).toLocaleTimeString()})`);
+          console.log(`   - 매칭된 행 번호: ${matchResult.rowIndex}`);
+          console.log(`   - 찾은 E열 상태: "${status}"`);
+          console.log(`   - 시간 차이: ${matchResult.timeDiff || Math.abs(handTime - (matchResult.timestamp || 0))}초`);
+          console.log(`🔵🔵🔵 상태 확인 매칭 완료 🔵🔵🔵\n`);
           return status;
         }
 
@@ -5246,6 +5244,7 @@
 
     // 편집 버튼 처리 함수 (새로 추가)
     async function processEditButton(handNumber) {
+      console.log(`\n🔴🔴🔴 [편집 버튼 클릭] 핸드 #${handNumber} 처리 시작 🔴🔴🔴`);
       const editBtn = document.getElementById('edit-btn');
       const completeBtn = document.getElementById('complete-btn');
 
@@ -5274,6 +5273,14 @@
           throw new Error('시간 매칭에 실패했습니다. (대상 시간에서 ±3분 범위를 찾을 수 없음)');
         }
         const rowNumber = matchedRowData.row; // 행 번호 추출 (숫자)
+
+        // 🔴 디버깅: 편집 시 매칭된 행 번호
+        console.log(`🔴 [편집 버튼] 핸드 #${handNumber} 매칭 결과:`);
+        console.log(`   - 핸드 타임스탬프: ${handTime} (${new Date(handTime * 1000).toLocaleTimeString()})`);
+        console.log(`   - 매칭된 행 번호: ${rowNumber}`);
+        console.log(`   - 매칭 정확도: ${matchResult.accuracy || 'N/A'}`);
+        console.log(`   - 시간 차이: ${matchResult.timeDiff || 'N/A'}초`);
+        console.log(`🔴🔴🔴 편집 버튼 매칭 완료 🔴🔴🔴\n`);
 
         // 5. AI 분석 실행
         const aiAnalysis = await analyzeHandWithAI(handNumber);
