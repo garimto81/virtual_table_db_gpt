@@ -2604,7 +2604,7 @@
         // 2순위: 캐시 미스 시 실제 Virtual 시트에서 확인
         console.log(`🔄 캐시 미스 - Virtual 시트에서 실제 상태 확인: 핸드 #${handNumber}`);
 
-        const virtualSheetUrl = getVirtualSheetUrl();
+        const virtualSheetUrl = getSheetUrl();
         if (!virtualSheetUrl) {
           console.log(`⚠️ Virtual 시트 URL 미설정 - 편집 가능 상태로 설정`);
           return null;
