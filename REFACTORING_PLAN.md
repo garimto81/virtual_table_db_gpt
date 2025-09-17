@@ -77,10 +77,10 @@
    - [ ] CI/로컬 실행 가이드 및 목킹 전략 문서화
 
 ### 4.4 구성 및 배포 (D8~D12)
-- [ ] `.env.example` (Apps Script Properties) 및 `config.sample.json` 작성.
-- [ ] GitHub Pages 빌드 스크립트(`npm run build-pages`) 마련.
-- [ ] 버전 정보(`APP_VERSION`, `BUILD_TIME`) 자동화 스크립트 추가.
-- [ ] 배포 체크리스트 문서화 (`docs/DEPLOYMENT_CHECKLIST.md`).
+- [x] `.env.example`, `config/app.config.sample.json`, schema 초안 작성
+- [x] GitHub Pages 빌드 스크립트(`scripts/build-pages.mjs`) 및 npm 스크립트 초안
+- [ ] 버전 정보(`APP_VERSION`, `BUILD_TIME`) 자동화 스크립트 추가
+- [ ] 배포 체크리스트 문서화 (`docs/DEPLOYMENT_CHECKLIST.md`)
 
 ### 4.5 안정화 및 QA (D12~D18)
 - [ ] CSV 업로드, 시트 업데이트, AI 분석, 완료 처리에 대한 통합 시나리오 테스트.

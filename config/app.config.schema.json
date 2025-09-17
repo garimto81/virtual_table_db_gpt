@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Virtual Table DB Config",
+  "type": "object",
+  "properties": {
+    "appVersion": { "type": "string" },
+    "buildTime": { "type": "string", "format": "date-time" },
+    "urls": {
+      "type": "object",
+      "properties": {
+        "handsCsv": { "type": "string", "format": "uri" },
+        "indexCsv": { "type": "string", "format": "uri" },
+        "typeCsv": { "type": "string", "format": "uri" },
+        "appsScript": { "type": "string", "format": "uri" }
+      },
+      "required": ["handsCsv", "indexCsv", "appsScript"],
+      "additionalProperties": false
+    },
+    "mainSheetUrl": { "type": "string", "format": "uri" },
+    "features": {
+      "type": "object",
+      "properties": {
+        "enableNotifications": { "type": "boolean" },
+        "enableSound": { "type": "boolean" },
+        "debugMode": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["appVersion", "urls"],
+  "additionalProperties": false
+}

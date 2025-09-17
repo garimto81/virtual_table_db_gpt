@@ -1,0 +1,16 @@
+{
+  "appVersion": "10.2.0",
+  "buildTime": "2025-09-17T09:00:00Z",
+  "urls": {
+    "handsCsv": "https://docs.google.com/spreadsheets/d/e/.../pub?gid=1906746276&single=true&output=csv",
+    "indexCsv": "https://docs.google.com/spreadsheets/d/e/.../pub?gid=1354012271&single=true&output=csv",
+    "typeCsv": "https://docs.google.com/spreadsheets/d/e/.../pub?gid=1127201192&single=true&output=csv",
+    "appsScript": "https://script.google.com/macros/s/DEPLOY_ID/exec"
+  },
+  "mainSheetUrl": "https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit?gid=561799849",
+  "features": {
+    "enableNotifications": true,
+    "enableSound": true,
+    "debugMode": false
+  }
+}

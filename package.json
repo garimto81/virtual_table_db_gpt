@@ -1,0 +1,12 @@
+{
+  "name": "virtual-table-db-scripts",
+  "version": "0.1.0",
+  "scripts": {
+    "build:pages": "node scripts/build-pages.mjs",
+    "deploy:apps-script": "clasp push && clasp deploy",
+    "test:apps-script": "npm run script test:apps-script"
+  },
+  "devDependencies": {
+    "json-schema": "^0.4.0"
+  }
+}
