@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 11.0.0
+  Version: 11.2.4
   Last Updated: 2025-09-17
-  Description: Phase 1 성능 최적화 - 일괄 상태 확인 API
+  Description: 새로고침 최적화 - 단일 스마트 새로고침 시스템으로 전환, 중복 새로고침 제거
 -->
 <html lang="ko">
 <head>
@@ -244,6 +244,31 @@
       font-weight: 700;
       font-size: 16px;
     }
+
+    /* 핸드 상태 표시 스타일 */
+    .status-indicator {
+      font-size: 16px;
+      transition: all 0.3s ease;
+      cursor: help;
+    }
+
+    .status-empty {
+      color: #94a3b8; /* gray-400 */
+    }
+
+    .status-pending {
+      color: #fbbf24; /* yellow-400 */
+      animation: pulse 2s infinite;
+    }
+
+    .status-completed {
+      color: #10b981; /* green-500 */
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
   </style>
 </head>
 <body>
@@ -297,22 +322,51 @@
   <!-- Phase 2: 캐시 통계 패널 -->
   <div id="cache-stats-panel" class="fixed bottom-4 left-4 bg-gray-900 bg-opacity-95 rounded-lg p-3 text-xs max-w-xs z-40 border border-gray-700">
     <div class="flex items-center justify-between mb-2">
-      <span class="font-bold text-yellow-400">📊 Phase 2 캐시 통계</span>
+      <span class="font-bold text-yellow-400">📊 성능 최적화 통계</span>
       <button onclick="toggleCacheStats()" class="text-gray-400 hover:text-white">×</button>
     </div>
-    <div id="cache-stats-content" class="space-y-1 text-gray-300">
-      <div>캐시 크기: <span id="cache-size" class="text-white">0</span>개</div>
-      <div>적중률: <span id="cache-hit-rate" class="text-green-400">0</span>%</div>
-      <div>적중/미스: <span id="cache-hits" class="text-green-400">0</span>/<span id="cache-misses" class="text-red-400">0</span></div>
-      <div>마지막 갱신: <span id="cache-last-update" class="text-white">-</span></div>
-      <div>TTL: <span id="cache-ttl" class="text-white">300초</span></div>
-      <div>상태: <span id="cache-status" class="text-yellow-400">대기</span></div>
-      <div class="pt-2 flex gap-2">
-        <button onclick="refreshCacheManually()"
-                class="px-2 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs">🔄 갱신</button>
-        <button onclick="clearCacheManually()"
-                class="px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs">🗑️ 초기화</button>
+
+    <!-- Phase 2 캐시 통계 -->
+    <div class="mb-3 pb-2 border-b border-gray-700">
+      <div class="text-blue-400 font-bold mb-1">Phase 2: 캐싱</div>
+      <div class="space-y-1 text-gray-300">
+        <div>캐시 크기: <span id="cache-size" class="text-white">0</span>개</div>
+        <div>적중률: <span id="cache-hit-rate" class="text-green-400">0</span>%</div>
+        <div>적중/미스: <span id="cache-hits" class="text-green-400">0</span>/<span id="cache-misses" class="text-red-400">0</span></div>
+        <div>TTL: <span id="cache-ttl" class="text-white">300초</span></div>
       </div>
+    </div>
+
+    <!-- Phase 3 스마트 새로고침 통계 -->
+    <div class="mb-3 pb-2 border-b border-gray-700">
+      <div class="text-green-400 font-bold mb-1">Phase 3: 스마트 새로고침</div>
+      <div class="space-y-1 text-gray-300">
+        <div>간격: <span id="refresh-interval" class="text-white">30초</span></div>
+        <div>상태: <span id="refresh-status" class="text-yellow-400">활성</span></div>
+        <div>마지막: <span id="last-refresh" class="text-white">-</span></div>
+      </div>
+    </div>
+
+    <!-- Phase 3 로컬 저장소 통계 -->
+    <div class="mb-3">
+      <div class="text-purple-400 font-bold mb-1">Phase 3: 로컬 저장소</div>
+      <div class="space-y-1 text-gray-300">
+        <div>사용량: <span id="storage-usage" class="text-white">0 MB</span></div>
+        <div>할당량: <span id="storage-quota" class="text-white">0 GB</span></div>
+        <div>사용률: <span id="storage-percent" class="text-white">0%</span></div>
+      </div>
+    </div>
+
+    <!-- 제어 버튼 -->
+    <div class="pt-2 grid grid-cols-2 gap-2">
+      <button onclick="refreshCacheManually()"
+              class="px-2 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs">🔄 캐시 갱신</button>
+      <button onclick="clearAllData()"
+              class="px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs">🗑️ 전체 초기화</button>
+      <button onclick="toggleSmartRefresh()"
+              class="px-2 py-1 bg-green-600 hover:bg-green-700 rounded text-xs col-span-2">
+              <span id="smart-refresh-toggle">⏸️ 새로고침 정지</span>
+      </button>
     </div>
   </div>
 
@@ -624,8 +678,8 @@
     // ====================================
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '11.1.0';
-    const BUILD_TIME = '2025-09-17T10:00:00Z';
+    const APP_VERSION = '11.2.4';
+    const BUILD_TIME = '2025-09-17T11:00:00Z';
 
     // ====================================
     // Phase 2: 캐싱 시스템 구현
@@ -739,6 +793,11 @@
           console.log(`   - 소요 시간: ${duration.toFixed(0)}ms`);
           console.log(`   - TTL: ${this.ttl / 1000}초`);
 
+          // Phase 3: IndexedDB에 캐시 저장
+          if (typeof localStore !== 'undefined' && localStore.db) {
+            localStore.saveSheetCache(this.cache);
+          }
+
         } catch (error) {
           console.error('❌ [Phase 2] 캐시 갱신 실패:', error);
           // 캐시 실패해도 기존 데이터 유지
@@ -849,6 +908,16 @@
       }
 
       /**
+       * 캐시 갱신 확인 및 자동 새로고침
+       */
+      async ensureFresh() {
+        if (this.isExpired() || this.cache.size === 0) {
+          console.log('🔄 [Phase 2] 캐시 만료 또는 비어있음 - 자동 갱신');
+          await this.refreshCache();
+        }
+      }
+
+      /**
        * 캐시 통계 정보
        */
       getStats() {
@@ -878,6 +947,444 @@
 
     // 전역 캐시 인스턴스 생성
     const sheetDataCache = new SheetDataCache();
+
+    // ====================================
+    // Phase 3: 실시간성 개선 - 스마트 새로고침
+    // ====================================
+
+    /**
+     * 스마트 자동 새로고침 관리자
+     * 사용자 활동과 데이터 변경을 감지하여 효율적으로 새로고침
+     */
+    class SmartRefreshManager {
+      constructor() {
+        this.refreshInterval = 30 * 1000; // 기본 30초
+        this.minInterval = 10 * 1000; // 최소 10초
+        this.maxInterval = 5 * 60 * 1000; // 최대 5분
+        this.lastRefresh = 0;
+        this.lastActivity = Date.now();
+        this.refreshTimer = null;
+        this.isActive = true;
+        this.changeCount = 0;
+        this.noChangeCount = 0;
+      }
+
+      /**
+       * 사용자 활동 감지
+       */
+      detectActivity() {
+        this.lastActivity = Date.now();
+        this.isActive = true;
+
+        // 활동 감지 시 새로고침 간격 단축
+        if (this.refreshInterval > this.minInterval * 2) {
+          this.refreshInterval = Math.max(this.minInterval * 2, this.refreshInterval / 2);
+          console.log(`⚡ 활동 감지 - 새로고침 간격 단축: ${this.refreshInterval / 1000}초`);
+          this.scheduleNext();
+        }
+      }
+
+      /**
+       * 데이터 변경 감지 후 간격 조정
+       */
+      onDataChange(hasChanges) {
+        if (hasChanges) {
+          this.changeCount++;
+          this.noChangeCount = 0;
+
+          // 변경이 자주 발생하면 간격 단축
+          if (this.changeCount > 2) {
+            this.refreshInterval = Math.max(this.minInterval, this.refreshInterval * 0.8);
+            console.log(`📈 잦은 변경 감지 - 간격 단축: ${this.refreshInterval / 1000}초`);
+          }
+        } else {
+          this.noChangeCount++;
+          this.changeCount = 0;
+
+          // 변경이 없으면 간격 증가
+          if (this.noChangeCount > 3) {
+            this.refreshInterval = Math.min(this.maxInterval, this.refreshInterval * 1.5);
+            console.log(`📉 변경 없음 - 간격 증가: ${this.refreshInterval / 1000}초`);
+          }
+        }
+      }
+
+      /**
+       * 스마트 새로고침 실행
+       */
+      async performRefresh() {
+        const startTime = performance.now();
+
+        try {
+          // 1. 캐시 갱신
+          const cachePromise = sheetDataCache.refreshCache();
+
+          // 2. 인덱스 데이터 로드
+          const indexPromise = loadIndexData(true); // suppress notification
+
+          // 병렬 실행
+          await Promise.all([cachePromise, indexPromise]);
+
+          // 3. 보이는 핸드만 상태 업데이트
+          await updateVisibleHandsStatus();
+
+          const duration = performance.now() - startTime;
+          console.log(`✅ [Phase 3] 스마트 새로고침 완료: ${duration.toFixed(0)}ms`);
+
+          // 변경 감지
+          const hasChanges = allHands.length > 0;
+          this.onDataChange(hasChanges);
+
+        } catch (error) {
+          console.error('❌ [Phase 3] 새로고침 오류:', error);
+        }
+
+        this.lastRefresh = Date.now();
+        this.scheduleNext();
+      }
+
+      /**
+       * 다음 새로고침 예약
+       */
+      scheduleNext() {
+        if (this.refreshTimer) {
+          clearTimeout(this.refreshTimer);
+        }
+
+        // 비활성 시간 체크
+        const inactiveTime = Date.now() - this.lastActivity;
+        if (inactiveTime > 10 * 60 * 1000) { // 10분 이상 비활성
+          this.isActive = false;
+          this.refreshInterval = this.maxInterval;
+          console.log('😴 비활성 상태 - 새로고침 간격 최대화');
+        }
+
+        this.refreshTimer = setTimeout(() => {
+          this.performRefresh();
+        }, this.refreshInterval);
+
+        console.log(`⏱️ 다음 새로고침: ${this.refreshInterval / 1000}초 후`);
+      }
+
+      /**
+       * 매니저 시작
+       */
+      start() {
+        console.log('🚀 [Phase 3] 스마트 새로고침 매니저 시작');
+
+        // 사용자 활동 이벤트 리스너
+        ['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(event => {
+          document.addEventListener(event, () => this.detectActivity(), { passive: true });
+        });
+
+        // 페이지 가시성 변경 감지
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden) {
+            this.refreshInterval = this.maxInterval;
+            console.log('🌙 페이지 숨김 - 새로고침 일시정지');
+          } else {
+            this.detectActivity();
+            this.performRefresh();
+          }
+        });
+
+        // 초기 새로고침
+        setTimeout(() => this.performRefresh(), 5000);
+      }
+
+      /**
+       * 매니저 중지
+       */
+      stop() {
+        if (this.refreshTimer) {
+          clearTimeout(this.refreshTimer);
+        }
+        console.log('🛑 [Phase 3] 스마트 새로고침 매니저 중지');
+      }
+
+      /**
+       * 통계 정보
+       */
+      getStats() {
+        return {
+          interval: this.refreshInterval / 1000 + '초',
+          isActive: this.isActive,
+          lastRefresh: new Date(this.lastRefresh).toLocaleTimeString(),
+          changeCount: this.changeCount,
+          noChangeCount: this.noChangeCount
+        };
+      }
+    }
+
+    // 전역 스마트 새로고침 매니저 생성
+    const smartRefresh = new SmartRefreshManager();
+
+    // ====================================
+    // Phase 3: IndexedDB 로컬 영구 저장소
+    // ====================================
+
+    /**
+     * IndexedDB를 활용한 영구 로컬 캐시
+     * 브라우저를 닫아도 데이터 유지
+     */
+    class LocalDataStore {
+      constructor() {
+        this.dbName = 'PokerHandDB';
+        this.version = 1;
+        this.db = null;
+        this.isSupported = 'indexedDB' in window;
+      }
+
+      /**
+       * 데이터베이스 초기화
+       */
+      async init() {
+        if (!this.isSupported) {
+          console.warn('⚠️ IndexedDB 미지원');
+          return false;
+        }
+
+        return new Promise((resolve, reject) => {
+          const request = indexedDB.open(this.dbName, this.version);
+
+          request.onerror = () => {
+            console.error('❌ IndexedDB 열기 실패');
+            reject(request.error);
+          };
+
+          request.onsuccess = () => {
+            this.db = request.result;
+            console.log('✅ [Phase 3] IndexedDB 연결 성공');
+            resolve(true);
+          };
+
+          request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+
+            // 핸드 데이터 저장소
+            if (!db.objectStoreNames.contains('hands')) {
+              const handStore = db.createObjectStore('hands', { keyPath: 'handNumber' });
+              handStore.createIndex('timestamp', 'timestamp', { unique: false });
+              handStore.createIndex('status', 'status', { unique: false });
+            }
+
+            // 시트 캐시 저장소
+            if (!db.objectStoreNames.contains('sheetCache')) {
+              const cacheStore = db.createObjectStore('sheetCache', { keyPath: 'row' });
+              cacheStore.createIndex('timestamp', 'timestamp', { unique: false });
+            }
+
+            // 설정 저장소
+            if (!db.objectStoreNames.contains('settings')) {
+              db.createObjectStore('settings', { keyPath: 'key' });
+            }
+
+            console.log('✅ IndexedDB 스키마 생성 완료');
+          };
+        });
+      }
+
+      /**
+       * 핸드 데이터 저장
+       */
+      async saveHand(handData) {
+        if (!this.db) return;
+
+        return new Promise((resolve, reject) => {
+          const transaction = this.db.transaction(['hands'], 'readwrite');
+          const store = transaction.objectStore('hands');
+          const request = store.put(handData);
+
+          request.onsuccess = () => resolve(true);
+          request.onerror = () => reject(request.error);
+        });
+      }
+
+      /**
+       * 여러 핸드 일괄 저장
+       */
+      async saveMultipleHands(handsArray) {
+        if (!this.db) return;
+
+        const transaction = this.db.transaction(['hands'], 'readwrite');
+        const store = transaction.objectStore('hands');
+
+        const promises = handsArray.map(hand => {
+          return new Promise((resolve, reject) => {
+            const request = store.put(hand);
+            request.onsuccess = () => resolve(true);
+            request.onerror = () => reject(request.error);
+          });
+        });
+
+        try {
+          await Promise.all(promises);
+          console.log(`💾 [Phase 3] ${handsArray.length}개 핸드 로컬 저장 완료`);
+        } catch (error) {
+          console.error('❌ 핸드 저장 실패:', error);
+        }
+      }
+
+      /**
+       * 시트 캐시 저장
+       */
+      async saveSheetCache(cacheData) {
+        if (!this.db) return;
+
+        const transaction = this.db.transaction(['sheetCache'], 'readwrite');
+        const store = transaction.objectStore('sheetCache');
+
+        // 기존 데이터 클리어
+        await new Promise((resolve) => {
+          const clearRequest = store.clear();
+          clearRequest.onsuccess = () => resolve();
+        });
+
+        // 새 데이터 저장
+        const promises = Array.from(cacheData.entries()).map(([row, data]) => {
+          return new Promise((resolve, reject) => {
+            const request = store.put({ row, ...data });
+            request.onsuccess = () => resolve(true);
+            request.onerror = () => reject(request.error);
+          });
+        });
+
+        try {
+          await Promise.all(promises);
+          console.log(`💾 [Phase 3] 시트 캐시 IndexedDB 저장: ${promises.length}행`);
+        } catch (error) {
+          console.error('❌ 시트 캐시 저장 실패:', error);
+        }
+      }
+
+      /**
+       * 시트 캐시 로드
+       */
+      async loadSheetCache() {
+        if (!this.db) return new Map();
+
+        return new Promise((resolve, reject) => {
+          const transaction = this.db.transaction(['sheetCache'], 'readonly');
+          const store = transaction.objectStore('sheetCache');
+          const request = store.getAll();
+
+          request.onsuccess = () => {
+            const cacheMap = new Map();
+            request.result.forEach(item => {
+              cacheMap.set(item.row, item);
+            });
+            console.log(`📂 [Phase 3] IndexedDB에서 캐시 로드: ${cacheMap.size}행`);
+            resolve(cacheMap);
+          };
+
+          request.onerror = () => reject(request.error);
+        });
+      }
+
+      /**
+       * 설정 저장
+       */
+      async saveSetting(key, value) {
+        if (!this.db) return;
+
+        return new Promise((resolve, reject) => {
+          const transaction = this.db.transaction(['settings'], 'readwrite');
+          const store = transaction.objectStore('settings');
+          const request = store.put({ key, value, timestamp: Date.now() });
+
+          request.onsuccess = () => resolve(true);
+          request.onerror = () => reject(request.error);
+        });
+      }
+
+      /**
+       * 설정 로드
+       */
+      async loadSetting(key) {
+        if (!this.db) return null;
+
+        return new Promise((resolve, reject) => {
+          const transaction = this.db.transaction(['settings'], 'readonly');
+          const store = transaction.objectStore('settings');
+          const request = store.get(key);
+
+          request.onsuccess = () => resolve(request.result?.value);
+          request.onerror = () => reject(request.error);
+        });
+      }
+
+      /**
+       * 전체 데이터 크기 확인
+       */
+      async getStorageSize() {
+        if (!navigator.storage?.estimate) {
+          return 0;
+        }
+
+        try {
+          const estimate = await navigator.storage.estimate();
+          return estimate.usage || 0; // bytes 단위로 반환
+        } catch (error) {
+          console.error('Storage 크기 확인 실패:', error);
+          return 0;
+        }
+      }
+
+      /**
+       * 모든 데이터 삭제
+       */
+      async clearAll() {
+        if (!this.db) return;
+
+        return new Promise((resolve, reject) => {
+          try {
+            const transaction = this.db.transaction(['hands', 'sheetCache', 'settings'], 'readwrite');
+
+            // 각 스토어 클리어
+            const handsStore = transaction.objectStore('hands');
+            const sheetStore = transaction.objectStore('sheetCache');
+            const settingsStore = transaction.objectStore('settings');
+
+            handsStore.clear();
+            sheetStore.clear();
+            settingsStore.clear();
+
+            transaction.oncomplete = () => {
+              console.log('✅ IndexedDB 모든 데이터 삭제 완료');
+              resolve();
+            };
+
+            transaction.onerror = () => reject(transaction.error);
+          } catch (error) {
+            reject(error);
+          }
+        });
+      }
+
+      /**
+       * 데이터베이스 초기화
+       */
+      async clear() {
+        if (!this.db) return;
+
+        const stores = ['hands', 'sheetCache', 'settings'];
+        const transaction = this.db.transaction(stores, 'readwrite');
+
+        const promises = stores.map(storeName => {
+          return new Promise((resolve) => {
+            const store = transaction.objectStore(storeName);
+            const request = store.clear();
+            request.onsuccess = () => resolve();
+          });
+        });
+
+        await Promise.all(promises);
+        console.log('🧹 [Phase 3] IndexedDB 초기화 완료');
+      }
+    }
+
+    // 전역 로컬 저장소 인스턴스
+    const localStore = new LocalDataStore();
 
     /**
      * Google Sheets URL을 CSV 다운로드 URL로 변환
@@ -912,9 +1419,24 @@
       const storedVersion = localStorage.getItem('app_version');
       if (storedVersion !== APP_VERSION) {
         console.log(`🔄 버전 업데이트 감지: ${storedVersion || '없음'} → ${APP_VERSION}`);
-        
-        // 버전별 마이그레이션
-        if (!storedVersion || storedVersion < APP_VERSION) {
+
+        // 버전 비교 함수 (문자열 버전을 숫자로 변환)
+        const compareVersions = (v1, v2) => {
+          const parts1 = v1.split('.').map(Number);
+          const parts2 = v2.split('.').map(Number);
+
+          for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+            const part1 = parts1[i] || 0;
+            const part2 = parts2[i] || 0;
+
+            if (part1 > part2) return 1;
+            if (part1 < part2) return -1;
+          }
+          return 0;
+        };
+
+        // 버전별 마이그레이션 (저장된 버전이 없거나 현재 버전보다 낮을 때만)
+        if (!storedVersion || compareVersions(storedVersion, APP_VERSION) < 0) {
           console.log('🧹 캐시 초기화 중...');
           // 중요한 설정은 보존
           const keepSettings = {
@@ -923,28 +1445,30 @@
             'write_sheet_url': localStorage.getItem('write_sheet_url'),
             'sheet_update_script_url': localStorage.getItem('sheet_update_script_url')
           };
-          
+
           // 캐시 클리어
           localStorage.clear();
           sessionStorage.clear();
-          
+
           // 중요 설정 복원
           Object.keys(keepSettings).forEach(key => {
             if (keepSettings[key]) {
               localStorage.setItem(key, keepSettings[key]);
             }
           });
-        }
-        
-        // 새 버전 저장
-        localStorage.setItem('app_version', APP_VERSION);
-        localStorage.setItem('build_time', BUILD_TIME);
-        
-        // 강제 리로드
-        if (storedVersion) {
+
+          // 새 버전 저장
+          localStorage.setItem('app_version', APP_VERSION);
+          localStorage.setItem('build_time', BUILD_TIME);
+
+          // 강제 리로드 (한 번만)
           console.log('🚀 새 버전으로 강제 업데이트 완료!');
           setTimeout(() => location.reload(true), 1000);
           return true;
+        } else {
+          // 버전이 같거나 높으면 저장만 하고 리로드하지 않음
+          localStorage.setItem('app_version', APP_VERSION);
+          localStorage.setItem('build_time', BUILD_TIME);
         }
       }
       return false;
@@ -2088,7 +2612,7 @@
       }
     }
 
-    // 버튼 상태 업데이트 함수
+    // 버튼 상태 업데이트 함수 (Phase 2 캐시 활용)
     async function updateButtonStates(handNumber) {
       const editBtn = document.getElementById('edit-btn');
       const completeBtn = document.getElementById('complete-btn');
@@ -2105,7 +2629,35 @@
         editBtn.textContent = '확인중...';
         completeBtn.textContent = '확인중...';
 
-        const status = await checkHandStatusInSheet(handNumber);
+        // 🚀 Phase 2 캐시를 사용하여 상태 확인 (개별 API 호출 제거)
+        let status = null;
+
+        if (sheetDataCache) {
+          console.log(`🔍 캐시에서 핸드 #${handNumber} 상태 확인...`);
+
+          // 캐시 갱신 확인
+          await sheetDataCache.ensureFresh();
+
+          // 핸드 타임스탬프 조회 (캐시된 핸드 데이터에서)
+          const handTime = await getHandTimestamp(handNumber);
+          if (handTime) {
+            const cachedRow = sheetDataCache.findClosestRow(handTime);
+            if (cachedRow) {
+              status = cachedRow.status;
+              console.log(`✅ 캐시 적중: 핸드 #${handNumber} 상태 = ${status}`);
+              sheetDataCache.hitCount++;
+            } else {
+              console.log(`⚠️ 캐시 미스: 핸드 #${handNumber} 매칭 실패`);
+              sheetDataCache.missCount++;
+            }
+          }
+        }
+
+        // 캐시에서 찾을 수 없을 경우만 기존 방식 사용
+        if (status === null) {
+          console.log(`🔄 캐시 미스 - 기존 API 방식으로 확인: 핸드 #${handNumber}`);
+          status = await checkHandStatusInSheet(handNumber);
+        }
 
         switch(status) {
           case null:
@@ -2137,7 +2689,7 @@
             editBtn.disabled = false;
             editBtn.textContent = '편집';
             completeBtn.disabled = true;
-            completeBtn.textContent = '완뢼';
+            completeBtn.textContent = '완료';
         }
       } catch (error) {
         console.error('❌ 버튼 상태 오류:', error);
@@ -2283,13 +2835,12 @@
           '파일 없음';
 
         return `
-        <div class="rounded-lg p-3 cursor-pointer hover:scale-105 transition-all border ${statusColor}"
+        <div class="hand-item rounded-lg p-3 cursor-pointer hover:scale-105 transition-all border ${statusColor}"
              onclick="selectHand('${hand.handNumber}')"
              data-hand-number="${hand.handNumber}">
           <div class="flex items-center justify-between mb-1">
             <span class="text-sm font-bold text-white">Hand #${hand.handNumber}</span>
-            <span class="status-icon">${hand.handEdit ? '<span class="text-green-400">✓</span>' :
-              hand.workStatus === '진행중' ? '<span class="text-yellow-400">⚡</span>' : ''}</span>
+            <span class="status-indicator status-empty" title="상태 확인 중">⚪</span>
           </div>
           <div class="flex items-center justify-between text-xs">
             <span class="text-gray-300">${hand.table || '테이블 -'}</span>
@@ -5233,6 +5784,23 @@
       // 초기 버튼 상태 설정 (핸드 선택 전에는 비활성화)
       initializeButtonStates();
 
+      // Phase 3: IndexedDB 초기화
+      await localStore.init();
+
+      // Phase 3: 기존 캐시 복구
+      const savedCache = await localStore.loadSheetCache();
+      if (savedCache.size > 0) {
+        sheetDataCache.cache = savedCache;
+        sheetDataCache.lastUpdate = Date.now();
+        console.log(`📂 [Phase 3] 로컬 캐시 복구: ${savedCache.size}행`);
+      }
+
+      // Phase 1: 초기 로드 시 전체 핸드 상태 동기화
+      setTimeout(async () => {
+        console.log('🔄 페이지 로드 완료 - 전체 핸드 상태 동기화 시작...');
+        await initializeAllHandsStatus();
+      }, 2000); // 2초 후 실행 (캐시 준비 대기)
+
       // Phase 1: 스크롤 이벤트로 보이는 핸드 상태 업데이트
       let scrollDebounceTimer;
       const handListContainer = document.getElementById('hand-list-container');
@@ -5245,6 +5813,9 @@
           }, 500); // 스크롤 후 500ms 대기
         });
       }
+
+      // Phase 3: 스마트 새로고침 시작
+      smartRefresh.start();
 
       // 마스터 핸드 목록 로드
       loadMasterHandList();
@@ -5332,26 +5903,22 @@
         selectHand(allHands[0].handNumber);
       }
       
-      // 자동 새로고침 - 초기 로드 직후가 아닌 REFRESH_INTERVAL 후에 시작
-      // 이렇게 하면 페이지 로드 시 중복 호출 방지
-      refreshTimerInitial = setTimeout(() => {
-        // 첫 새로고침 실행
-        if (DEBUG_MODE) {
-          console.log('⏰ 첫 자동 새로고침 실행 (새 핸드 감지 포함)');
-        }
-        loadIndexData(false);
-        
-        // 초기 타이머 정리
+      // ⚠️ 기존 자동 새로고침 비활성화 - Phase 3 스마트 새로고침으로 대체
+      // Phase 3에서 더 효율적인 스마트 새로고침을 제공하므로 중복 방지
+      console.log('ℹ️ 기존 자동 새로고침 비활성화 - Phase 3 스마트 새로고침 사용');
+
+      // 기존 타이머 정리 (중복 방지)
+      if (refreshTimerInitial) {
+        clearTimeout(refreshTimerInitial);
         refreshTimerInitial = null;
-        
-        // 이후 정기적인 새로고침 설정
-        refreshTimerInterval = setInterval(() => {
-          if (DEBUG_MODE) {
-            console.log('⏰ 자동 새로고침 실행 (새 핸드 감지 포함)');
-          }
-          loadIndexData(false); // false = 새로운 핸드에 대해서는 알림 허용
-        }, CONFIG.REFRESH_INTERVAL);
-      }, CONFIG.REFRESH_INTERVAL); // 첫 실행도 REFRESH_INTERVAL 후에
+      }
+      if (refreshTimerInterval) {
+        clearInterval(refreshTimerInterval);
+        refreshTimerInterval = null;
+      }
+
+      // Phase 3 스마트 새로고침만 사용
+      console.log('🎯 새로고침 최적화: 단일 스마트 새로고침 시스템 사용');
       
       console.log('초기화 완료');
     }
@@ -5602,23 +6169,31 @@
     function updateCacheStatsUI() {
       const stats = sheetDataCache.getStats();
 
-      document.getElementById('cache-size').textContent = stats.size;
-      document.getElementById('cache-hit-rate').textContent = stats.hitRate;
-      document.getElementById('cache-hits').textContent = stats.hitCount;
-      document.getElementById('cache-misses').textContent = stats.missCount;
-      document.getElementById('cache-last-update').textContent = stats.lastUpdate;
-      document.getElementById('cache-ttl').textContent = stats.ttl;
+      // 안전한 요소 업데이트 (요소가 존재할 때만)
+      const safeUpdate = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value;
+      };
+
+      safeUpdate('cache-size', stats.size);
+      safeUpdate('cache-hit-rate', stats.hitRate);
+      safeUpdate('cache-hits', stats.hitCount);
+      safeUpdate('cache-misses', stats.missCount);
+      safeUpdate('cache-last-update', stats.lastUpdate);
+      safeUpdate('cache-ttl', stats.ttl);
 
       const statusEl = document.getElementById('cache-status');
-      if (sheetDataCache.isLoading) {
-        statusEl.textContent = '갱신 중...';
-        statusEl.className = 'text-yellow-400';
-      } else if (stats.isExpired) {
-        statusEl.textContent = '만료됨';
-        statusEl.className = 'text-red-400';
-      } else {
-        statusEl.textContent = '활성';
-        statusEl.className = 'text-green-400';
+      if (statusEl) {
+        if (sheetDataCache.isLoading) {
+          statusEl.textContent = '갱신 중...';
+          statusEl.className = 'text-yellow-400';
+        } else if (stats.isExpired) {
+          statusEl.textContent = '만료됨';
+          statusEl.className = 'text-red-400';
+        } else {
+          statusEl.textContent = '활성';
+          statusEl.className = 'text-green-400';
+        }
       }
     }
 
@@ -5639,8 +6214,261 @@
       updateCacheStatsUI();
     }
 
+    // Phase 3 제어 함수들
+    function toggleSmartRefresh() {
+      if (!smartRefresh) {
+        console.warn('⚠️ SmartRefreshManager가 초기화되지 않음');
+        return;
+      }
+
+      smartRefresh.isEnabled = !smartRefresh.isEnabled;
+      const btn = document.getElementById('smart-refresh-btn');
+      if (btn) {
+        btn.textContent = `스마트 새로고침: ${smartRefresh.isEnabled ? 'ON' : 'OFF'}`;
+      }
+
+      if (smartRefresh.isEnabled) {
+        smartRefresh.start();
+        console.log('✅ 스마트 새로고침 활성화');
+      } else {
+        smartRefresh.stop();
+        console.log('⏹️ 스마트 새로고침 비활성화');
+      }
+
+      updateAllStatsUI();
+    }
+
+    async function clearAllData() {
+      if (!confirm('⚠️ 모든 캐시 및 로컬 데이터가 삭제됩니다. 계속하시겠습니까?')) {
+        return;
+      }
+
+      try {
+        // 캐시 초기화
+        if (sheetDataCache) {
+          sheetDataCache.clear();
+        }
+
+        // IndexedDB 초기화
+        if (localDataStore) {
+          await localDataStore.clearAll();
+        }
+
+        // localStorage 초기화 (설정 제외)
+        const settings = {
+          main_sheet_url: localStorage.getItem('main_sheet_url'),
+          sheet_update_script_url: localStorage.getItem('sheet_update_script_url'),
+          gemini_api_key: localStorage.getItem('gemini_api_key')
+        };
+
+        localStorage.clear();
+
+        // 설정 복원
+        Object.entries(settings).forEach(([key, value]) => {
+          if (value) localStorage.setItem(key, value);
+        });
+
+        console.log('✅ 모든 데이터 초기화 완료');
+        alert('모든 데이터가 초기화되었습니다. 페이지를 새로고침합니다.');
+        location.reload();
+      } catch (error) {
+        console.error('❌ 데이터 초기화 실패:', error);
+        alert('데이터 초기화 중 오류가 발생했습니다.');
+      }
+    }
+
+    function clearCache() {
+      clearCacheManually();
+    }
+
+    function refreshStats() {
+      updateAllStatsUI();
+    }
+
+    function updateAllStatsUI() {
+      // Phase 1-2 통계
+      updateCacheStatsUI();
+
+      // Phase 3 통계
+      if (smartRefresh) {
+        const intervalEl = document.getElementById('refresh-interval');
+        if (intervalEl) {
+          const seconds = Math.round(smartRefresh.refreshInterval / 1000);
+          intervalEl.textContent = `${seconds}초`;
+        }
+      }
+
+      if (localDataStore) {
+        localDataStore.getStorageSize().then(size => {
+          const sizeEl = document.getElementById('storage-size');
+          if (sizeEl) {
+            const kb = Math.round(size / 1024);
+            sizeEl.textContent = `${kb} KB`;
+          }
+        });
+      }
+    }
+
+    /**
+     * 페이지 로드 시 전체 핸드 상태 초기화 및 동기화
+     * 목적: 새로고침 후 각 핸드의 실제 시트 상태와 UI 버튼 상태 동기화
+     */
+    async function initializeAllHandsStatus() {
+      try {
+        console.log('🔄 === 전체 핸드 상태 동기화 시작 ===');
+
+        // 1. 캐시 준비 확인
+        if (!sheetDataCache) {
+          console.warn('⚠️ 캐시가 준비되지 않음 - 동기화 연기');
+          return;
+        }
+
+        await sheetDataCache.ensureFresh();
+
+        // 2. 현재 표시된 모든 핸드 요소 찾기
+        const handElements = document.querySelectorAll('.hand-item');
+        console.log(`📊 표시된 핸드 수: ${handElements.length}개`);
+
+        if (handElements.length === 0) {
+          console.log('ℹ️ 표시된 핸드가 없음 - 동기화 완료');
+          return;
+        }
+
+        // 3. 일괄 상태 확인을 위한 핸드 번호 수집
+        const handNumbers = [];
+        handElements.forEach(el => {
+          const handNumber = el.dataset.handNumber;
+          if (handNumber) {
+            handNumbers.push(handNumber);
+          }
+        });
+
+        console.log(`🔍 상태 확인 대상: ${handNumbers.length}개 핸드`);
+
+        // 4. Phase 2 캐시를 사용하여 일괄 상태 확인
+        const statusResults = {};
+        let cacheHits = 0;
+        let cacheMisses = 0;
+
+        for (const handNumber of handNumbers) {
+          try {
+            const handTime = await getHandTimestamp(handNumber);
+            if (handTime) {
+              const cachedRow = sheetDataCache.findClosestRow(handTime);
+              if (cachedRow) {
+                statusResults[handNumber] = cachedRow.status || '';
+                cacheHits++;
+              } else {
+                statusResults[handNumber] = '';
+                cacheMisses++;
+              }
+            }
+          } catch (error) {
+            console.error(`❌ 핸드 ${handNumber} 상태 확인 실패:`, error);
+            statusResults[handNumber] = '';
+            cacheMisses++;
+          }
+        }
+
+        console.log(`📊 캐시 성능: ${cacheHits}개 적중, ${cacheMisses}개 미스`);
+
+        // 5. UI 업데이트
+        let updatedCount = 0;
+        handElements.forEach(el => {
+          const handNumber = el.dataset.handNumber;
+          const status = statusResults[handNumber];
+
+          if (status) {
+            // 상태에 따른 시각적 표시 업데이트
+            const statusIndicator = el.querySelector('.status-indicator');
+            if (statusIndicator) {
+              // 기존 상태 클래스 제거
+              statusIndicator.classList.remove('status-empty', 'status-pending', 'status-completed');
+
+              // 새 상태 클래스 추가
+              switch (status) {
+                case '미완료':
+                  statusIndicator.classList.add('status-pending');
+                  statusIndicator.textContent = '📝';
+                  statusIndicator.title = '편집됨 - 완료 대기';
+                  break;
+                case '복사완료':
+                  statusIndicator.classList.add('status-completed');
+                  statusIndicator.textContent = '✅';
+                  statusIndicator.title = '처리 완료';
+                  break;
+                default:
+                  statusIndicator.classList.add('status-empty');
+                  statusIndicator.textContent = '⚪';
+                  statusIndicator.title = '미처리';
+              }
+              updatedCount++;
+            }
+          }
+        });
+
+        console.log(`✅ UI 업데이트 완료: ${updatedCount}개 핸드`);
+
+        // 6. 현재 선택된 핸드의 버튼 상태도 업데이트
+        if (currentHand) {
+          const currentStatus = statusResults[currentHand];
+          if (currentStatus) {
+            console.log(`🔄 현재 핸드 #${currentHand} 버튼 상태 업데이트: ${currentStatus}`);
+            await updateButtonStatesFromStatus(currentHand, currentStatus);
+          }
+        }
+
+        console.log('✅ === 전체 핸드 상태 동기화 완료 ===');
+
+      } catch (error) {
+        console.error('❌ 전체 핸드 상태 동기화 실패:', error);
+      }
+    }
+
+    /**
+     * 상태 정보를 기반으로 버튼 상태를 직접 업데이트 (API 호출 없이)
+     */
+    async function updateButtonStatesFromStatus(handNumber, status) {
+      const editBtn = document.getElementById('edit-btn');
+      const completeBtn = document.getElementById('complete-btn');
+
+      if (!editBtn || !completeBtn) return;
+
+      switch(status) {
+        case null:
+        case '':
+          editBtn.disabled = false;
+          editBtn.textContent = '편집';
+          completeBtn.disabled = true;
+          completeBtn.textContent = '완료';
+          break;
+
+        case '미완료':
+          editBtn.disabled = true;
+          editBtn.textContent = '편집';
+          completeBtn.disabled = false;
+          completeBtn.textContent = '완료';
+          break;
+
+        case '복사완료':
+          editBtn.disabled = true;
+          editBtn.textContent = '편집';
+          completeBtn.disabled = true;
+          completeBtn.textContent = '완료';
+          break;
+
+        default:
+          editBtn.disabled = false;
+          editBtn.textContent = '편집';
+          completeBtn.disabled = true;
+          completeBtn.textContent = '완료';
+      }
+
+      console.log(`🔄 버튼 상태 업데이트: 핸드 #${handNumber} → ${status}`);
+    }
+
     // 주기적으로 캐시 통계 업데이트
-    setInterval(updateCacheStatsUI, 1000);
+    setInterval(updateAllStatsUI, 1000);
 
     window.addEventListener('beforeunload', () => {
       if (refreshTimerInitial) {
