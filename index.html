@@ -675,7 +675,7 @@
     // ====================================
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '11.3.9';
+    const APP_VERSION = '11.4.0';
     const BUILD_TIME = '2025-09-17T11:00:00Z';
 
     // ====================================
@@ -790,9 +790,20 @@
           this.lastUpdate = Date.now();
           const duration = performance.now() - startTime;
 
+          // "미완료" 상태 카운트
+          let incompleteCount = 0;
+          let completeCount = 0;
+          let emptyCount = 0;
+          for (const [rowNum, data] of this.cache) {
+            if (data.status === '미완료') incompleteCount++;
+            else if (data.status === '복사완료') completeCount++;
+            else if (!data.status) emptyCount++;
+          }
+
           console.log(`✅ [Phase 2] 캐시 갱신 완료`);
           console.log(`   - 캐시된 행: ${this.cache.size}개`);
           console.log(`   - 시간 인덱스: ${this.timeIndex.size}개`);
+          console.log(`   - 상태 분포: 미완료(${incompleteCount}), 복사완료(${completeCount}), 빈값(${emptyCount})`);
           console.log(`   - 소요 시간: ${duration.toFixed(0)}ms`);
           console.log(`   - TTL: ${this.ttl / 1000}초`);
 
@@ -847,26 +858,32 @@
           const rows = this.timeIndex.get(targetTimestamp);
           if (rows.length > 0) {
             this.hitCount++;
-            return this.cache.get(rows[0]);
+            const found = this.cache.get(rows[0]);
+            console.log(`🎯 정확한 매칭: 타임스탬프 ${targetTimestamp} → 행 ${rows[0]}, 상태: "${found?.status || ''}"`);
+            return found;
           }
         }
 
         // 근사 매칭 (±tolerance 초)
         let closestRow = null;
         let minDiff = Infinity;
+        let matchedTimestamp = null;
 
         for (const [timestamp, rows] of this.timeIndex) {
           const diff = Math.abs(timestamp - targetTimestamp);
           if (diff <= tolerance && diff < minDiff) {
             minDiff = diff;
             closestRow = this.cache.get(rows[0]);
+            matchedTimestamp = timestamp;
           }
         }
 
         if (closestRow) {
           this.hitCount++;
+          console.log(`🔄 근사 매칭: 타임스탬프 ${targetTimestamp} → ${matchedTimestamp} (차이: ${minDiff}초), 상태: "${closestRow?.status || ''}"`);
         } else {
           this.missCount++;
+          console.log(`❌ 매칭 실패: 타임스탬프 ${targetTimestamp}에서 ±${tolerance}초 내 데이터 없음`);
         }
 
         return closestRow;
@@ -2633,12 +2650,16 @@
         try {
           const response = await fetch(appsScriptUrl, {
             method: 'POST',
-            mode: 'no-cors',
             headers: {
               'Content-Type': 'text/plain',
             },
             body: JSON.stringify(requestData)
           });
+
+          // 응답이 ok가 아닌 경우 처리
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
 
           const result = await response.json();
 
