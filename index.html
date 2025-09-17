@@ -675,7 +675,7 @@
     // ====================================
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '11.3.7';
+    const APP_VERSION = '11.3.9';
     const BUILD_TIME = '2025-09-17T11:00:00Z';
 
     // ====================================
@@ -738,36 +738,37 @@
           const response = await fetch(csvUrl + '&random=' + Math.random());
           const csvText = await response.text();
 
-          // CSV 파싱
-          const lines = csvText.split('\n').filter(line => line.trim());
-          const headers = lines[0].split(',').map(h => h.trim());
-
-          // 열 인덱스 찾기
-          const timeCol = headers.indexOf('B');
-          const statusCol = headers.indexOf('E');
-          const filenameCol = headers.indexOf('F');
-          const analysisCol = headers.indexOf('H');
+          // CSV 파싱 (parseCSV 함수 사용)
+          const rows = parseCSV(csvText);
 
           // 캐시 초기화
           this.cache.clear();
           this.timeIndex.clear();
 
           // 데이터 파싱 및 인덱싱
-          for (let i = 1; i < lines.length && i <= this.maxCacheSize; i++) {
-            const cols = lines[i].split(',');
+          for (let i = 0; i < rows.length && i <= this.maxCacheSize; i++) {
+            const cols = rows[i];
+            if (!cols || cols.length < 8) continue; // 최소 열 개수 확인
 
-            const timeStr = cols[1]?.trim(); // B열
+            const timeStr = cols[1]?.trim(); // B열 (인덱스 1)
             if (!timeStr) continue;
 
             // 시간 파싱
             const timestamp = this.parseTimeToTimestamp(timeStr);
             if (!timestamp) continue;
 
+            // E열 상태값 정리 (인덱스 4)
+            let status = cols[4]?.trim() || '';
+            // 따옴표 제거
+            if (status.startsWith('"') && status.endsWith('"')) {
+              status = status.slice(1, -1);
+            }
+
             const rowData = {
               row: i + 1, // 행 번호 (1-based)
               time: timeStr,
               timestamp: timestamp,
-              status: cols[4]?.trim() || '', // E열
+              status: status, // E열
               filename: cols[5]?.trim() || '', // F열
               analysis: cols[7]?.trim() || '' // H열
             };
@@ -779,6 +780,11 @@
               this.timeIndex.set(timestamp, []);
             }
             this.timeIndex.get(timestamp).push(i + 1);
+
+            // 디버깅: "미완료" 상태 로그
+            if (status === '미완료') {
+              console.log(`🟡 캐시: 행 ${i + 1}에서 "미완료" 발견 - 시간: ${timeStr}`);
+            }
           }
 
           this.lastUpdate = Date.now();
@@ -2580,10 +2586,10 @@
       return results;
     }
 
-    // 개별 상태 확인 함수 (캐시 우선, 시트 폴백)
+    // 개별 상태 확인 함수 (Apps Script 직접 호출로 CSV 캐싱 우회)
     async function checkHandStatusInSheet(handNumber) {
       try {
-        console.log(`🔍 핸드 #${handNumber} 상태 확인: 캐시 우선 + 시트 폴백 모드`);
+        console.log(`🔍 핸드 #${handNumber} 상태 확인: Apps Script 실시간 모드`);
 
         const handTime = await getHandTimestamp(handNumber);
         if (!handTime) {
@@ -2591,50 +2597,84 @@
           return null;
         }
 
-        // 1순위: 캐시에서 확인
-        if (sheetDataCache) {
-          await sheetDataCache.ensureFresh();
-          const cachedRow = sheetDataCache.findClosestRow(handTime);
-          if (cachedRow) {
-            console.log(`✅ 캐시 적중: 핸드 #${handNumber} 상태 = ${cachedRow.status}`);
-            return cachedRow.status;
+        // Apps Script URL 확인
+        const appsScriptUrl = getAppsScriptUrl();
+        if (!appsScriptUrl) {
+          console.log('⚠️ Apps Script URL 미설정 - CSV 폴백 모드로 전환');
+
+          // 폴백: CSV에서 직접 확인
+          const virtualSheetUrl = getSheetUrl();
+          if (!virtualSheetUrl) {
+            console.log(`⚠️ Virtual 시트 URL 미설정 - 편집 가능 상태로 설정`);
+            return null;
           }
-        }
 
-        // 2순위: 캐시 미스 시 실제 Virtual 시트에서 확인
-        console.log(`🔄 캐시 미스 - Virtual 시트에서 실제 상태 확인: 핸드 #${handNumber}`);
-
-        const virtualSheetUrl = getSheetUrl();
-        if (!virtualSheetUrl) {
-          console.log(`⚠️ Virtual 시트 URL 미설정 - 편집 가능 상태로 설정`);
+          const matchResult = await findClosestVirtualRow(handTime, virtualSheetUrl, false);
+          if (matchResult && matchResult.row) {
+            let status = matchResult.status || '';
+            if (status.startsWith('"') && status.endsWith('"')) {
+              status = status.slice(1, -1).trim();
+            }
+            return status;
+          }
           return null;
         }
 
-        // Virtual 시트 매칭으로 실제 상태 확인
-        console.log(`\n🔵🔵🔵 [상태 확인] 핸드 #${handNumber} Virtual 시트 매칭 시작 🔵🔵🔵`);
-        const matchResult = await findClosestVirtualRow(handTime, virtualSheetUrl, false);
-        if (matchResult && matchResult.row) {
-          let status = matchResult.status || '';
+        // Apps Script를 통한 실시간 상태 확인
+        console.log(`🚀 Apps Script로 실시간 E열 상태 확인: 핸드 #${handNumber}`);
 
-          // 추가 따옴표 제거 처리 (이중 보안)
-          console.log(`🔍 [checkHandStatusInSheet] matchResult.status 원본: "${matchResult.status}"`);
-          if (status.startsWith('"') && status.endsWith('"')) {
-            status = status.slice(1, -1).trim();
-            console.log(`🔧 [checkHandStatusInSheet] 따옴표 제거 후: "${status}"`);
+        const requestData = {
+          action: 'getHandStatus',
+          sheetUrl: getSheetUrl(),
+          handNumber: handNumber,
+          handTime: handTime
+        };
+
+        try {
+          const response = await fetch(appsScriptUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+              'Content-Type': 'text/plain',
+            },
+            body: JSON.stringify(requestData)
+          });
+
+          const result = await response.json();
+
+          if (result.status === 'success' && result.data) {
+            const handStatus = result.data.handStatus || '';
+            console.log(`✅ Apps Script 응답: 핸드 #${handNumber}`);
+            console.log(`   - 행 번호: ${result.data.row}`);
+            console.log(`   - E열 상태: "${handStatus}"`);
+            console.log(`   - 원본 값: "${result.data.rawStatus}"`);
+
+            return handStatus;
+          } else if (result.status === 'not_found') {
+            console.log(`⚠️ 핸드 #${handNumber}를 시트에서 찾을 수 없음`);
+            return null;
+          } else {
+            console.error('❌ Apps Script 오류:', result.message);
+            return null;
           }
+        } catch (fetchError) {
+          console.error('❌ Apps Script 통신 오류:', fetchError);
 
-          console.log(`🔵 [상태 확인] 핸드 #${handNumber} 매칭 결과:`);
-          console.log(`   - 핸드 타임스탬프: ${handTime} (${new Date(handTime * 1000).toLocaleTimeString()})`);
-          console.log(`   - 매칭된 행 번호: ${matchResult.rowIndex}`);
-          console.log(`   - 찾은 E열 상태: "${status}"`);
-          console.log(`   - 시간 차이: ${matchResult.timeDiff || Math.abs(handTime - (matchResult.timestamp || 0))}초`);
-          console.log(`🔵🔵🔵 상태 확인 매칭 완료 🔵🔵🔵\n`);
-          return status;
+          // 오류 시 CSV 폴백
+          console.log('🔄 CSV 폴백 모드로 전환...');
+          const virtualSheetUrl = getSheetUrl();
+          if (!virtualSheetUrl) return null;
+
+          const matchResult = await findClosestVirtualRow(handTime, virtualSheetUrl, false);
+          if (matchResult && matchResult.row) {
+            let status = matchResult.status || '';
+            if (status.startsWith('"') && status.endsWith('"')) {
+              status = status.slice(1, -1).trim();
+            }
+            return status;
+          }
+          return null;
         }
-
-        // 매칭 실패 시 편집 가능 상태로 설정
-        console.log(`⚠️ Virtual 시트 매칭 실패: 핸드 #${handNumber} - 편집 가능 상태로 설정`);
-        return null;
 
       } catch (error) {
         console.error('❌ E열 상태 확인 오류:', error);
@@ -5725,6 +5765,109 @@
     document.getElementById('table-filter').addEventListener('change', updateHandList);
     document.getElementById('status-filter').addEventListener('change', updateHandList);
     
+    // E열 데이터 분석 함수 (디버깅용)
+    async function analyzeEColumnData() {
+      console.log('\n🔍🔍🔍 E열 데이터 분석 시작 🔍🔍🔍');
+
+      try {
+        const sheetUrl = getSheetUrl();
+        if (!sheetUrl) {
+          console.error('❌ 시트 URL이 설정되지 않음');
+          return;
+        }
+
+        // CSV URL 생성 (웹 게시 CSV)
+        let csvUrl = sheetUrl;
+        if (!csvUrl.includes('output=csv')) {
+          // URL 변환 필요
+          if (csvUrl.includes('/edit')) {
+            const sheetId = csvUrl.match(/\/d\/([a-zA-Z0-9-_]+)/)?.[1];
+            const gid = csvUrl.match(/gid=(\d+)/)?.[1] || '0';
+            if (sheetId) {
+              csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+            }
+          }
+        }
+
+        console.log(`📊 CSV URL: ${csvUrl}`);
+        console.log('📥 CSV 데이터 다운로드 중...');
+
+        const response = await fetch(csvUrl + '&t=' + Date.now());
+        const text = await response.text();
+        const rows = parseCSV(text);
+
+        console.log(`✅ 총 ${rows.length}개 행 로드됨`);
+
+        // E열 데이터 분석
+        let emptyCount = 0;
+        let miCompleteCount = 0;
+        let completeCount = 0;
+        let otherCount = 0;
+        const miCompleteRows = [];
+        const completeRows = [];
+
+        rows.forEach((row, index) => {
+          const eValue = row[4]?.trim() || ''; // E열 (0-based index)
+
+          if (!eValue || eValue === '') {
+            emptyCount++;
+          } else if (eValue === '미완료' || eValue === '"미완료"') {
+            miCompleteCount++;
+            miCompleteRows.push(index + 1); // 1-based 행 번호
+          } else if (eValue === '복사완료' || eValue === '"복사완료"') {
+            completeCount++;
+            completeRows.push(index + 1);
+          } else {
+            otherCount++;
+            console.log(`   기타 값 (행 ${index + 1}): "${eValue}"`);
+          }
+        });
+
+        console.log('\n📊 === E열 데이터 분석 결과 ===');
+        console.log(`   빈 값: ${emptyCount}개`);
+        console.log(`   "미완료": ${miCompleteCount}개`);
+        console.log(`   "복사완료": ${completeCount}개`);
+        console.log(`   기타: ${otherCount}개`);
+
+        if (miCompleteCount > 0) {
+          console.log('\n📌 "미완료" 상태인 행들:');
+          console.log(`   ${miCompleteRows.slice(0, 10).join(', ')}${miCompleteRows.length > 10 ? '...' : ''}`);
+        }
+
+        if (completeCount > 0) {
+          console.log('\n✅ "복사완료" 상태인 행들:');
+          console.log(`   ${completeRows.slice(0, 10).join(', ')}${completeRows.length > 10 ? '...' : ''}`);
+        }
+
+        // 특정 행 확인 (938행, 694행)
+        console.log('\n🎯 특정 행 확인:');
+        [938, 694].forEach(rowNum => {
+          if (rowNum <= rows.length) {
+            const row = rows[rowNum - 1]; // 0-based index
+            console.log(`   행 ${rowNum}: E열 = "${row[4]?.trim() || '(빈 값)'}"`);
+          }
+        });
+
+        console.log('🔍🔍🔍 E열 데이터 분석 완료 🔍🔍🔍\n');
+
+        return {
+          total: rows.length,
+          empty: emptyCount,
+          miComplete: miCompleteCount,
+          complete: completeCount,
+          other: otherCount,
+          miCompleteRows,
+          completeRows
+        };
+
+      } catch (error) {
+        console.error('❌ E열 데이터 분석 오류:', error);
+      }
+    }
+
+    // 전역에서 사용 가능하도록 노출
+    window.analyzeEColumnData = analyzeEColumnData;
+
     document.getElementById('edit-btn').addEventListener('click', async () => {
       if (currentHand) {
         const confirmed = confirm('이 핸드를 편집 상태로 설정하시겠습니까?\n\n• 시트에서 시간 매칭을 수행합니다\n• E열에 "미완료" 상태를 설정합니다\n• AI 분석을 실행합니다');

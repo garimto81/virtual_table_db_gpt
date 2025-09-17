@@ -121,6 +121,11 @@ function doPost(e) {
         result = handleVerifyUpdate(requestData);
         break;
 
+      case 'getHandStatus':
+        // 실시간 핸드 상태 확인 (CSV 캐싱 우회)
+        result = handleGetHandStatus(requestData);
+        break;
+
       case 'test':
         result = {
           status: 'success',
@@ -531,6 +536,124 @@ function handleBatchVerify(data) {
 
   } catch (error) {
     console.error('❌ 일괄 확인 오류:', error);
+    return {
+      status: 'error',
+      message: error.toString()
+    };
+  }
+}
+
+/**
+ * 실시간 핸드 상태 확인 (CSV 캐싱 우회)
+ * 특정 핸드 번호의 E열 상태를 직접 읽어옴
+ * @param {Object} data - { sheetUrl, handNumber, handTime }
+ * @returns {Object} 핸드의 상태 정보
+ */
+function handleGetHandStatus(data) {
+  console.log('🔍 실시간 핸드 상태 확인...');
+
+  try {
+    const { sheetUrl, handNumber, handTime } = data;
+
+    if (!sheetUrl || !handNumber || !handTime) {
+      return {
+        status: 'error',
+        message: 'sheetUrl, handNumber, handTime이 모두 필요합니다'
+      };
+    }
+
+    // 시트 열기
+    const sheet = openSheetByUrl(sheetUrl);
+    if (!sheet) {
+      return {
+        status: 'error',
+        message: '시트를 열 수 없습니다'
+      };
+    }
+
+    // 전체 데이터 가져오기 (B열과 E열만 필요)
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 1) {
+      return {
+        status: 'error',
+        message: '시트에 데이터가 없습니다'
+      };
+    }
+
+    // B열(시간)과 E열(상태) 데이터 가져오기
+    const range = sheet.getRange(1, 2, lastRow, 4); // B열부터 E열까지
+    const values = range.getValues();
+
+    // 타임스탬프로 매칭 (±180초 허용)
+    const targetTime = parseInt(handTime);
+    let matchedRow = null;
+    let matchedStatus = '';
+
+    for (let i = 0; i < values.length; i++) {
+      const timeValue = values[i][0]; // B열
+      if (!timeValue) continue;
+
+      // 타임스탬프 파싱
+      let timestamp;
+      if (typeof timeValue === 'number') {
+        timestamp = timeValue;
+      } else if (timeValue instanceof Date) {
+        timestamp = Math.floor(timeValue.getTime() / 1000);
+      } else {
+        const parsed = parseInt(timeValue.toString());
+        if (!isNaN(parsed)) {
+          timestamp = parsed;
+        } else {
+          continue;
+        }
+      }
+
+      // 시간 차이 확인 (±180초)
+      const timeDiff = Math.abs(timestamp - targetTime);
+      if (timeDiff <= 180) {
+        matchedRow = i + 1;
+        matchedStatus = values[i][3] || ''; // E열 (인덱스 3)
+        console.log(`✅ 매칭 성공: 행 ${matchedRow}, 상태: "${matchedStatus}"`);
+        break;
+      }
+    }
+
+    if (!matchedRow) {
+      return {
+        status: 'not_found',
+        message: '해당 핸드를 찾을 수 없습니다',
+        handNumber: handNumber,
+        searchedTime: targetTime
+      };
+    }
+
+    // 상태 정규화
+    let normalizedStatus = '';
+    if (matchedStatus === '미완료' || matchedStatus === '"미완료"') {
+      normalizedStatus = '미완료';
+    } else if (matchedStatus === '복사완료' || matchedStatus === '"복사완료"') {
+      normalizedStatus = '복사완료';
+    } else if (!matchedStatus || matchedStatus.trim() === '') {
+      normalizedStatus = '';
+    } else {
+      normalizedStatus = matchedStatus.trim();
+    }
+
+    console.log(`📋 핸드 #${handNumber}: 행 ${matchedRow}, 원본 상태: "${matchedStatus}", 정규화: "${normalizedStatus}"`);
+
+    return {
+      status: 'success',
+      data: {
+        handNumber: handNumber,
+        row: matchedRow,
+        handStatus: normalizedStatus,
+        rawStatus: matchedStatus,
+        checkedAt: new Date().toISOString()
+      }
+    };
+
+  } catch (error) {
+    console.error('❌ 핸드 상태 확인 오류:', error);
     return {
       status: 'error',
       message: error.toString()
