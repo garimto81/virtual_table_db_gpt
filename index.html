@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 10.1.9
+  Version: 10.2.0
   Last Updated: 2025-09-17
-  Description: Virtual 시트 매칭 팝업 제어 개선
+  Description: Virtual 시트 매칭 자동 실행 시 팝업 완전 제거
 -->
 <html lang="ko">
 <head>
@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title id="page-title">포커 핸드 모니터링 v10.1.9 - AI 분석 시스템</title>
+  <title id="page-title">포커 핸드 모니터링 v10.2.0 - AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <!-- 성능 모니터링 도구 -->
   <script src="performance_monitor.js"></script>
@@ -602,7 +602,7 @@
     // ====================================
     
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '10.1.9';
+    const APP_VERSION = '10.2.0';
     const BUILD_TIME = '2025-09-16T08:40:00Z';
     
     // 버전 체크 및 강제 업데이트
@@ -1644,7 +1644,7 @@
         const handTime = await getHandTimestamp(handNumber);
         if (!handTime) return null;
 
-        const result = await findMatchingRowInVirtualSheet(getSheetUrl(), handTime);
+        const result = await findMatchingRowInVirtualSheet(getSheetUrl(), handTime, false);  // 상태 확인 시 팝업 표시 안 함
         const matchedRowData = result ? result.matchedRow : null;
         if (!matchedRowData || !matchedRowData.row) return null;
 
@@ -3646,9 +3646,9 @@
     }
     
     // Virtual 시트 매칭 래퍼 함수 (기존 findClosestVirtualRow를 사용)
-    async function findMatchingRowInVirtualSheet(virtualSheetUrl, timestamp) {
+    async function findMatchingRowInVirtualSheet(virtualSheetUrl, timestamp, showProgress = false) {
       try {
-        const result = await findClosestVirtualRow(timestamp, virtualSheetUrl);
+        const result = await findClosestVirtualRow(timestamp, virtualSheetUrl, showProgress);
         
         if (result && result.rowIndex) {
           return {
