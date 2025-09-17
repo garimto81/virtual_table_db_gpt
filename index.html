@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="vtdb-config-url" content="./config/app.config.sample.json" />
+  <title>Virtual Table DB Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-200">
+  <div class="max-w-6xl mx-auto py-8">
+    <header class="mb-6">
+      <h1 class="text-3xl font-bold">Virtual Table DB Dashboard</h1>
+      <p class="text-sm text-gray-400">ES Module 기반 리팩토링 UI</p>
+    </header>
+    <main class="grid grid-cols-3 gap-4">
+      <section class="col-span-1">
+        <div class="mb-2 text-sm text-gray-400">핸드 목록 (<span id="hand-count">0</span>)</div>
+        <div id="hand-list" class="space-y-2 max-h-[70vh] overflow-y-auto"></div>
+      </section>
+      <section class="col-span-2 space-y-4">
+        <article class="bg-slate-800 rounded-lg p-4">
+          <div class="flex justify-between mb-2">
+            <span class="text-lg font-semibold">Hand #<span id="hand-number">-</span></span>
+            <span class="text-sm text-gray-400" id="table-name">-</span>
+          </div>
+          <div class="flex items-center gap-4 text-sm text-gray-400">
+            <div>블라인드: <span id="blinds">-/-</span></div>
+            <div>팟: <span id="pot-amount">-</span></div>
+            <div>카메라: <span id="camera-files">선택된 핸드 없음</span></div>
+          </div>
+        </article>
+        <article class="bg-slate-800 rounded-lg p-4">
+          <div class="text-sm font-semibold text-gray-300 mb-3">보드</div>
+          <div id="community-cards" class="flex gap-2"></div>
+        </article>
+        <article class="bg-slate-800 rounded-lg p-4">
+          <div class="text-sm font-semibold text-gray-300 mb-3">플레이어</div>
+          <div id="players-section" class="space-y-2"></div>
+        </article>
+        <article class="bg-slate-800 rounded-lg p-4">
+          <div class="text-sm font-semibold text-gray-300 mb-3">액션 기록</div>
+          <div id="action-history" class="space-y-2"></div>
+        </article>
+        <div class="flex gap-2">
+          <button id="edit-btn" class="px-4 py-2 bg-yellow-600 rounded-lg">편집</button>
+          <button id="complete-btn" class="px-4 py-2 bg-emerald-600 rounded-lg">완료</button>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>

@@ -2,6 +2,8 @@ import { initializeConfig, loadConfigFile } from './utils/configManager.js';
 import { createCsvService } from './services/csvService.js';
 import { parseIndexRows } from './services/indexParser.js';
 import { buildHandDetail } from './services/handParser.js';
+import { findMatchingRow } from './services/timeMatcher.js';
+import { buildFallbackSummary } from './services/analysis/fallback.js';
 import { renderHandList } from './ui/handList.js';
 import { renderHandDetail, clearHandDetail, setHandCount } from './ui/detailPanel.js';
 import { setupNotifications, notify } from './ui/notifications.js';
@@ -96,24 +98,102 @@ function attachButtonHandlers() {
   const editBtn = document.getElementById('edit-btn');
 
   if (completeBtn) {
-    completeBtn.addEventListener('click', async () => {
-      if (!appState.selectedHand) {
-        notify('선택된 핸드가 없습니다.', { type: 'warning' });
-        return;
-      }
-      notify('완료 처리 기능은 리팩토링 중입니다.', { type: 'info' });
-    });
+    completeBtn.addEventListener('click', handleCompleteClick);
   }
 
   if (editBtn) {
-    editBtn.addEventListener('click', async () => {
-      if (!appState.selectedHand) {
-        notify('선택된 핸드가 없습니다.', { type: 'warning' });
-        return;
-      }
-      notify('편집 기능은 리팩토링 중입니다.', { type: 'info' });
-    });
+    editBtn.addEventListener('click', handleEditClick);
   }
+}
+
+async function handleCompleteClick() {
+  if (!appState.selectedHand) {
+    notify('선택된 핸드가 없습니다.', { type: 'warning' });
+    return;
+  }
+  try {
+    toggleButtons(true);
+    const detail = await loadSelectedHandDetail();
+    const match = findMatchingRow({ handDetail: detail, config: appState.config });
+    const rowNumber = match?.rowNumber || detail.meta?.startRow;
+    if (!rowNumber) {
+      notify('시간 매칭에 실패했습니다.', { type: 'error' });
+      return;
+    }
+    const payload = {
+      sheetUrl: appState.config.mainSheetUrl,
+      rowNumber,
+      handNumber: detail.number,
+      filename: `${detail.number}_${Date.now()}.mp4`,
+      status: '복사완료',
+      aiAnalysis: buildFallbackSummary(detail)
+    };
+    const result = await appState.appsScriptClient.updateSheet(payload);
+    if (result.status === 'success') {
+      notify('완료 처리 성공 ✅', { type: 'success' });
+    } else {
+      notify(`완료 처리 실패: ${result.message || '알 수 없는 오류'}`, { type: 'error' });
+    }
+  } catch (error) {
+    console.error('handleCompleteClick error', error);
+    notify(error.message || '완료 처리 중 오류가 발생했습니다.', { type: 'error' });
+  } finally {
+    toggleButtons(false);
+  }
+}
+
+async function handleEditClick() {
+  if (!appState.selectedHand) {
+    notify('선택된 핸드가 없습니다.', { type: 'warning' });
+    return;
+  }
+  try {
+    toggleButtons(true);
+    const detail = await loadSelectedHandDetail();
+    const match = findMatchingRow({ handDetail: detail, config: appState.config });
+    const rowNumber = match?.rowNumber || detail.meta?.startRow;
+    if (!rowNumber) {
+      notify('시간 매칭에 실패했습니다.', { type: 'error' });
+      return;
+    }
+    const payload = {
+      sheetUrl: appState.config.mainSheetUrl,
+      rowNumber,
+      handNumber: detail.number,
+      filename: detail.meta?.camFiles?.[0] || `${detail.number}.mp4`,
+      status: '미완료',
+      aiAnalysis: buildFallbackSummary(detail)
+    };
+    const result = await appState.appsScriptClient.updateSheet(payload);
+    if (result.status === 'success') {
+      notify('편집 상태로 업데이트되었습니다.', { type: 'success' });
+    } else {
+      notify(`편집 업데이트 실패: ${result.message || '알 수 없는 오류'}`, { type: 'error' });
+    }
+  } catch (error) {
+    console.error('handleEditClick error', error);
+    notify(error.message || '편집 처리 중 오류가 발생했습니다.', { type: 'error' });
+  } finally {
+    toggleButtons(false);
+  }
+}
+
+function toggleButtons(loading) {
+  const completeBtn = document.getElementById('complete-btn');
+  const editBtn = document.getElementById('edit-btn');
+  if (completeBtn) {
+    completeBtn.disabled = loading;
+    completeBtn.textContent = loading ? '처리 중...' : '완료';
+  }
+  if (editBtn) {
+    editBtn.disabled = loading;
+    editBtn.textContent = loading ? '처리 중...' : '편집';
+  }
+}
+
+async function loadSelectedHandDetail() {
+  const handRows = await getHandRows();
+  return buildHandDetail(handRows, appState.selectedHand);
 }
 
 if (typeof window !== 'undefined') {
