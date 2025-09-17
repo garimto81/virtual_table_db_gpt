@@ -2,7 +2,7 @@ import { initializeConfig, loadConfigFile } from './utils/configManager.js';
 import { createCsvService } from './services/csvService.js';
 import { parseIndexRows } from './services/indexParser.js';
 import { buildHandDetail } from './services/handParser.js';
-import { findMatchingRow } from './services/timeMatcher.js';
+import { createTimeMatcher } from './services/timeMatcher.js';
 import { buildFallbackSummary } from './services/analysis/fallback.js';
 import { renderHandList } from './ui/handList.js';
 import { renderHandDetail, clearHandDetail, setHandCount } from './ui/detailPanel.js';
@@ -33,8 +33,10 @@ async function bootstrapDashboard() {
     });
 
     const csvService = createCsvService({ config });
+    const timeMatcher = createTimeMatcher();
     appState.csvService = csvService;
     appState.appsScriptClient = createAppsScriptClient({ config });
+    appState.timeMatcher = timeMatcher;
 
     const indexRows = await csvService.getIndexRows();
     const hands = parseIndexRows(indexRows);
@@ -114,7 +116,10 @@ async function handleCompleteClick() {
   try {
     toggleButtons(true);
     const detail = await loadSelectedHandDetail();
-    const match = findMatchingRow({ handDetail: detail, config: appState.config });
+    const match = await appState.timeMatcher.findClosestRow({
+      timestamp: detail.timestamp || detail.meta?.handUpdatedAt,
+      virtualSheetUrl: appState.config.mainSheetUrl
+    });
     const rowNumber = match?.rowNumber || detail.meta?.startRow;
     if (!rowNumber) {
       notify('시간 매칭에 실패했습니다.', { type: 'error' });
@@ -150,7 +155,10 @@ async function handleEditClick() {
   try {
     toggleButtons(true);
     const detail = await loadSelectedHandDetail();
-    const match = findMatchingRow({ handDetail: detail, config: appState.config });
+    const match = await appState.timeMatcher.findClosestRow({
+      timestamp: detail.timestamp || detail.meta?.handUpdatedAt,
+      virtualSheetUrl: appState.config.mainSheetUrl
+    });
     const rowNumber = match?.rowNumber || detail.meta?.startRow;
     if (!rowNumber) {
       notify('시간 매칭에 실패했습니다.', { type: 'error' });
