@@ -12,3 +12,5 @@
   - TBD (기능 구현 후 작성)
 - 이슈/추가 조치:
   - TBD
+
+- [x] Apps Script `action:updateSheet`: 실패 (partial) - 메시지: 권한/행 식별 오류
