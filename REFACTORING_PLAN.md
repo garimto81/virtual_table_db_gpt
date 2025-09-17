@@ -59,20 +59,22 @@
 
 ### 4.3 백엔드(Apps Script) 리팩토링 (D4~D10)
 1. **프로젝트 구조 개선**
-   - [ ] 공통 유틸(로그, 응답 생성, 시트 접근)을 모듈 함수로 분리.
-   - [ ] `handleSheetUpdate`, `handleIndexUpdate`, `handleHandAnalysis` 등을 별도 파일로 관리 (CLASP 사용 검토).
+   - [x] 모듈 디렉터리 및 스켈레톤 생성 (`apps_script/src`, `core`, `handlers`, `routers`)
+   - [x] 공통 유틸(CoreResponses/CoreLogging/CoreSheets) 스텁 작성
+   - [ ] 기존 `apps_script.gs` 로직 모듈로 이관 및 CLASP 구성
 2. **API 액션 정합성**
-   - [ ] `verifyUpdate` 액션 구현: 요청된 행의 E/F/H열 상태를 반환.
-   - [ ] `updateSheet`가 `status` 필드를 인식해 E열에 기록, G열 등 확장 필드 추가 여지 마련.
-   - [ ] 레거시 `updateHand`는 `updateSheet` 래퍼로 단순화.
+   - [x] `verifyUpdate` 핸들러 스텁과 응답 스키마 정의
+   - [x] `updateSheet` 핸들러에 status/E열 분리 로직 초안
+   - [ ] 실제 시트 업데이트 로직/검증 로깅 강화
 3. **데이터 검증 & 에러 처리**
-   - [ ] 시트 URL/GID 검증 로직 강화, 실패 시 명확한 메시지 반환.
-   - [ ] `openSheetByUrl` 실패 시 예외 대신 상태 코드 반환.
-   - [ ] 로그 레벨(Info/Error)을 구분해 콘솔 출력.
+   - [x] Dispatcher JSON 파싱 및 알 수 없는 액션 에러 응답 정리
+   - [ ] `openSheetByUrl` 예외 핸들링/테스트 케이스 확장
+   - [ ] 로그 레벨별 출력 규칙/경고 메시지 정비
 4. **테스트 코드**
-   - [ ] `test/SheetUpdate.test.gs` : Mock SpreadsheetApp으로 CRUD 검증.
-   - [ ] `test/VerifyUpdate.test.gs` : 상태 확인 액션 테스트.
-   - [ ] `test/AnalysisFallback.test.gs` : Gemini 미사용 시 폴백 확인.
+   - [x] `test/SheetUpdate.test.gs` 스텁 작성
+   - [x] `test/VerifyUpdate.test.gs` 스텁 작성
+   - [x] `test/AnalysisFallback.test.gs` 스텁 작성
+   - [ ] CI/로컬 실행 가이드 및 목킹 전략 문서화
 
 ### 4.4 구성 및 배포 (D8~D12)
 - [ ] `.env.example` (Apps Script Properties) 및 `config.sample.json` 작성.

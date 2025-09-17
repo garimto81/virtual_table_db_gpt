@@ -10,6 +10,7 @@
 - [ ] 배포 사용자: `나`, 액세스: `모든 사용자`.
 - [ ] `doGet` 호출: `curl <SCRIPT_URL>` 결과 `status: ok` 확인.
 - [ ] `doPost` `action:test` 호출 시 `status: success` 응답.
+- [ ] `doPost` `action:verifyUpdate` (샘플 rowNumber)에서 columnE/F/H 확인.
 - [ ] Script Properties: `GEMINI_API_KEY`, `SHEET_ID_MAIN`, `SHEET_ID_INDEX` 저장 여부 점검.
 
 ## Frontend Dashboard
