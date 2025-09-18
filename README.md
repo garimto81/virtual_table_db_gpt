@@ -1,12 +1,17 @@
-# Virtual Table DB - Poker Hand Monitoring System v12.5.0
+# Virtual Table DB - Poker Hand Monitoring System v12.6.0
 
 ## 📋 프로젝트 개요
 AI 기반 포커 핸드 모니터링 및 분석 시스템으로 Google Sheets와 연동하여 실시간 핸드 데이터를 관리합니다.
 
-### 🚀 최신 버전: v12.5.0 (2025-09-18)
+### 🚀 최신 버전: v12.6.0 (2025-09-18)
+- **🔥 Google Sheets 데이터 검증 오류 해결**: E열 드롭다운 규칙 준수하여 "미완료", "복사완료" 상태값만 입력
+- **📝 Apps Script v3.4.5 업데이트**: 파일명 대신 상태값 입력으로 시트 업데이트 안정성 확보
+- **🛡️ 데이터 무결성 강화**: Virtual 시트의 데이터 검증 규칙과 완벽 호환
+
+### v12.5.0 (2025-09-18)
 - **🚀 CSV 파싱 성능 최적화**: 파싱 결과 캐싱으로 반복 호출 대폭 감소
 - **🔧 API 액션명 수정**: Apps Script 실제 액션과 일치하도록 변경 (getHandStatus, batchVerify)
-- **🎯 핸드 번호 매칭 개선**: Virtual 시트 A열에서 핸드 번호 추출로 정확도 향상
+- **🎯 매칭 로직 단순화**: Virtual 시트는 시간 매칭 전용으로 명확화
 - **📊 상세 디버깅 로그**: 캐시 구조 및 매칭 과정 상세 분석 가능
 
 ### v12.4.0 (2025-09-18)
@@ -179,4 +184,4 @@ console.log(sheetDataCache.getStats());
 - 버전 히스토리: git log 참조
 
 ---
-최종 업데이트: 2025-09-18 | Version 12.3.0
+최종 업데이트: 2025-09-18 | Version 12.6.0

@@ -29,7 +29,7 @@
 - CSV 파싱 결과 캐싱 시스템 구현
 - Papa Parse 반복 호출 대폭 감소
 - API 액션명 수정 (getHandStatus, batchVerify)
-- Virtual 시트 A열에서 핸드 번호 추출
+- Virtual 시트 시간 매칭 전용 로직으로 명확화
 
 ---
 

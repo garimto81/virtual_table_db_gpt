@@ -1,5 +1,5 @@
-// Virtual Table DB - Google Apps Script v3.4.4 (E열 2단계 워크플로우 완전 구현)
-// E열 드롭다운 및 상태 관리 시스템 포함
+// Virtual Table DB - Google Apps Script v3.4.5 (E열 검증 규칙 준수)
+// E열 드롭다운 및 상태 관리 시스템 포함 + 검증 규칙 오류 수정
 
 // ========================================
 // 1. 기본 설정
@@ -29,7 +29,7 @@ function doGet(e) {
     status: 'ok',
     method: 'GET',
     time: new Date().toISOString(),
-    version: 'v3.4.1',
+    version: 'v3.4.5',
     service: 'Virtual Table Sheet Updater',
     features: ['Sheet Update', 'Gemini AI Analysis', 'Auto Analysis', 'Index Sheet Support', 'text/plain Support'],
     gemini_enabled: !!GEMINI_API_KEY,
@@ -233,9 +233,16 @@ function handleSheetUpdate(data) {
         updates.push('핸드번호(D열)');
       }
       
-      // E열: 파일명
-      sheet.getRange(targetRow, 5).setValue(filename);
-      updates.push('파일명(E열)');
+      // E열: 상태값 (드롭다운 검증 규칙 준수)
+      const statusValue = data.status || '미완료'; // 기본값은 '미완료'
+      if (statusValue === '미완료' || statusValue === '복사완료') {
+        sheet.getRange(targetRow, 5).setValue(statusValue);
+        updates.push(`상태(E열): ${statusValue}`);
+      } else {
+        console.warn(`⚠️ 잘못된 E열 상태값: "${statusValue}", 기본값 "미완료" 사용`);
+        sheet.getRange(targetRow, 5).setValue('미완료');
+        updates.push('상태(E열): 미완료');
+      }
       
       // F열: 파일명 (호환성)
       sheet.getRange(targetRow, 6).setValue(filename);

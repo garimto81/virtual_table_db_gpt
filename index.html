@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title id="page-title">포커 핸드 모니터링 v12.5.0 - AI 분석 시스템</title>
+  <title id="page-title">포커 핸드 모니터링 v12.6.0 - AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <!-- Papa Parse for accurate CSV parsing (multiline support) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -978,9 +978,9 @@
               status = status.slice(1, -1);
             }
 
-            // Virtual 시트 구조 분석 후 핸드 번호 추출
-            // A열 (인덱스 0)이 핸드 번호일 가능성이 높음
-            const handNumber = cols[0]?.trim() || '';
+            // Virtual 시트는 핸드 번호가 명확하지 않음 - 일단 빈값으로 처리
+            // 실제로는 시간 매칭으로만 작동하는 것이 맞음
+            const handNumber = '';
 
             const rowData = {
               row: i + 1, // 행 번호 (1-based)
@@ -3019,7 +3019,7 @@
         // 3. Apps Script에 일괄 상태 확인 요청
         // 🔴 주의: Apps Script에 batchGetStatus 액션이 구현되어 있어야 함
         const batchData = {
-          action: 'batchVerify', // Apps Script의 실제 액션 이름
+          action: 'batchVerify', // Apps Script v3.4.4 이상 필요
           sheetUrl: sheetUrl,
           rows: validRows.map(item => item.row)
         };
@@ -3053,6 +3053,8 @@
 
       } catch (error) {
         console.error('❌ [Phase 1] 일괄 상태 확인 오류:', error);
+        console.error('📋 요청 URL:', getAppsScriptUrl());
+        console.error('📋 요청 데이터:', batchData);
         // 🔴 Apps Script 오류 시 캐시만 사용 (개별 API 호출 방지)
         console.log('📊 캐시 전용 모드로 전환');
         const results = {};
@@ -3119,11 +3121,35 @@
         console.log(`🚀 Apps Script로 실시간 E열 상태 확인: 핸드 #${handNumber}`);
 
         const requestData = {
-          action: 'getHandStatus', // Apps Script의 실제 액션 이름
+          action: 'getHandStatus', // Apps Script v3.4.4 이상 필요
           sheetUrl: getSheetUrl(),
           handNumber: handNumber,
           handTime: handTime
         };
+
+        console.log('🔗 Apps Script 연결 테스트 중...', {
+          url: getAppsScriptUrl(),
+          action: requestData.action
+        });
+
+        // 먼저 test 액션으로 버전 확인
+        const versionTest = {
+          action: 'test'
+        };
+
+        console.log('📋 Apps Script 버전 확인 중...');
+        try {
+          const versionResponse = await fetch(getAppsScriptUrl(), {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify(versionTest)
+          });
+          const versionResult = await versionResponse.json();
+          console.log('📊 현재 배포된 Apps Script 버전:', versionResult.version || 'Unknown');
+          console.log('📊 지원 기능:', versionResult.features || []);
+        } catch (versionError) {
+          console.warn('⚠️ 버전 확인 실패:', versionError);
+        }
 
         try {
           const response = await fetch(appsScriptUrl, {
@@ -3154,6 +3180,8 @@
             return null;
           } else {
             console.error('❌ Apps Script 오류:', result.message);
+            console.error('📋 요청 데이터:', requestData);
+            console.error('📋 응답 전체:', result);
             return null;
           }
         } catch (fetchError) {
@@ -3207,24 +3235,17 @@
           // 캐시 갱신 확인
           await sheetDataCache.ensureFresh();
 
-          // 1. 먼저 핸드 번호로 직접 검색 (신규 방식)
-          const cachedRowById = sheetDataCache.findRowByHandNumber(handNumber);
-          if (cachedRowById) {
-            status = cachedRowById.status;
-            console.log(`✅ ID 매칭 성공: 핸드 #${handNumber} 상태 = ${status}`);
-          } else {
-            // 2. ID로 못 찾으면 타임스탬프 폴백 (호환성)
-            const handTime = await getHandTimestamp(handNumber);
-            if (handTime) {
-              const cachedRow = sheetDataCache.findClosestRow(handTime);
-              if (cachedRow) {
-                status = cachedRow.status;
-                console.log(`🔄 타임스탬프 폴백: 핸드 #${handNumber} 상태 = ${status}`);
-                sheetDataCache.hitCount++;
-              } else {
-                console.log(`⚠️ 캐시 미스: 핸드 #${handNumber} 매칭 실패`);
-                sheetDataCache.missCount++;
-              }
+          // Virtual 시트는 시간 매칭으로만 작동 (핸드 번호 매칭 제거)
+          const handTime = await getHandTimestamp(handNumber);
+          if (handTime) {
+            const cachedRow = sheetDataCache.findClosestRow(handTime);
+            if (cachedRow) {
+              status = cachedRow.status;
+              console.log(`✅ 시간 매칭 성공: 핸드 #${handNumber} 상태 = ${status}`);
+              sheetDataCache.hitCount++;
+            } else {
+              console.log(`⚠️ 캐시 미스: 핸드 #${handNumber} 매칭 실패`);
+              sheetDataCache.missCount++;
             }
           }
         }
