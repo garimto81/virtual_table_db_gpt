@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title id="page-title">포커 핸드 모니터링 v12.6.0 - AI 분석 시스템</title>
+  <title id="page-title">포커 핸드 모니터링 v12.11.0 - AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <!-- Papa Parse for accurate CSV parsing (multiline support) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -464,6 +464,43 @@
         </div>
       </div>
 
+      <!-- 📊 핸드 상태 정보 섹션 (하단 배치) -->
+      <div id="hand-status-section" class="mt-3 p-3 bg-gray-800 rounded-lg border border-gray-700 hidden">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2">
+            <span id="status-icon" class="text-lg">⚪</span>
+            <span id="status-text" class="text-sm font-semibold">상태 확인 중</span>
+          </div>
+          <button id="status-toggle" class="text-xs text-blue-400 hover:text-blue-300" onclick="toggleStatusDetails()">
+            상세보기 ▼
+          </button>
+        </div>
+
+        <!-- 기본 상태 정보 -->
+        <div id="basic-status-info" class="flex flex-wrap gap-3 text-xs text-gray-300">
+          <div id="edit-start-time" class="hidden">📝 시작: <span class="time-value">-</span></div>
+          <div id="edit-duration" class="hidden">⏱️ 진행: <span class="time-value">-</span></div>
+          <div id="complete-time" class="hidden">✅ 완료: <span class="time-value">-</span></div>
+          <div id="file-info">📁 파일: <span class="file-value">-</span></div>
+        </div>
+
+        <!-- 상세 정보 패널 (접이식) -->
+        <div id="detailed-status-info" class="mt-3 pt-3 border-t border-gray-700 text-xs text-gray-400 hidden">
+          <div class="grid grid-cols-2 gap-2">
+            <div>🎯 작업 ID: <span id="work-session-id">-</span></div>
+            <div>🌐 환경: <span id="work-environment">-</span></div>
+            <div>📊 진행률: <span id="work-progress">0%</span></div>
+            <div>🔄 상태 변경: <span id="status-history">-</span></div>
+          </div>
+
+          <!-- AI 분석 정보 (있는 경우) -->
+          <div id="ai-analysis-info" class="mt-2 p-2 bg-gray-900 rounded text-xs hidden">
+            <div class="text-blue-300 mb-1">🤖 AI 분석 결과</div>
+            <div id="ai-analysis-content">분석 중...</div>
+          </div>
+        </div>
+      </div>
+
       <!-- 팟 정보 -->
       <div class="pot-display mb-3">
         POT: <span id="pot-amount">0</span>
@@ -728,8 +765,21 @@
     // ====================================
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '12.3.0';  // RFC 4180 표준 CSV 파싱 적용
+    const APP_VERSION = '12.11.0'; // 핸드 상태 정보 대시보드 표시 기능 추가
     const BUILD_TIME = '2025-09-18T17:00:00Z';
+
+    // ====================================
+    // 완전 사전 로딩 시스템 전역 변수
+    // ====================================
+    window.preloadedHandStatuses = new Map();  // 핸드번호 → 상태 매핑
+    window.preloadedTimeMapping = new Map();   // 시간 → 핸드번호 매핑
+
+    // 🚀 핸드번호 ↔ 파일명 실시간 매핑 테이블
+    window.handToFilenameMapping = new Map();  // 핸드번호 → 파일명
+    window.filenameToHandMapping = new Map();  // 파일명 → 핸드번호
+
+    window.isPreloadingInProgress = false;      // 사전 로딩 진행 상태
+    window.preloadStartTime = null;             // 성능 측정용
 
     // ====================================
     // 초기 로드 동기화 매니저
@@ -850,9 +900,12 @@
         this.ttl = 5 * 60 * 1000; // 5분 캐시 유효시간
         this.lastUpdate = 0;
         this.isLoading = false;
+        this.isUpdating = false;  // 갱신 중 플래그
         this.maxCacheSize = 2000; // 최대 캐시 행 수 (v12.4.0에서 확장)
         this.hitCount = 0;
         this.missCount = 0;
+        this.lastRowCount = 0;  // 마지막 행 수 (신규 핸드 감지용)
+        this.updateInterval = null;  // 자동 갱신 인터벌
       }
 
       /**
@@ -1329,12 +1382,397 @@
         this.lastUpdate = 0;
         this.hitCount = 0;
         this.missCount = 0;
+        this.lastRowCount = 0;
+        this.stopAutoUpdate();  // 자동 갱신 중지
         console.log('🧹 [Phase 2] 캐시 초기화 완료');
+      }
+
+      /**
+       * 스마트 캐시 갱신 시작 (30초마다 증분 업데이트)
+       */
+      startSmartUpdate() {
+        // 이미 실행 중이면 중복 방지
+        if (this.updateInterval) return;
+
+        console.log('🔄 스마트 캐시 갱신 시작 (30초 간격)');
+
+        this.updateInterval = setInterval(async () => {
+          await this.incrementalUpdate();
+        }, 30000);  // 30초마다 실행
+      }
+
+      /**
+       * 자동 갱신 중지
+       */
+      stopAutoUpdate() {
+        if (this.updateInterval) {
+          clearInterval(this.updateInterval);
+          this.updateInterval = null;
+          console.log('⏹️ 스마트 캐시 갱신 중지');
+        }
+      }
+
+      /**
+       * 증분 업데이트 (신규 핸드만 추가)
+       */
+      async incrementalUpdate() {
+        if (this.isUpdating) {
+          console.log('⏳ 이미 갱신 중...');
+          return;
+        }
+
+        this.isUpdating = true;
+        const startTime = performance.now();
+
+        try {
+          console.log('🔄 증분 캐시 갱신 시작...');
+
+          // CSV 데이터 다시 가져오기
+          const csvUrl = getSheetUrl();
+          if (!csvUrl) {
+            this.isUpdating = false;
+            return;
+          }
+
+          const response = await fetch(csvUrl);
+          if (!response.ok) {
+            throw new Error('CSV 가져오기 실패');
+          }
+
+          const csvText = await response.text();
+          const rows = parseCSV(csvText);
+
+          // 신규 행만 찾기
+          const currentRowCount = rows.length;
+          const newRowCount = currentRowCount - this.lastRowCount;
+
+          if (newRowCount > 0) {
+            console.log(`🆕 ${newRowCount}개 신규 행 발견`);
+
+            // 신규 행만 캐시에 추가
+            const newRows = rows.slice(this.lastRowCount);
+            newRows.forEach((row, index) => {
+              const rowNum = this.lastRowCount + index + 2;  // 행 번호 (헤더 제외)
+              this.cache.set(rowNum, row);
+            });
+
+            this.lastRowCount = currentRowCount;
+            this.lastUpdate = Date.now();
+
+            // 신규 핸드 알림
+            if (newRowCount > 0 && !isInitialLoad) {
+              showNotification(`${newRowCount}개 신규 핸드가 추가되었습니다`, 'info');
+            }
+
+            console.log(`✅ 증분 갱신 완료 (${((performance.now() - startTime) / 1000).toFixed(2)}초)`);
+          } else {
+            console.log('ℹ️ 신규 행 없음');
+          }
+
+        } catch (error) {
+          console.error('❌ 증분 갱신 실패:', error);
+        } finally {
+          this.isUpdating = false;
+        }
       }
     }
 
     // 전역 캐시 인스턴스 생성
     const sheetDataCache = new SheetDataCache();
+
+    // ====================================
+    // 완전한 사전 로딩 시스템
+    // ====================================
+
+    /**
+     * Virtual 시트 전체를 한 번에 로딩하여 메모리에 저장
+     * 페이지 로드 시 실행하여 핸드 클릭 시 즉시 응답 가능
+     */
+    async function preloadAllHandStatuses() {
+      if (window.isPreloadingInProgress) {
+        console.log('🔄 이미 사전 로딩이 진행 중입니다.');
+        return;
+      }
+
+      window.isPreloadingInProgress = true;
+      window.preloadStartTime = performance.now();
+
+      try {
+        console.log('🚀 Virtual 시트 전체 사전 로딩 시작...');
+
+        // CSV 데이터 로딩
+        const csvUrl = getSheetCsvUrl();
+        if (!csvUrl) {
+          console.error('❌ CSV URL이 설정되지 않았습니다.');
+          return;
+        }
+
+        console.log('📥 CSV 데이터 다운로드 중...');
+        const response = await fetch(csvUrl + '&v=' + Date.now());
+        const csvText = await response.text();
+
+        // CSV 파싱
+        console.log('📊 CSV 데이터 파싱 중...');
+        const parsedData = parseCSV(csvText);
+
+        // 메모리 맵 구축
+        console.log('🗂️ 메모리 매핑 테이블 구축 중...');
+        window.preloadedHandStatuses.clear();
+        window.preloadedTimeMapping.clear();
+
+        let processedCount = 0;
+        let statusCount = { '복사완료': 0, '미완료': 0, '미처리': 0 };
+
+        for (const row of parsedData) {
+          try {
+            // 🚀 파일명에서 핸드번호 획득 (F열 = 인덱스 5)
+            const filename = row[5] ? row[5].trim() : '';
+
+            // 1. 저장된 매핑에서 우선 조회 (가장 정확)
+            let handNumber = getHandNumberFromMapping(filename);
+
+            // 2. 매핑에 없으면 패턴 추출 (폴백)
+            if (!handNumber) {
+              handNumber = extractHandNumberFromFilename(filename);
+
+              // 추출 성공 시 매핑 저장
+              if (handNumber) {
+                saveHandFilenameMapping(handNumber, filename);
+              }
+            }
+
+            // 핸드번호가 획득되지 않으면 해당 행 건너뛰기
+            if (!handNumber || handNumber <= 0) {
+              if (filename) {
+                console.warn(`⚠️ 핸드번호 획득 실패 - 파일명: "${filename}"`);
+              }
+              continue;
+            }
+
+            // 상태 추출 (E열 = 인덱스 4)
+            const status = row[4] ? row[4].trim() : null;
+
+            // 시간 추출 (B열 = 인덱스 1)
+            const timeStr = row[1] ? row[1].trim() : '';
+
+            // 핸드 번호 → 상태 매핑
+            window.preloadedHandStatuses.set(handNumber, status);
+
+            // 시간 → 핸드 번호 매핑 (기존 로직과 호환성 유지)
+            if (timeStr) {
+              window.preloadedTimeMapping.set(timeStr, handNumber);
+            }
+
+            processedCount++;
+
+            // 상태별 카운트
+            if (status === '복사완료') statusCount['복사완료']++;
+            else if (status === '미완료') statusCount['미완료']++;
+            else statusCount['미처리']++;
+
+            // 🔍 상세 디버깅 로그 (처음 10개 행만)
+            if (processedCount <= 10) {
+              console.log(`🔍 행 ${processedCount}: 파일명="${filename}" → 핸드#${handNumber} → 상태="${status}"`);
+            }
+
+          } catch (error) {
+            console.warn('⚠️ 행 처리 오류:', error);
+          }
+        }
+
+        const duration = performance.now() - window.preloadStartTime;
+        console.log(`✅ 사전 로딩 완료! (${duration.toFixed(0)}ms)`);
+        console.log(`📊 처리된 핸드: ${processedCount}개`);
+        console.log(`📈 상태 분포:`, statusCount);
+        console.log(`💾 메모리 사용량: ${(processedCount * 50 / 1024).toFixed(1)}KB`);
+
+        // 🔍 미완료 상태 핸드들을 구체적으로 출력 (디버깅용)
+        if (statusCount['미완료'] > 0) {
+          console.log(`🟡 '미완료' 상태 핸드 목록:`);
+          const incompleteHands = [];
+          for (const [handNumber, status] of window.preloadedHandStatuses) {
+            if (status === '미완료') {
+              incompleteHands.push(handNumber);
+              console.log(`   - 핸드 #${handNumber}: "${status}"`);
+            }
+          }
+          // 전역 변수에 저장 (디버깅 및 접근 편의)
+          window.incompleteHandsList = incompleteHands;
+          console.log(`🔎 미완료 핸드 번호 배열: [${incompleteHands.join(', ')}]`);
+        } else {
+          window.incompleteHandsList = [];
+          console.log(`ℹ️ '미완료' 상태인 핸드가 없습니다.`);
+        }
+
+        return true;
+
+      } catch (error) {
+        console.error('❌ 사전 로딩 실패:', error);
+        return false;
+      } finally {
+        window.isPreloadingInProgress = false;
+      }
+    }
+
+    /**
+     * 백그라운드에서 30초마다 사전 로딩 데이터 갱신
+     */
+    function startBackgroundRefresh() {
+      // 기존 인터벌 정리
+      if (window.preloadRefreshInterval) {
+        clearInterval(window.preloadRefreshInterval);
+      }
+
+      window.preloadRefreshInterval = setInterval(async () => {
+        console.log('🔄 백그라운드 데이터 갱신 중...');
+        await preloadAllHandStatuses();
+      }, 30000); // 30초마다
+
+      console.log('⏰ 백그라운드 갱신 스케줄러 시작 (30초 간격)');
+    }
+
+    /**
+     * localStorage에서 매핑 데이터 로드
+     */
+    function loadHandFilenameMappings() {
+      try {
+        const handToFilename = localStorage.getItem('handToFilenameMapping');
+        const filenameToHand = localStorage.getItem('filenameToHandMapping');
+
+        if (handToFilename) {
+          const data = JSON.parse(handToFilename);
+          Object.entries(data).forEach(([key, value]) => {
+            window.handToFilenameMapping.set(parseInt(key), value);
+          });
+          console.log(`📥 핸드→파일명 매핑 로드: ${Object.keys(data).length}개`);
+        }
+
+        if (filenameToHand) {
+          const data = JSON.parse(filenameToHand);
+          Object.entries(data).forEach(([key, value]) => {
+            window.filenameToHandMapping.set(key, value);
+          });
+          console.log(`📥 파일명→핸드 매핑 로드: ${Object.keys(data).length}개`);
+        }
+      } catch (error) {
+        console.warn('⚠️ 매핑 데이터 로드 실패:', error);
+      }
+    }
+
+    /**
+     * localStorage에 매핑 데이터 저장
+     */
+    function saveHandFilenameMappingsToStorage() {
+      try {
+        // Map을 Object로 변환하여 저장
+        const handToFilenameObj = Object.fromEntries(window.handToFilenameMapping);
+        const filenameToHandObj = Object.fromEntries(window.filenameToHandMapping);
+
+        localStorage.setItem('handToFilenameMapping', JSON.stringify(handToFilenameObj));
+        localStorage.setItem('filenameToHandMapping', JSON.stringify(filenameToHandObj));
+
+        console.log(`💾 localStorage 저장: 핸드→파일명 ${window.handToFilenameMapping.size}개, 파일명→핸드 ${window.filenameToHandMapping.size}개`);
+      } catch (error) {
+        console.warn('⚠️ localStorage 저장 실패:', error);
+      }
+    }
+
+    /**
+     * 핸드번호와 파일명 매핑 저장 함수 (파일명 생성 시 호출)
+     */
+    function saveHandFilenameMapping(handNumber, filename) {
+      if (!handNumber || !filename) return;
+
+      const handNum = parseInt(handNumber);
+      if (isNaN(handNum) || handNum <= 0) return;
+
+      // 메모리에 양방향 매핑 저장
+      window.handToFilenameMapping.set(handNum, filename);
+      window.filenameToHandMapping.set(filename, handNum);
+
+      // localStorage에 영구 저장
+      saveHandFilenameMappingsToStorage();
+
+      console.log(`💾 매핑 저장 (메모리+localStorage): 핸드 #${handNum} ↔ "${filename}"`);
+    }
+
+    /**
+     * 저장된 매핑에서 핸드번호 조회 (최우선)
+     */
+    function getHandNumberFromMapping(filename) {
+      if (!filename) return null;
+      return window.filenameToHandMapping.get(filename) || null;
+    }
+
+    /**
+     * 파일명에서 핸드번호 추출 함수 (폴백용)
+     */
+    function extractHandNumberFromFilename(filename) {
+      if (!filename) return null;
+
+      // 다양한 파일명 패턴에서 핸드번호 추출
+      // 예: "141_20250918_edited", "hand_141", "141_completed" 등
+      const patterns = [
+        /^(\d+)_/,        // 시작부터 숫자_패턴 (141_20250918_edited)
+        /hand[_-]?(\d+)/i, // hand141, hand_141, hand-141
+        /(\d+)[_-]?completed/i, // 141_completed, 141completed
+        /(\d+)[_-]?edited/i,    // 141_edited, 141edited
+        /^(\d+)$/         // 순수 숫자만 (141)
+      ];
+
+      for (const pattern of patterns) {
+        const match = filename.match(pattern);
+        if (match) {
+          const handNumber = parseInt(match[1]);
+          if (!isNaN(handNumber) && handNumber > 0) {
+            return handNumber;
+          }
+        }
+      }
+
+      console.warn(`⚠️ 파일명에서 핸드번호 추출 실패: "${filename}"`);
+      return null;
+    }
+
+    /**
+     * 특정 상태를 가진 모든 핸드 번호 검색 (역방향)
+     */
+    function findHandsByStatus(targetStatus) {
+      const result = [];
+      if (window.preloadedHandStatuses) {
+        for (const [handNumber, status] of window.preloadedHandStatuses) {
+          if (status === targetStatus) {
+            result.push(handNumber);
+          }
+        }
+      }
+      console.log(`🔍 상태 "${targetStatus}" 핸드 검색 결과: [${result.join(', ')}]`);
+      return result;
+    }
+
+    /**
+     * 사전 로딩된 상태 조회 (즉시 응답)
+     */
+    function getPreloadedHandStatus(handNumber) {
+      const startTime = performance.now();
+      const status = window.preloadedHandStatuses.get(parseInt(handNumber));
+      const duration = performance.now() - startTime;
+
+      console.log(`⚡ 메모리 조회: 핸드 #${handNumber} = ${status || '미처리'} (${duration.toFixed(2)}ms)`);
+      return status;
+    }
+
+    /**
+     * 사전 로딩 시스템 통계
+     */
+    function getPreloadingStats() {
+      return {
+        totalHands: window.preloadedHandStatuses.size,
+        memoryUsage: window.preloadedHandStatuses.size * 50, // bytes
+        isLoading: window.isPreloadingInProgress,
+        lastUpdate: window.preloadStartTime
+      };
+    }
 
     // ====================================
     // Phase 3: 실시간성 개선 - 스마트 새로고침
@@ -2983,10 +3421,35 @@
       const startTime = performance.now();
       console.log(`🚀 [Phase 1] ${handNumbers.length}개 핸드 일괄 상태 확인 시작...`);
 
+      // batchData를 try 블록 밖에서 선언
+      let batchData = null;
+
       try {
-        // 1. 모든 핸드의 타임스탬프를 병렬로 가져오기
+        // 1. 캐시에서 먼저 확인 (API 호출 전에 캐시 우선)
+        const cachedResults = {};
+        const uncachedHands = [];
+
+        for (const handNum of handNumbers) {
+          // 전역 캐시 확인
+          if (window.handStatusCache && window.handStatusCache.has(handNum)) {
+            const cached = window.handStatusCache.get(handNum);
+            cachedResults[handNum] = cached.status || '';
+          } else {
+            uncachedHands.push(handNum);
+          }
+        }
+
+        console.log(`📦 캐시 히트: ${Object.keys(cachedResults).length}개, 미스: ${uncachedHands.length}개`);
+
+        // 모든 핸드가 캐시에 있으면 바로 반환
+        if (uncachedHands.length === 0) {
+          console.log('✅ 모든 핸드가 캐시에서 발견됨');
+          return cachedResults;
+        }
+
+        // 2. 캐시되지 않은 핸드만 API 호출
         const timestamps = await Promise.all(
-          handNumbers.map(async (handNum) => {
+          uncachedHands.map(async (handNum) => {
             const time = await getHandTimestamp(handNum);
             return { handNumber: handNum, timestamp: time };
           })
@@ -2996,10 +3459,10 @@
         const validHands = timestamps.filter(item => item.timestamp);
         if (validHands.length === 0) {
           console.log('⚠️ 유효한 타임스탬프가 없음');
-          return {};
+          return cachedResults;
         }
 
-        // 2. 시트에서 매칭되는 행 번호 찾기 (병렬 처리)
+        // 3. 시트에서 매칭되는 행 번호 찾기 (병렬 처리)
         const sheetUrl = getSheetUrl();
         const rowMatches = await Promise.all(
           validHands.map(async (item) => {
@@ -3013,13 +3476,12 @@
         const validRows = rowMatches.filter(item => item.row);
         if (validRows.length === 0) {
           console.log('⚠️ 매칭되는 행이 없음');
-          return {};
+          return cachedResults;
         }
 
-        // 3. Apps Script에 일괄 상태 확인 요청
-        // 🔴 주의: Apps Script에 batchGetStatus 액션이 구현되어 있어야 함
-        const batchData = {
-          action: 'batchVerify', // Apps Script v3.4.4 이상 필요
+        // 4. Apps Script에 일괄 상태 확인 요청
+        batchData = {
+          action: 'batchVerify', // 기존에 동작하던 액션 사용
           sheetUrl: sheetUrl,
           rows: validRows.map(item => item.row)
         };
@@ -3036,25 +3498,39 @@
           throw new Error(batchResult.message || '일괄 확인 실패');
         }
 
-        // 4. 결과를 핸드 번호별로 매핑
-        const statusMap = {};
+        // 5. 결과를 핸드 번호별로 매핑 및 캐시 업데이트
+        const statusMap = { ...cachedResults };
         validRows.forEach(item => {
-          const rowData = batchResult.data[item.row];
+          const rowData = batchResult.data?.[item.row];
           if (rowData) {
-            statusMap[item.handNumber] = rowData.status || '';
+            const status = rowData.status || '';
+            statusMap[item.handNumber] = status;
+
+            // 전역 캐시 업데이트
+            if (!window.handStatusCache) {
+              window.handStatusCache = new Map();
+            }
+            const existing = window.handStatusCache.get(item.handNumber) || {};
+            window.handStatusCache.set(item.handNumber, {
+              ...existing,
+              status: status,
+              rowNumber: item.row
+            });
           }
         });
 
         const duration = performance.now() - startTime;
         console.log(`✅ [Phase 1] 일괄 확인 완료: ${duration.toFixed(0)}ms`);
-        console.log(`📊 성능: ${handNumbers.length}개 핸드, ${validRows.length}개 행, 1회 API 호출`);
+        console.log(`📊 성능: ${handNumbers.length}개 핸드, ${validRows.length}개 API 확인, 1회 호출`);
 
         return statusMap;
 
       } catch (error) {
         console.error('❌ [Phase 1] 일괄 상태 확인 오류:', error);
         console.error('📋 요청 URL:', getAppsScriptUrl());
-        console.error('📋 요청 데이터:', batchData);
+        if (batchData) {
+          console.error('📋 요청 데이터:', batchData);
+        }
         // 🔴 Apps Script 오류 시 캐시만 사용 (개별 API 호출 방지)
         console.log('📊 캐시 전용 모드로 전환');
         const results = {};
@@ -3209,10 +3685,16 @@
       }
     }
 
-    // 버튼 상태 업데이트 함수 (Phase 2 캐시 활용)
+    /**
+     * 완전한 사전 로딩 방식: 메모리 기반 즉시 조회
+     * API 호출 없이 완전히 로컬 메모리에서만 상태 확인
+     */
     async function updateButtonStates(handNumber) {
+      const startTime = performance.now();
       const editBtn = document.getElementById('edit-btn');
       const completeBtn = document.getElementById('complete-btn');
+
+      if (!editBtn || !completeBtn) return;
 
       if (!handNumber) {
         editBtn.disabled = true;
@@ -3221,79 +3703,97 @@
       }
 
       try {
-        editBtn.disabled = true;
-        completeBtn.disabled = true;
-        editBtn.textContent = '확인중...';
-        completeBtn.textContent = '확인중...';
+        // 완전한 메모리 기반 조회 (API 호출 없음)
+        const status = window.preloadedHandStatuses ?
+          window.preloadedHandStatuses.get(parseInt(handNumber)) : null;
 
-        // 🚀 Phase 2 캐시를 사용하여 상태 확인 (개별 API 호출 제거)
-        let status = null;
+        const duration = performance.now() - startTime;
+        console.log(`⚡ [즉시 메모리 조회] 핸드 #${handNumber}: ${status || '미처리'} (${duration.toFixed(1)}ms)`);
 
-        if (sheetDataCache) {
-          console.log(`🔍 캐시에서 핸드 #${handNumber} 상태 확인...`);
+        // UI 즉시 업데이트
+        updateButtonStatesFromStatus(handNumber, status);
 
-          // 캐시 갱신 확인
-          await sheetDataCache.ensureFresh();
-
-          // Virtual 시트는 시간 매칭으로만 작동 (핸드 번호 매칭 제거)
-          const handTime = await getHandTimestamp(handNumber);
-          if (handTime) {
-            const cachedRow = sheetDataCache.findClosestRow(handTime);
-            if (cachedRow) {
-              status = cachedRow.status;
-              console.log(`✅ 시간 매칭 성공: 핸드 #${handNumber} 상태 = ${status}`);
-              sheetDataCache.hitCount++;
-            } else {
-              console.log(`⚠️ 캐시 미스: 핸드 #${handNumber} 매칭 실패`);
-              sheetDataCache.missCount++;
-            }
-          }
-        }
-
-        // 캐시에서 찾을 수 없을 경우만 기존 방식 사용
-        if (status === null) {
-          console.log(`🔄 캐시 미스 - 기존 API 방식으로 확인: 핸드 #${handNumber}`);
-          status = await checkHandStatusInSheet(handNumber);
-        }
-
-        switch(status) {
-          case null:
-          case '':
-            editBtn.disabled = false;
-            editBtn.textContent = '편집';
-            completeBtn.disabled = true;
-            completeBtn.textContent = '완료';
-            console.log('🔴 미처리 - 편집 가능');
-            break;
-
-          case '미완료':
-            editBtn.disabled = true;
-            editBtn.textContent = '편집';
-            completeBtn.disabled = false;
-            completeBtn.textContent = '완료';
-            console.log('🟡 미완료 - 완료 가능');
-            break;
-
-          case '복사완료':
-            editBtn.disabled = true;
-            editBtn.textContent = '편집';
-            completeBtn.disabled = true;
-            completeBtn.textContent = '완료';
-            console.log('🟢 복사완료 - 모두 비활성화');
-            break;
-
-          default:
-            editBtn.disabled = false;
-            editBtn.textContent = '편집';
-            completeBtn.disabled = true;
-            completeBtn.textContent = '완료';
-        }
       } catch (error) {
-        console.error('❌ 버튼 상태 오류:', error);
+        console.error('❌ 버튼 상태 업데이트 오류:', error);
+
+        // 오류 시 기본 상태로
         editBtn.disabled = false;
         editBtn.textContent = '편집';
         completeBtn.disabled = true;
         completeBtn.textContent = '완료';
+      }
+    }
+
+    /**
+     * 상태 정보를 기반으로 버튼 UI 업데이트 (헬퍼 함수)
+     */
+    function updateButtonStatesFromStatus(handNumber, status) {
+      try {
+        const editBtn = document.getElementById('edit-btn');
+        const completeBtn = document.getElementById('complete-btn');
+
+        if (!editBtn || !completeBtn) return;
+
+        // 🔍 상태 값 상세 디버깅 (타입, 길이, 내용 확인)
+        console.log(`🔍 핸드 #${handNumber} 상태 분석:`, {
+          status: status,
+          type: typeof status,
+          length: status?.length,
+          rawValue: JSON.stringify(status),
+          trimmed: status?.trim?.(),
+          isEmpty: status === null || status === undefined || status === '',
+          isIncomplete: status === '미완료'
+        });
+
+        switch(status) {
+            case null:
+            case '':
+              editBtn.disabled = false;
+              editBtn.textContent = '편집';
+              completeBtn.disabled = true;
+              completeBtn.textContent = '완료';
+              console.log('🔴 미처리 - 편집 가능');
+              break;
+
+            case '미완료':
+              editBtn.disabled = true;
+              editBtn.textContent = '편집';
+              completeBtn.disabled = false;
+              completeBtn.textContent = '완료';
+              console.log('🟡 미완료 - 완료 가능');
+              break;
+
+            case '복사완료':
+              editBtn.disabled = true;
+              editBtn.textContent = '편집';
+              completeBtn.disabled = true;
+              completeBtn.textContent = '완료';
+              console.log('🟢 복사완료 - 모두 비활성화');
+              break;
+
+            default:
+              editBtn.disabled = false;
+              editBtn.textContent = '편집';
+              completeBtn.disabled = true;
+              completeBtn.textContent = '완료';
+          }
+
+          // 📊 상태 정보 섹션 업데이트
+          updateHandStatusSection(handNumber, status);
+
+      } catch (error) {
+        console.error('❌ 버튼 상태 오류:', error);
+
+        // 오류 시 기본 DOM 요소 다시 가져와서 설정
+        const editBtn = document.getElementById('edit-btn');
+        const completeBtn = document.getElementById('complete-btn');
+
+        if (editBtn && completeBtn) {
+          editBtn.disabled = false;
+          editBtn.textContent = '편집';
+          completeBtn.disabled = true;
+          completeBtn.textContent = '완료';
+        }
       }
     }
 
@@ -3325,8 +3825,13 @@
         console.log(`👁️ ${visibleHands.length}개의 보이는 핸드 상태 확인`);
       }
 
-      // Phase 2: 캐시 우선 확인, 없으면 API
-      const statuses = await sheetDataCache.checkMultipleHandsFromCache(visibleHands);
+      // 사전 로딩 시스템: 메모리에서 즉시 조회
+      const statuses = {};
+      visibleHands.forEach(handNum => {
+        const status = window.preloadedHandStatuses ?
+          window.preloadedHandStatuses.get(parseInt(handNum)) : null;
+        statuses[handNum] = status || '';
+      });
 
       // UI 업데이트
       for (const [handNum, status] of Object.entries(statuses)) {
@@ -3536,6 +4041,9 @@
       
       // 버튼 상태 업데이트 (완료 상태에 따라)
       updateHandStatus(indexHand ? indexHand.handEdit : false);
+
+      // 📊 핸드 상태 정보 섹션 초기화
+      initializeHandStatusSection(handNumber, indexHand);
 
       // E열 상태 기반 버튼 업데이트 (비동기)
       console.log(`🔄 핸드 #${handNumber} 선택 완료 - 버튼 상태 업데이트 예약`);
@@ -4605,6 +5113,15 @@
         if (result.status === 'success') {
           console.log('✅ 시트 업데이트 성공!');
           console.log(`✅ E열 상태 설정: ${updateData.status}`);
+
+          // 🚀 사전 로딩 데이터 즉시 업데이트 (CSV 지연 문제 해결)
+          if (window.preloadedHandStatuses && updateData.handNumber) {
+            const handNumber = parseInt(updateData.handNumber);
+            const oldStatus = window.preloadedHandStatuses.get(handNumber);
+            window.preloadedHandStatuses.set(handNumber, updateData.status);
+            console.log(`🔄 사전 로딩 데이터 즉시 업데이트: 핸드 #${handNumber} "${oldStatus}" → "${updateData.status}"`);
+          }
+
           return {
             success: true,
             message: result.message || '시트 업데이트 완료',
@@ -4992,6 +5509,9 @@
         updateStats();
         
         showNotification('✅ 핸드 완료 처리가 성공적으로 완료되었습니다!', 'success');
+        // 🚀 매핑 저장
+        saveHandFilenameMapping(handNumber, filename);
+
         console.log('✅ 핸드 완료:', { handNumber, filename, aiSummary, handAnalysis });
         
       } catch (error) {
@@ -5727,40 +6247,66 @@
       }
     });
     
-    // 완료 버튼 처리 함수 (자동 처리)
+    // 완료 버튼 처리 함수 (캐시 우선 사용)
     async function processCompleteButton(handNumber) {
       const editBtn = document.getElementById('edit-btn');
       const completeBtn = document.getElementById('complete-btn');
 
       try {
-        // 1. 버튼 상태 변경
-        completeBtn.disabled = true;
-        completeBtn.textContent = '처리 중...';
-        editBtn.disabled = true;
-
-        // 2. 시트 URL 확인
+        // 0. 시트 URL 먼저 확인 (전체 함수에서 사용)
         const sheetUrl = getSheetUrl();
         if (!sheetUrl) {
           throw new Error('시트 URL이 설정되지 않았습니다.');
         }
 
-        // 3. 핸드 시간 가져오기
-        const handTime = await getHandTimestamp(handNumber);
-        if (!handTime) {
-          throw new Error('핸드 시간 정보를 가져올 수 없습니다.');
+        // 1. 버튼 상태 변경
+        completeBtn.disabled = true;
+        completeBtn.textContent = '처리 중...';
+        editBtn.disabled = true;
+
+        // 2. 캐시 먼저 확인 (빠른 응답)
+        let rowNumber = null;
+        let handTime = null;
+
+        // 전역 캐시에서 행 번호 확인
+        if (window.handStatusCache && window.handStatusCache.has(handNumber)) {
+          const cachedData = window.handStatusCache.get(handNumber);
+          if (cachedData.rowNumber) {
+            rowNumber = cachedData.rowNumber;
+            console.log(`✅ 캐시에서 행 번호 발견: ${rowNumber}`);
+          }
         }
 
-        // 4. 시간 매칭 수행
-        const matchResult = await findMatchingRowInVirtualSheet(sheetUrl, handTime);
-        const matchedRowData = matchResult ? matchResult.matchedRow : null;
-        if (!matchedRowData || !matchedRowData.row) {
-          throw new Error('시간 매칭에 실패했습니다. (대상 시간에서 ±3분 범위를 찾을 수 없음)');
+        // 3. 캐시에 없으면 시트에서 찾기
+        if (!rowNumber) {
+          // 핸드 시간 가져오기
+          handTime = await getHandTimestamp(handNumber);
+          if (!handTime) {
+            throw new Error('핸드 시간 정보를 가져올 수 없습니다.');
+          }
+
+          // 시간 매칭 수행
+          const matchResult = await findMatchingRowInVirtualSheet(sheetUrl, handTime);
+          const matchedRowData = matchResult ? matchResult.matchedRow : null;
+          if (!matchedRowData || !matchedRowData.row) {
+            throw new Error('시간 매칭에 실패했습니다. (대상 시간에서 ±3분 범위를 찾을 수 없음)');
+          }
+          rowNumber = matchedRowData.row; // 행 번호 추출 (숫자)
+
+          // 찾은 행 번호를 캐시에 저장
+          if (!window.handStatusCache) {
+            window.handStatusCache = new Map();
+          }
+          const existing = window.handStatusCache.get(handNumber) || {};
+          window.handStatusCache.set(handNumber, { ...existing, rowNumber });
         }
-        const rowNumber = matchedRowData.row; // 행 번호 추출 (숫자)
 
         // 5. AI 분석 실행
         const aiAnalysis = await analyzeHandWithAI(handNumber);
         const filename = `${handNumber}_${new Date().toISOString().slice(0,10).replace(/-/g, '')}_completed`;
+
+        // 🚀 매핑 저장
+        saveHandFilenameMapping(handNumber, filename);
 
         // 6. 시트 업데이트 (복사완료 상태로)
         const updateData = {
@@ -5783,6 +6329,14 @@
           completeBtn.textContent = '완료';
           completeBtn.disabled = true;  // 완료 후 비활성화
           editBtn.disabled = true;      // 편집 버튼도 비활성화
+
+          // 🚀 즉시 버튼 상태 재확인 (사전 로딩 데이터 업데이트 반영)
+          setTimeout(() => {
+            console.log('🔄 완료 처리 후 버튼 상태 재확인...');
+            updateButtonStatesFromStatus(handNumber, '복사완료');
+            // 📊 완료 시간 기록
+            recordCompleteTime(handNumber);
+          }, 100);
 
           // 상세한 정보를 포함한 팝업 메시지
           const detailMessage = `✅ 완료 처리되었습니다!
@@ -5820,49 +6374,73 @@
       }
     }
 
-    // 편집 버튼 처리 함수 (새로 추가)
+    // 편집 버튼 처리 함수 (캐시 우선 사용)
     async function processEditButton(handNumber) {
       console.log(`\n🔴🔴🔴 [편집 버튼 클릭] 핸드 #${handNumber} 처리 시작 🔴🔴🔴`);
       const editBtn = document.getElementById('edit-btn');
       const completeBtn = document.getElementById('complete-btn');
 
       try {
-        // 1. 버튼 상태 변경
-        editBtn.disabled = true;
-        editBtn.textContent = '편집 중...';
-        completeBtn.disabled = true;
-
-        // 2. 시트 URL 확인
+        // 0. 시트 URL 먼저 확인 (전체 함수에서 사용)
         const sheetUrl = getSheetUrl();
         if (!sheetUrl) {
           throw new Error('시트 URL이 설정되지 않았습니다.');
         }
 
-        // 3. 핸드 시간 가져오기
-        const handTime = await getHandTimestamp(handNumber);
-        if (!handTime) {
-          throw new Error('핸드 시간 정보를 가져올 수 없습니다.');
+        // 1. 버튼 상태 변경
+        editBtn.disabled = true;
+        editBtn.textContent = '편집 중...';
+        completeBtn.disabled = true;
+
+        // 2. 캐시 먼저 확인 (빠른 응답)
+        let rowNumber = null;
+        let handTime = null;
+
+        // 전역 캐시에서 행 번호 확인
+        if (window.handStatusCache && window.handStatusCache.has(handNumber)) {
+          const cachedData = window.handStatusCache.get(handNumber);
+          if (cachedData.rowNumber) {
+            rowNumber = cachedData.rowNumber;
+            console.log(`✅ 캐시에서 행 번호 발견: ${rowNumber}`);
+          }
         }
 
-        // 4. 시간 매칭 수행
-        const matchResult = await findMatchingRowInVirtualSheet(sheetUrl, handTime);
-        const matchedRowData = matchResult ? matchResult.matchedRow : null;
-        if (!matchedRowData || !matchedRowData.row) {
-          throw new Error('시간 매칭에 실패했습니다. (대상 시간에서 ±3분 범위를 찾을 수 없음)');
+        // 3. 캐시에 없으면 시트에서 찾기
+        if (!rowNumber) {
+          // 핸드 시간 가져오기
+          handTime = await getHandTimestamp(handNumber);
+          if (!handTime) {
+            throw new Error('핸드 시간 정보를 가져올 수 없습니다.');
+          }
+
+          // 시간 매칭 수행
+          const matchResult = await findMatchingRowInVirtualSheet(sheetUrl, handTime);
+          const matchedRowData = matchResult ? matchResult.matchedRow : null;
+          if (!matchedRowData || !matchedRowData.row) {
+            throw new Error('시간 매칭에 실패했습니다. (대상 시간에서 ±3분 범위를 찾을 수 없음)');
+          }
+          rowNumber = matchedRowData.row; // 행 번호 추출 (숫자)
+
+          // 찾은 행 번호를 캐시에 저장
+          if (!window.handStatusCache) {
+            window.handStatusCache = new Map();
+          }
+          const existing = window.handStatusCache.get(handNumber) || {};
+          window.handStatusCache.set(handNumber, { ...existing, rowNumber });
         }
-        const rowNumber = matchedRowData.row; // 행 번호 추출 (숫자)
 
         // 🔴 디버깅: 편집 시 매칭된 행 번호
         console.log(`🔴 [편집 버튼] 핸드 #${handNumber} 매칭 결과:`);
         console.log(`   - 핸드 타임스탬프: ${handTime} (${new Date(handTime * 1000).toLocaleTimeString()})`);
         console.log(`   - 매칭된 행 번호: ${rowNumber}`);
-        console.log(`   - 매칭 정확도: ${matchResult.accuracy || 'N/A'}`);
-        console.log(`   - 시간 차이: ${matchResult.timeDiff || 'N/A'}초`);
         console.log(`🔴🔴🔴 편집 버튼 매칭 완료 🔴🔴🔴\n`);
 
         // 5. AI 분석 실행
         const aiAnalysis = await analyzeHandWithAI(handNumber);
         const filename = `${handNumber}_${new Date().toISOString().slice(0,10).replace(/-/g, '')}_edited`;
+
+        // 🚀 매핑 저장
+        saveHandFilenameMapping(handNumber, filename);
 
         // 6. 시트 업데이트 (미완료 상태로)
         const updateData = {
@@ -5885,6 +6463,14 @@
           editBtn.textContent = '편집';
           editBtn.disabled = true;      // 편집 완료 후 비활성화
           completeBtn.disabled = false;  // 완료 버튼 활성화
+
+          // 🚀 즉시 버튼 상태 재확인 (사전 로딩 데이터 업데이트 반영)
+          setTimeout(() => {
+            console.log('🔄 편집 완료 후 버튼 상태 재확인...');
+            updateButtonStatesFromStatus(handNumber, '미완료');
+            // 📊 편집 시작 시간 기록
+            recordEditStartTime(handNumber);
+          }, 100);
 
           // 로컬 상태 업데이트
           updateHandEditStatus(handNumber, false, true); // 마지막 매개변수는 skipServerCall
@@ -6554,6 +7140,212 @@
     });
     
     // ====================================
+    // 📊 핸드 상태 정보 섹션 관리
+    // ====================================
+
+    // 전역 상태 저장소 (편집 시작 시간, 작업 정보 등)
+    window.handWorkSessions = window.handWorkSessions || new Map();
+
+    // 핸드 상태 정보 섹션 초기화
+    function initializeHandStatusSection(handNumber, indexHand) {
+      const statusSection = document.getElementById('hand-status-section');
+      const statusIcon = document.getElementById('status-icon');
+      const statusText = document.getElementById('status-text');
+      const fileInfo = document.getElementById('file-info');
+
+      if (!statusSection) return;
+
+      // 섹션 표시
+      statusSection.classList.remove('hidden');
+
+      // 기본 정보 설정
+      if (indexHand && indexHand.camFiles && indexHand.camFiles.length > 0) {
+        document.querySelector('#file-info .file-value').textContent = indexHand.camFiles[0];
+      } else {
+        document.querySelector('#file-info .file-value').textContent = '파일 없음';
+      }
+
+      // 작업 환경 정보 설정
+      const workEnvironment = `${navigator.userAgent.includes('Chrome') ? 'Chrome' : 'Browser'} / ${navigator.platform}`;
+      document.getElementById('work-environment').textContent = workEnvironment;
+
+      // 작업 세션 ID 생성
+      const sessionId = generateWorkSessionId(handNumber);
+      document.getElementById('work-session-id').textContent = sessionId;
+
+      console.log(`📊 핸드 #${handNumber} 상태 정보 섹션 초기화 완료`);
+    }
+
+    // 핸드 상태 정보 섹션 업데이트
+    function updateHandStatusSection(handNumber, status) {
+      const statusIcon = document.getElementById('status-icon');
+      const statusText = document.getElementById('status-text');
+      const editStartTime = document.getElementById('edit-start-time');
+      const editDuration = document.getElementById('edit-duration');
+      const completeTime = document.getElementById('complete-time');
+      const workProgress = document.getElementById('work-progress');
+      const statusHistory = document.getElementById('status-history');
+
+      if (!statusIcon || !statusText) return;
+
+      // 작업 세션 정보 가져오기
+      const session = window.handWorkSessions.get(handNumber) || {};
+
+      switch(status) {
+        case null:
+        case '':
+          statusIcon.textContent = '🔴';
+          statusText.textContent = '미처리 (편집 대기)';
+          statusText.className = 'text-sm font-semibold text-red-400';
+          workProgress.textContent = '0%';
+
+          // 시간 정보 숨기기
+          editStartTime.classList.add('hidden');
+          editDuration.classList.add('hidden');
+          completeTime.classList.add('hidden');
+          break;
+
+        case '미완료':
+          statusIcon.textContent = '🟡';
+          statusText.textContent = '편집 중 (완료 대기)';
+          statusText.className = 'text-sm font-semibold text-yellow-400';
+          workProgress.textContent = '50%';
+
+          // 편집 시작 시간 표시
+          editStartTime.classList.remove('hidden');
+          if (session.editStartTime) {
+            document.querySelector('#edit-start-time .time-value').textContent =
+              new Date(session.editStartTime).toLocaleTimeString('ko-KR');
+          }
+
+          // 진행 시간 업데이트 시작
+          if (session.editStartTime) {
+            startDurationCounter(handNumber);
+          }
+
+          completeTime.classList.add('hidden');
+          break;
+
+        case '복사완료':
+          statusIcon.textContent = '🟢';
+          statusText.textContent = '완료됨';
+          statusText.className = 'text-sm font-semibold text-green-400';
+          workProgress.textContent = '100%';
+
+          // 완료 시간 표시
+          completeTime.classList.remove('hidden');
+          if (session.completeTime) {
+            document.querySelector('#complete-time .time-value').textContent =
+              new Date(session.completeTime).toLocaleTimeString('ko-KR');
+          }
+
+          // 진행 시간 카운터 중지
+          stopDurationCounter(handNumber);
+          break;
+      }
+
+      // 상태 변경 이력 업데이트
+      const now = new Date().toLocaleTimeString('ko-KR');
+      const historyText = session.statusHistory ?
+        `${session.statusHistory} → ${status || '미처리'} (${now})` :
+        `${status || '미처리'} (${now})`;
+      statusHistory.textContent = historyText;
+
+      // 세션에 이력 저장
+      session.statusHistory = historyText;
+      window.handWorkSessions.set(handNumber, session);
+
+      console.log(`📊 핸드 #${handNumber} 상태 섹션 업데이트: ${status}`);
+    }
+
+    // 편집 시작 시간 기록
+    function recordEditStartTime(handNumber) {
+      const session = window.handWorkSessions.get(handNumber) || {};
+      session.editStartTime = Date.now();
+      window.handWorkSessions.set(handNumber, session);
+
+      console.log(`📝 핸드 #${handNumber} 편집 시작 시간 기록: ${new Date(session.editStartTime).toLocaleString()}`);
+    }
+
+    // 완료 시간 기록
+    function recordCompleteTime(handNumber) {
+      const session = window.handWorkSessions.get(handNumber) || {};
+      session.completeTime = Date.now();
+
+      // 총 소요 시간 계산
+      if (session.editStartTime) {
+        session.totalDuration = session.completeTime - session.editStartTime;
+        console.log(`✅ 핸드 #${handNumber} 완료 - 총 소요시간: ${Math.round(session.totalDuration / 1000)}초`);
+      }
+
+      window.handWorkSessions.set(handNumber, session);
+
+      console.log(`✅ 핸드 #${handNumber} 완료 시간 기록: ${new Date(session.completeTime).toLocaleString()}`);
+    }
+
+    // 진행 시간 실시간 카운터 시작
+    function startDurationCounter(handNumber) {
+      // 기존 카운터 정리
+      stopDurationCounter(handNumber);
+
+      const session = window.handWorkSessions.get(handNumber) || {};
+      if (!session.editStartTime) return;
+
+      const updateDuration = () => {
+        const now = Date.now();
+        const elapsed = now - session.editStartTime;
+        const minutes = Math.floor(elapsed / 60000);
+        const seconds = Math.floor((elapsed % 60000) / 1000);
+
+        const editDuration = document.getElementById('edit-duration');
+        if (editDuration) {
+          editDuration.classList.remove('hidden');
+          document.querySelector('#edit-duration .time-value').textContent =
+            `${minutes}분 ${seconds}초`;
+        }
+      };
+
+      // 즉시 한번 실행
+      updateDuration();
+
+      // 1초마다 업데이트
+      session.durationInterval = setInterval(updateDuration, 1000);
+      window.handWorkSessions.set(handNumber, session);
+    }
+
+    // 진행 시간 카운터 중지
+    function stopDurationCounter(handNumber) {
+      const session = window.handWorkSessions.get(handNumber) || {};
+      if (session.durationInterval) {
+        clearInterval(session.durationInterval);
+        delete session.durationInterval;
+        window.handWorkSessions.set(handNumber, session);
+      }
+    }
+
+    // 상세보기 토글 기능
+    function toggleStatusDetails() {
+      const detailedInfo = document.getElementById('detailed-status-info');
+      const toggleButton = document.getElementById('status-toggle');
+
+      if (detailedInfo.classList.contains('hidden')) {
+        detailedInfo.classList.remove('hidden');
+        toggleButton.textContent = '간단보기 ▲';
+      } else {
+        detailedInfo.classList.add('hidden');
+        toggleButton.textContent = '상세보기 ▼';
+      }
+    }
+
+    // 작업 세션 ID 생성
+    function generateWorkSessionId(handNumber) {
+      const now = new Date();
+      const timeStr = now.getHours().toString().padStart(2, '0') +
+                     now.getMinutes().toString().padStart(2, '0');
+      return `H${handNumber}_${timeStr}`;
+    }
+
+    // ====================================
     // 초기화
     // ====================================
     
@@ -6662,11 +7454,18 @@
         console.log(`📂 [Phase 3] 로컬 캐시 복구: ${savedCache.size}행`);
       }
 
-      // Phase 1: 초기 로드 시 전체 핸드 상태 동기화
-      setTimeout(async () => {
-        console.log('🔄 페이지 로드 완료 - 전체 핸드 상태 동기화 시작...');
-        await initializeAllHandsStatus();
-      }, 2000); // 2초 후 실행 (캐시 준비 대기)
+      // 완전한 사전 로딩 시스템: Virtual 시트 전체를 메모리에 로딩
+      console.log('🚀 완전한 사전 로딩 시스템 시작...');
+      const preloadSuccess = await preloadAllHandStatuses();
+
+      if (preloadSuccess) {
+        // 백그라운드 갱신 시작
+        startBackgroundRefresh();
+        console.log('✅ 사전 로딩 완료 - 핸드 클릭 시 즉시 응답 가능');
+      } else {
+        console.warn('⚠️ 사전 로딩 실패 - 기존 캐시 시스템으로 폴백');
+        await loadAllHandsStatusAtOnce();
+      }
 
       // Phase 1: 스크롤 이벤트로 보이는 핸드 상태 업데이트
       let scrollDebounceTimer;
@@ -6697,6 +7496,10 @@
       
       // 초기 로드 동기화 팝업 표시
       initSyncManager.show();
+
+      // 🚀 핸드-파일명 매핑 데이터 로드
+      initSyncManager.addLog('💾 저장된 매핑 데이터 로드 중...');
+      loadHandFilenameMappings();
 
       // Apps Script 설정 로드 (통합 시트 관리)
       initSyncManager.updateStep('settings', 'running', '설정 불러오는 중...');
@@ -6798,8 +7601,13 @@
       // SheetDataCache 갱신 (캐시 구축)
       if (typeof sheetDataCache !== 'undefined') {
         await sheetDataCache.refreshCache();
+
+        // 스마트 갱신 시작
+        sheetDataCache.startSmartUpdate();
+
         initSyncManager.updateStep('cache', 'complete', '캐시 구축 완료');
         initSyncManager.addLog('✅ 캐시 및 인덱스 구축 완료', 'success');
+        initSyncManager.addLog('🔄 스마트 캐시 갱신 시작 (30초 간격)', 'info');
       } else {
         initSyncManager.updateStep('cache', 'complete', '캐시 준비 완료');
       }
@@ -7223,7 +8031,173 @@
     }
 
     /**
-     * 페이지 로드 시 전체 핸드 상태 초기화 및 동기화
+     * 초기 로드 시 모든 핸드 상태를 한번에 가져와서 캐시
+     * 개선: 개별 API 호출 대신 일괄 로딩으로 성능 향상
+     */
+    async function loadAllHandsStatusAtOnce() {
+      try {
+        console.log('🚀 === 전체 핸드 상태 일괄 로딩 시작 ===');
+        const startTime = performance.now();
+
+        // 1. 모든 핸드의 타임스탬프와 행 번호 수집
+        const handDataArray = [];
+        const handElements = document.querySelectorAll('.hand-item');
+
+        for (const el of handElements) {
+          const handNumber = el.dataset.handNumber;
+          if (handNumber) {
+            const timestamp = await getHandTimestamp(handNumber);
+            if (timestamp) {
+              handDataArray.push({
+                handNumber,
+                timestamp,
+                element: el
+              });
+            }
+          }
+        }
+
+        console.log(`📊 일괄 로딩 대상: ${handDataArray.length}개 핸드`);
+
+        if (handDataArray.length === 0) {
+          console.log('ℹ️ 로드할 핸드가 없음');
+          return;
+        }
+
+        // 2. Apps Script로 일괄 상태 요청 (한 번의 API 호출로 모든 상태 가져오기)
+        const batchRequest = {
+          action: 'batchGetAllStatus',  // 모든 핸드 상태를 한번에 가져오는 액션
+          sheetUrl: getSheetUrl(),
+          timestamps: handDataArray.map(data => data.timestamp)
+        };
+
+        console.log('📡 Apps Script에 일괄 상태 요청...');
+
+        try {
+          const response = await fetch(getAppsScriptUrl(), {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify(batchRequest)
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+
+            if (result.status === 'success' && result.data) {
+              // 3. 받은 상태 데이터를 전역 캐시에 저장
+              const statusCache = new Map();
+
+              result.data.forEach(item => {
+                if (item.timestamp && item.status) {
+                  statusCache.set(item.timestamp, {
+                    status: item.status,
+                    fileName: item.fileName || '',
+                    aiAnalysis: item.aiAnalysis || ''
+                  });
+                }
+              });
+
+              console.log(`✅ ${statusCache.size}개 핸드 상태 캐시 완료`);
+
+              // 4. 캐시된 데이터로 UI 업데이트
+              let updatedCount = 0;
+              handDataArray.forEach(({ handNumber, timestamp, element }) => {
+                const cachedStatus = statusCache.get(timestamp);
+                if (cachedStatus) {
+                  updateHandStatusUI(element, cachedStatus.status);
+
+                  // 전역 상태 저장
+                  if (!window.handStatusCache) {
+                    window.handStatusCache = new Map();
+                  }
+                  window.handStatusCache.set(handNumber, cachedStatus);
+                  updatedCount++;
+                }
+              });
+
+              const endTime = performance.now();
+              const totalTime = ((endTime - startTime) / 1000).toFixed(2);
+
+              console.log(`🎉 일괄 로딩 완료: ${updatedCount}/${handDataArray.length}개 업데이트 (${totalTime}초)`);
+
+              // 성공 알림
+              if (updatedCount > 0) {
+                showNotification(`${updatedCount}개 핸드 상태가 동기화되었습니다.`, 'success');
+              }
+            }
+          }
+        } catch (error) {
+          console.error('❌ 일괄 상태 요청 실패:', error);
+
+          // 폴백: 캐시된 CSV 데이터 사용
+          console.log('📦 폴백: 로컬 캐시 데이터 사용...');
+          await fallbackToCachedData(handDataArray);
+        }
+
+      } catch (error) {
+        console.error('❌ 일괄 로딩 실패:', error);
+      }
+    }
+
+    /**
+     * 캐시 데이터를 사용한 폴백 처리
+     */
+    async function fallbackToCachedData(handDataArray) {
+      if (!sheetDataCache) {
+        console.warn('⚠️ 캐시가 없어 폴백 불가');
+        return;
+      }
+
+      let updatedCount = 0;
+      for (const { handNumber, timestamp, element } of handDataArray) {
+        const cachedRow = sheetDataCache.findClosestRow(timestamp);
+        if (cachedRow && cachedRow.status) {
+          updateHandStatusUI(element, cachedRow.status);
+
+          // 전역 상태 저장
+          if (!window.handStatusCache) {
+            window.handStatusCache = new Map();
+          }
+          window.handStatusCache.set(handNumber, {
+            status: cachedRow.status,
+            fileName: cachedRow.fileName || '',
+            aiAnalysis: cachedRow.aiAnalysis || ''
+          });
+          updatedCount++;
+        }
+      }
+
+      console.log(`📦 폴백 완료: ${updatedCount}개 핸드 상태 복구`);
+    }
+
+    /**
+     * 핸드 상태 UI 업데이트 헬퍼 함수
+     */
+    function updateHandStatusUI(element, status) {
+      const statusIndicator = element.querySelector('.status-indicator');
+      if (statusIndicator) {
+        // 기존 상태 클래스 제거
+        statusIndicator.classList.remove('status-empty', 'status-pending', 'status-completed');
+
+        // 새 상태 적용
+        if (status === '복사완료' || status === 'completed') {
+          statusIndicator.classList.add('status-completed');
+          statusIndicator.textContent = '✅';
+          statusIndicator.title = '완료됨';
+        } else if (status === '미완료' || status === 'pending') {
+          statusIndicator.classList.add('status-pending');
+          statusIndicator.textContent = '⏳';
+          statusIndicator.title = '진행 중';
+        } else {
+          statusIndicator.classList.add('status-empty');
+          statusIndicator.textContent = '○';
+          statusIndicator.title = '미처리';
+        }
+      }
+    }
+
+    /**
+     * 페이지 로드 시 전체 핸드 상태 초기화 및 동기화 (레거시 - 보존)
      * 목적: 새로고침 후 각 핸드의 실제 시트 상태와 UI 버튼 상태 동기화
      */
     async function initializeAllHandsStatus() {
