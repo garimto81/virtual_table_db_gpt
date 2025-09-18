@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 12.4.0
+  Version: 12.5.0
   Last Updated: 2025-09-18
-  Description: 시간 매칭 로직 단순화 - 날짜 무관 시간값 매칭 + 캐시 용량 2000개로 확장
+  Description: CSV 파싱 성능 최적화 - 캐싱으로 반복 호출 방지 + API 액션명 수정
 -->
 <html lang="ko">
 <head>
@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title id="page-title">포커 핸드 모니터링 v12.4.0 - AI 분석 시스템</title>
+  <title id="page-title">포커 핸드 모니터링 v12.5.0 - AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <!-- Papa Parse for accurate CSV parsing (multiline support) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -978,8 +978,9 @@
               status = status.slice(1, -1);
             }
 
-            // C열에서 핸드 번호 추출 (인덱스 2)
-            const handNumber = cols[2]?.trim() || '';
+            // Virtual 시트 구조 분석 후 핸드 번호 추출
+            // A열 (인덱스 0)이 핸드 번호일 가능성이 높음
+            const handNumber = cols[0]?.trim() || '';
 
             const rowData = {
               row: i + 1, // 행 번호 (1-based)
@@ -1004,9 +1005,18 @@
               console.log(`🟡 캐시: 행 ${i + 1}에서 "미완료" 발견 - 핸드 #${handNumber}, 시간: ${timeStr}`);
             }
 
-            // 핸드 번호가 있는 경우 추가 로그
-            if (handNumber && i < 10) {
-              console.log(`   📝 행 ${i + 1}: 핸드 #${handNumber}, 시간="${timeStr}", 상태="${status}"`);
+            // 핸드 번호가 있는 경우 추가 로그 (모든 열 정보 포함)
+            if (i < 5) { // 처음 5행 상세 로그
+              console.log(`   📝 행 ${i + 1}:`, {
+                A: cols[0]?.trim() || '(빈값)',
+                B: cols[1]?.trim() || '(빈값)',
+                C: cols[2]?.trim() || '(빈값)',
+                D: cols[3]?.trim() || '(빈값)',
+                E: cols[4]?.trim() || '(빈값)',
+                핸드번호: handNumber,
+                시간: timeStr,
+                상태: status
+              });
             }
           }
 
@@ -2225,8 +2235,21 @@
         }
       }
     }
-    
+
+    // CSV 파싱 결과 캐시 (v12.5.0 성능 최적화)
+    const csvParseCache = new Map();
+
     function parseCSV(text) {
+      // 캐시 키 생성 (텍스트 해시 대신 길이와 첫/마지막 100자 사용)
+      const cacheKey = `${text.length}_${text.substring(0, 100)}_${text.substring(text.length - 100)}`;
+
+      // 캐시에서 먼저 확인
+      if (csvParseCache.has(cacheKey)) {
+        const cached = csvParseCache.get(cacheKey);
+        console.log(`🚀 CSV 파싱 캐시 히트: ${cached.length}개 행 (캐시 크기: ${csvParseCache.size})`);
+        return cached;
+      }
+
       // Papa Parse가 있으면 사용 (RFC 4180 표준 준수)
       if (typeof Papa !== 'undefined') {
         const result = Papa.parse(text, {
@@ -2245,6 +2268,15 @@
         }
 
         console.log(`📊 Papa Parse 사용: ${result.data.length}개 행 파싱 완료`);
+
+        // 캐시에 저장 (최대 5개까지 유지)
+        if (csvParseCache.size >= 5) {
+          const firstKey = csvParseCache.keys().next().value;
+          csvParseCache.delete(firstKey);
+        }
+        csvParseCache.set(cacheKey, result.data);
+        console.log(`💾 CSV 파싱 결과 캐시 저장 (캐시 크기: ${csvParseCache.size})`);
+
         return result.data;
       }
 
@@ -2317,6 +2349,15 @@
       }
 
       console.log(`📊 커스텀 파서: ${rows.length}개 행 파싱 완료`);
+
+      // 캐시에 저장 (최대 5개까지 유지)
+      if (csvParseCache.size >= 5) {
+        const firstKey = csvParseCache.keys().next().value;
+        csvParseCache.delete(firstKey);
+      }
+      csvParseCache.set(cacheKey, rows);
+      console.log(`💾 CSV 파싱 결과 캐시 저장 (캐시 크기: ${csvParseCache.size})`);
+
       return rows;
     }
     
@@ -2978,7 +3019,7 @@
         // 3. Apps Script에 일괄 상태 확인 요청
         // 🔴 주의: Apps Script에 batchGetStatus 액션이 구현되어 있어야 함
         const batchData = {
-          action: 'batchGetStatus', // 올바른 액션 이름으로 변경
+          action: 'batchVerify', // Apps Script의 실제 액션 이름
           sheetUrl: sheetUrl,
           rows: validRows.map(item => item.row)
         };
@@ -3078,7 +3119,7 @@
         console.log(`🚀 Apps Script로 실시간 E열 상태 확인: 핸드 #${handNumber}`);
 
         const requestData = {
-          action: 'getStatus', // 올바른 액션 이름으로 변경
+          action: 'getHandStatus', // Apps Script의 실제 액션 이름
           sheetUrl: getSheetUrl(),
           handNumber: handNumber,
           handTime: handTime

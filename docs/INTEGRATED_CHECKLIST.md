@@ -2,7 +2,7 @@
 
 ## 프로젝트: Virtual Table DB - Poker Hand Monitoring System
 **최종 업데이트**: 2025-09-18
-**현재 버전**: v12.4.0
+**현재 버전**: v12.5.0
 
 ---
 
@@ -24,6 +24,12 @@
 - 복잡한 날짜 오프셋 계산 제거
 - 24시간 경계 처리만 유지
 - 캐시 용량 1000개에서 2000개로 확장
+
+### 4. CSV 파싱 성능 최적화 (v12.5.0)
+- CSV 파싱 결과 캐싱 시스템 구현
+- Papa Parse 반복 호출 대폭 감소
+- API 액션명 수정 (getHandStatus, batchVerify)
+- Virtual 시트 A열에서 핸드 번호 추출
 
 ---
 
