@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title id="page-title">포커 핸드 모니터링 v12.11.0 - AI 분석 시스템</title>
+  <title id="page-title">포커 핸드 모니터링 v12.11.1 - AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <!-- Papa Parse for accurate CSV parsing (multiline support) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -464,42 +464,6 @@
         </div>
       </div>
 
-      <!-- 📊 핸드 상태 정보 섹션 (하단 배치) -->
-      <div id="hand-status-section" class="mt-3 p-3 bg-gray-800 rounded-lg border border-gray-700 hidden">
-        <div class="flex items-center justify-between mb-2">
-          <div class="flex items-center gap-2">
-            <span id="status-icon" class="text-lg">⚪</span>
-            <span id="status-text" class="text-sm font-semibold">상태 확인 중</span>
-          </div>
-          <button id="status-toggle" class="text-xs text-blue-400 hover:text-blue-300" onclick="toggleStatusDetails()">
-            상세보기 ▼
-          </button>
-        </div>
-
-        <!-- 기본 상태 정보 -->
-        <div id="basic-status-info" class="flex flex-wrap gap-3 text-xs text-gray-300">
-          <div id="edit-start-time" class="hidden">📝 시작: <span class="time-value">-</span></div>
-          <div id="edit-duration" class="hidden">⏱️ 진행: <span class="time-value">-</span></div>
-          <div id="complete-time" class="hidden">✅ 완료: <span class="time-value">-</span></div>
-          <div id="file-info">📁 파일: <span class="file-value">-</span></div>
-        </div>
-
-        <!-- 상세 정보 패널 (접이식) -->
-        <div id="detailed-status-info" class="mt-3 pt-3 border-t border-gray-700 text-xs text-gray-400 hidden">
-          <div class="grid grid-cols-2 gap-2">
-            <div>🎯 작업 ID: <span id="work-session-id">-</span></div>
-            <div>🌐 환경: <span id="work-environment">-</span></div>
-            <div>📊 진행률: <span id="work-progress">0%</span></div>
-            <div>🔄 상태 변경: <span id="status-history">-</span></div>
-          </div>
-
-          <!-- AI 분석 정보 (있는 경우) -->
-          <div id="ai-analysis-info" class="mt-2 p-2 bg-gray-900 rounded text-xs hidden">
-            <div class="text-blue-300 mb-1">🤖 AI 분석 결과</div>
-            <div id="ai-analysis-content">분석 중...</div>
-          </div>
-        </div>
-      </div>
 
       <!-- 팟 정보 -->
       <div class="pot-display mb-3">
@@ -525,8 +489,58 @@
       <!-- 액션 히스토리 -->
       <div class="flex-1">
         <div class="section-header">Actions</div>
-        <div id="action-history" style="max-height: calc(100vh - 520px); overflow-y: auto;">
+        <div id="action-history" style="max-height: calc(100vh - 620px); overflow-y: auto;">
           <!-- 액션 히스토리 동적 생성 -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 📊 Virtual 시트 등록 정보 (확인용 - 최하단 배치) -->
+    <div id="virtual-sheet-info" class="mt-4 p-3 bg-gray-900 rounded-lg border border-gray-600 hidden">
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center gap-2">
+          <span class="text-sm font-bold text-blue-300">📋 Virtual 시트 등록 정보</span>
+          <span id="sheet-status-icon" class="text-lg">⚪</span>
+        </div>
+        <button id="sheet-info-toggle" class="text-xs text-blue-400 hover:text-blue-300" onclick="toggleSheetInfoDetails()">
+          상세보기 ▼
+        </button>
+      </div>
+
+      <!-- 기본 Virtual 시트 정보 -->
+      <div id="sheet-basic-info" class="grid grid-cols-3 gap-3 text-xs text-gray-300">
+        <div>📍 행 번호: <span id="sheet-row-number" class="text-yellow-300">-</span></div>
+        <div>📊 상태: <span id="sheet-status" class="font-semibold">-</span></div>
+        <div>📁 파일명: <span id="sheet-filename" class="text-blue-300">-</span></div>
+      </div>
+
+      <!-- 상세 Virtual 시트 정보 (접이식) -->
+      <div id="sheet-detailed-info" class="mt-3 pt-3 border-t border-gray-600 text-xs text-gray-400 hidden">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <div class="text-gray-300 font-semibold mb-1">📝 등록 정보</div>
+            <div>🔢 핸드번호: <span id="sheet-hand-number">-</span></div>
+            <div>⏰ 등록시간: <span id="sheet-registered-time">-</span></div>
+            <div>🔄 수정시간: <span id="sheet-modified-time">-</span></div>
+          </div>
+          <div>
+            <div class="text-gray-300 font-semibold mb-1">🔍 매칭 정보</div>
+            <div>🎯 매칭방식: <span id="sheet-match-method">-</span></div>
+            <div>📐 시간차이: <span id="sheet-time-diff">-</span></div>
+            <div>🔗 CSV 행: <span id="sheet-csv-row">-</span></div>
+          </div>
+        </div>
+
+        <!-- AI 분석 정보 (Virtual 시트에서) -->
+        <div id="sheet-ai-info" class="mt-3 p-2 bg-gray-800 rounded text-xs hidden">
+          <div class="text-green-300 mb-1">🤖 Virtual 시트 AI 분석</div>
+          <div id="sheet-ai-content" class="text-gray-300">-</div>
+        </div>
+
+        <!-- 원본 데이터 확인 -->
+        <div class="mt-3 p-2 bg-gray-800 rounded text-xs">
+          <div class="text-orange-300 mb-1">🔍 원본 CSV 데이터</div>
+          <div id="sheet-raw-data" class="font-mono text-gray-400 text-xs break-all">-</div>
         </div>
       </div>
     </div>
@@ -765,7 +779,7 @@
     // ====================================
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '12.11.0'; // 핸드 상태 정보 대시보드 표시 기능 추가
+    const APP_VERSION = '12.11.1'; // Virtual 시트 등록 정보 확인용 표시 기능 구현
     const BUILD_TIME = '2025-09-18T17:00:00Z';
 
     // ====================================
@@ -4042,8 +4056,8 @@
       // 버튼 상태 업데이트 (완료 상태에 따라)
       updateHandStatus(indexHand ? indexHand.handEdit : false);
 
-      // 📊 핸드 상태 정보 섹션 초기화
-      initializeHandStatusSection(handNumber, indexHand);
+      // 📊 Virtual 시트 등록 정보 표시 (최하단 확인용)
+      await loadVirtualSheetInfo(handNumber);
 
       // E열 상태 기반 버튼 업데이트 (비동기)
       console.log(`🔄 핸드 #${handNumber} 선택 완료 - 버튼 상태 업데이트 예약`);
@@ -7146,116 +7160,11 @@
     // 전역 상태 저장소 (편집 시작 시간, 작업 정보 등)
     window.handWorkSessions = window.handWorkSessions || new Map();
 
-    // 핸드 상태 정보 섹션 초기화
-    function initializeHandStatusSection(handNumber, indexHand) {
-      const statusSection = document.getElementById('hand-status-section');
-      const statusIcon = document.getElementById('status-icon');
-      const statusText = document.getElementById('status-text');
-      const fileInfo = document.getElementById('file-info');
 
-      if (!statusSection) return;
-
-      // 섹션 표시
-      statusSection.classList.remove('hidden');
-
-      // 기본 정보 설정
-      if (indexHand && indexHand.camFiles && indexHand.camFiles.length > 0) {
-        document.querySelector('#file-info .file-value').textContent = indexHand.camFiles[0];
-      } else {
-        document.querySelector('#file-info .file-value').textContent = '파일 없음';
-      }
-
-      // 작업 환경 정보 설정
-      const workEnvironment = `${navigator.userAgent.includes('Chrome') ? 'Chrome' : 'Browser'} / ${navigator.platform}`;
-      document.getElementById('work-environment').textContent = workEnvironment;
-
-      // 작업 세션 ID 생성
-      const sessionId = generateWorkSessionId(handNumber);
-      document.getElementById('work-session-id').textContent = sessionId;
-
-      console.log(`📊 핸드 #${handNumber} 상태 정보 섹션 초기화 완료`);
-    }
-
-    // 핸드 상태 정보 섹션 업데이트
+    // 핸드 상태 정보 섹션 업데이트 (더 이상 사용되지 않음 - Virtual 시트 정보로 대체)
     function updateHandStatusSection(handNumber, status) {
-      const statusIcon = document.getElementById('status-icon');
-      const statusText = document.getElementById('status-text');
-      const editStartTime = document.getElementById('edit-start-time');
-      const editDuration = document.getElementById('edit-duration');
-      const completeTime = document.getElementById('complete-time');
-      const workProgress = document.getElementById('work-progress');
-      const statusHistory = document.getElementById('status-history');
-
-      if (!statusIcon || !statusText) return;
-
-      // 작업 세션 정보 가져오기
-      const session = window.handWorkSessions.get(handNumber) || {};
-
-      switch(status) {
-        case null:
-        case '':
-          statusIcon.textContent = '🔴';
-          statusText.textContent = '미처리 (편집 대기)';
-          statusText.className = 'text-sm font-semibold text-red-400';
-          workProgress.textContent = '0%';
-
-          // 시간 정보 숨기기
-          editStartTime.classList.add('hidden');
-          editDuration.classList.add('hidden');
-          completeTime.classList.add('hidden');
-          break;
-
-        case '미완료':
-          statusIcon.textContent = '🟡';
-          statusText.textContent = '편집 중 (완료 대기)';
-          statusText.className = 'text-sm font-semibold text-yellow-400';
-          workProgress.textContent = '50%';
-
-          // 편집 시작 시간 표시
-          editStartTime.classList.remove('hidden');
-          if (session.editStartTime) {
-            document.querySelector('#edit-start-time .time-value').textContent =
-              new Date(session.editStartTime).toLocaleTimeString('ko-KR');
-          }
-
-          // 진행 시간 업데이트 시작
-          if (session.editStartTime) {
-            startDurationCounter(handNumber);
-          }
-
-          completeTime.classList.add('hidden');
-          break;
-
-        case '복사완료':
-          statusIcon.textContent = '🟢';
-          statusText.textContent = '완료됨';
-          statusText.className = 'text-sm font-semibold text-green-400';
-          workProgress.textContent = '100%';
-
-          // 완료 시간 표시
-          completeTime.classList.remove('hidden');
-          if (session.completeTime) {
-            document.querySelector('#complete-time .time-value').textContent =
-              new Date(session.completeTime).toLocaleTimeString('ko-KR');
-          }
-
-          // 진행 시간 카운터 중지
-          stopDurationCounter(handNumber);
-          break;
-      }
-
-      // 상태 변경 이력 업데이트
-      const now = new Date().toLocaleTimeString('ko-KR');
-      const historyText = session.statusHistory ?
-        `${session.statusHistory} → ${status || '미처리'} (${now})` :
-        `${status || '미처리'} (${now})`;
-      statusHistory.textContent = historyText;
-
-      // 세션에 이력 저장
-      session.statusHistory = historyText;
-      window.handWorkSessions.set(handNumber, session);
-
-      console.log(`📊 핸드 #${handNumber} 상태 섹션 업데이트: ${status}`);
+      // Virtual 시트 정보 표시로 대체됨
+      console.log(`📊 핸드 #${handNumber} 상태 업데이트 (Virtual 시트로 대체): ${status}`);
     }
 
     // 편집 시작 시간 기록
@@ -7334,6 +7243,194 @@
       } else {
         detailedInfo.classList.add('hidden');
         toggleButton.textContent = '상세보기 ▼';
+      }
+    }
+
+    // Virtual 시트 정보 상세보기 토글
+    function toggleSheetInfoDetails() {
+      const detailedInfo = document.getElementById('sheet-detailed-info');
+      const toggleButton = document.getElementById('sheet-info-toggle');
+
+      if (detailedInfo.classList.contains('hidden')) {
+        detailedInfo.classList.remove('hidden');
+        toggleButton.textContent = '간단보기 ▲';
+      } else {
+        detailedInfo.classList.add('hidden');
+        toggleButton.textContent = '상세보기 ▼';
+      }
+    }
+
+    // Virtual 시트 등록 정보 로드
+    async function loadVirtualSheetInfo(handNumber) {
+      const sheetInfoSection = document.getElementById('virtual-sheet-info');
+      const sheetStatusIcon = document.getElementById('sheet-status-icon');
+      const sheetRowNumber = document.getElementById('sheet-row-number');
+      const sheetStatus = document.getElementById('sheet-status');
+      const sheetFilename = document.getElementById('sheet-filename');
+
+      if (!sheetInfoSection) return;
+
+      try {
+        console.log(`📋 핸드 #${handNumber} Virtual 시트 정보 로드 시작`);
+
+        // 섹션 표시
+        sheetInfoSection.classList.remove('hidden');
+
+        // 로딩 상태 표시
+        sheetStatusIcon.textContent = '🔄';
+        sheetRowNumber.textContent = '로딩 중...';
+        sheetStatus.textContent = '확인 중...';
+        sheetFilename.textContent = '조회 중...';
+
+        // 사전 로딩된 데이터에서 먼저 확인
+        let virtualSheetData = null;
+        if (window.preloadedHandStatuses && window.preloadedHandStatuses.has(parseInt(handNumber))) {
+          const status = window.preloadedHandStatuses.get(parseInt(handNumber));
+          console.log(`📋 사전 로딩 데이터에서 핸드 #${handNumber} 상태: ${status}`);
+
+          // 사전 로딩 데이터가 있으면 기본 정보 먼저 표시
+          updateBasicSheetInfo(handNumber, status, null);
+        }
+
+        // Virtual 시트에서 상세 정보 조회
+        const detailedInfo = await getVirtualSheetDetailedInfo(handNumber);
+        if (detailedInfo) {
+          updateDetailedSheetInfo(handNumber, detailedInfo);
+        } else {
+          // 상세 정보를 찾을 수 없는 경우
+          console.log(`📋 핸드 #${handNumber} Virtual 시트에서 상세 정보 찾을 수 없음`);
+          updateBasicSheetInfo(handNumber, null, "Virtual 시트에 등록되지 않음");
+        }
+
+      } catch (error) {
+        console.error(`❌ 핸드 #${handNumber} Virtual 시트 정보 로드 오류:`, error);
+        sheetStatusIcon.textContent = '❌';
+        sheetRowNumber.textContent = '오류';
+        sheetStatus.textContent = '로드 실패';
+        sheetFilename.textContent = error.message;
+      }
+    }
+
+    // 기본 Virtual 시트 정보 업데이트
+    function updateBasicSheetInfo(handNumber, status, errorMessage = null) {
+      const sheetStatusIcon = document.getElementById('sheet-status-icon');
+      const sheetRowNumber = document.getElementById('sheet-row-number');
+      const sheetStatus = document.getElementById('sheet-status');
+      const sheetFilename = document.getElementById('sheet-filename');
+
+      if (errorMessage) {
+        sheetStatusIcon.textContent = '❌';
+        sheetRowNumber.textContent = '-';
+        sheetStatus.textContent = errorMessage;
+        sheetStatus.className = 'font-semibold text-red-400';
+        sheetFilename.textContent = '-';
+        return;
+      }
+
+      // 상태에 따른 아이콘 및 색상 설정
+      switch(status) {
+        case null:
+        case '':
+          sheetStatusIcon.textContent = '🔴';
+          sheetStatus.textContent = '미처리';
+          sheetStatus.className = 'font-semibold text-red-400';
+          break;
+        case '미완료':
+          sheetStatusIcon.textContent = '🟡';
+          sheetStatus.textContent = '편집 중';
+          sheetStatus.className = 'font-semibold text-yellow-400';
+          break;
+        case '복사완료':
+          sheetStatusIcon.textContent = '🟢';
+          sheetStatus.textContent = '완료됨';
+          sheetStatus.className = 'font-semibold text-green-400';
+          break;
+        default:
+          sheetStatusIcon.textContent = '❓';
+          sheetStatus.textContent = status || '알 수 없음';
+          sheetStatus.className = 'font-semibold text-gray-400';
+      }
+    }
+
+    // 상세 Virtual 시트 정보 업데이트
+    function updateDetailedSheetInfo(handNumber, detailedInfo) {
+      // 기본 정보 업데이트
+      document.getElementById('sheet-row-number').textContent = detailedInfo.rowNumber || '-';
+      document.getElementById('sheet-filename').textContent = detailedInfo.filename || '-';
+
+      // 상세 정보 업데이트
+      document.getElementById('sheet-hand-number').textContent = handNumber;
+      document.getElementById('sheet-registered-time').textContent = detailedInfo.registeredTime || '-';
+      document.getElementById('sheet-modified-time').textContent = detailedInfo.modifiedTime || '-';
+      document.getElementById('sheet-match-method').textContent = detailedInfo.matchMethod || '-';
+      document.getElementById('sheet-time-diff').textContent = detailedInfo.timeDiff || '-';
+      document.getElementById('sheet-csv-row').textContent = detailedInfo.csvRow || '-';
+
+      // AI 분석 정보 (있는 경우)
+      const aiInfo = document.getElementById('sheet-ai-info');
+      const aiContent = document.getElementById('sheet-ai-content');
+      if (detailedInfo.aiAnalysis) {
+        aiInfo.classList.remove('hidden');
+        aiContent.textContent = detailedInfo.aiAnalysis;
+      } else {
+        aiInfo.classList.add('hidden');
+      }
+
+      // 원본 데이터
+      const rawData = document.getElementById('sheet-raw-data');
+      if (detailedInfo.rawData) {
+        rawData.textContent = JSON.stringify(detailedInfo.rawData, null, 2);
+      } else {
+        rawData.textContent = '원본 데이터 없음';
+      }
+
+      console.log(`📋 핸드 #${handNumber} Virtual 시트 상세 정보 업데이트 완료`);
+    }
+
+    // Virtual 시트 상세 정보 조회
+    async function getVirtualSheetDetailedInfo(handNumber) {
+      try {
+        // 기존 사전 로딩 시스템 활용
+        const sheetUrl = getSheetUrl();
+        if (!sheetUrl) {
+          throw new Error('Virtual 시트 URL이 설정되지 않음');
+        }
+
+        // 핸드 시간 정보 가져오기
+        const handTime = await getHandTimestamp(handNumber);
+        if (!handTime) {
+          throw new Error('핸드 시간 정보를 가져올 수 없음');
+        }
+
+        // Virtual 시트에서 매칭 정보 조회
+        const matchResult = await findMatchingRowInVirtualSheet(sheetUrl, handTime);
+        if (!matchResult || !matchResult.matchedRow) {
+          return null;
+        }
+
+        const matchedRow = matchResult.matchedRow;
+        const timeDiff = matchResult.timeDifference;
+
+        // 상세 정보 구성
+        const detailedInfo = {
+          rowNumber: matchedRow.row,
+          filename: matchedRow.data[5] || '', // F열 파일명
+          status: matchedRow.data[4] || '', // E열 상태
+          registeredTime: matchedRow.data[1] ? new Date(matchedRow.data[1]).toLocaleString('ko-KR') : '-',
+          modifiedTime: matchedRow.data[1] ? new Date(matchedRow.data[1]).toLocaleString('ko-KR') : '-',
+          matchMethod: matchResult.matchMethod || '시간 매칭',
+          timeDiff: timeDiff ? `${Math.abs(timeDiff)}초` : '-',
+          csvRow: matchedRow.row,
+          aiAnalysis: matchedRow.data[7] || null, // H열 AI 분석
+          rawData: matchedRow.data
+        };
+
+        console.log(`📋 핸드 #${handNumber} Virtual 시트 상세 정보 조회 완료:`, detailedInfo);
+        return detailedInfo;
+
+      } catch (error) {
+        console.error(`❌ 핸드 #${handNumber} Virtual 시트 상세 정보 조회 오류:`, error);
+        return null;
       }
     }
 
