@@ -1,215 +1,314 @@
-# Claude Code 작업 규칙 및 가이드라인
+# Claude AI 개발 가이드라인 v2.0
 
-## 📌 기본 규칙
+## 🎯 핵심 원칙
 
-### 1. 코드 수정 후 필수 확인 절차
-**모든 코드 수정 후 반드시 다음 절차를 수행:**
-1. **로컬 테스트**: 수정사항 정상 작동 확인
-2. **버전 업데이트**: 버전 번호 증가 (예: v10.1.5 → v10.1.6)
-3. **커밋 및 푸시**: Git 커밋 메시지에 수정 내용 명시
-4. **GitHub 확인**: WebFetch로 실제 GitHub 코드 변경 확인
-   ```
-   WebFetch: https://raw.githubusercontent.com/[repo]/master/[file]
-   확인사항: 버전, 수정된 함수, 변경된 로직
-   ```
-5. **브라우저 캐시 안내**: 사용자에게 Ctrl+Shift+R 안내
+### 1. 자동화 우선 개발 철학
+- **모든 반복 작업은 자동화**: 수동 작업 최소화
+- **Subagent 적극 활용**: 전문 영역별 에이전트 활용
+- **MCP 도구 우선 사용**: 가능한 모든 작업에 MCP 도구 활용
+- **병렬 처리 기본**: 독립적 작업은 동시 실행
 
-### 2. Subagents와 MCP 적극 활용
-- 복잡한 작업은 항상 적절한 subagent에게 위임
-- 단순 작업도 MCP를 통해 자동화 고려
-- 작업 시작 전 사용 가능한 도구 확인
+### 2. 언어 및 소통 원칙
+- **한글 우선 정책**: 모든 응답과 주석은 한글로 작성
+- **명확한 커뮤니케이션**: 기술 용어는 한글(영문) 형식
+- **사용자 중심 안내**: 작업 진행 상황 실시간 공유
 
-### 3. 언어 설정
-- **모든 응답은 한글로 작성**
-- 코드 주석도 가능한 한글로 작성
-- 기술 용어는 한글(영문) 형식 사용
+## 🔄 작업 수행 프로세스
 
-### 4. 프로젝트 관리 원칙
-- 프로젝트 간 충돌 방지를 위해 독립적 환경 유지
-- 공통 모듈 수정 시 영향도 분석 필수
-- 각 프로젝트별 README 최신 상태 유지
-
-### 5. 단계적 사고 프로세스
-- 복잡한 작업은 하위 작업으로 분해
-- TodoWrite로 작업 계획 수립
-- 각 단계별 적절한 subagent 할당
-
-### 6. MCP 선택 가이드
-- 작업 특성 분석 후 최적 MCP 선택
-- 여러 MCP 조합 활용 고려
-- 효율성과 정확성 균형 유지
-
-## 🚀 주요 Subagents 활용 가이드
-
-### 백엔드 개발
-- `backend-architect`: API 설계, 데이터베이스 스키마
-- `python-pro`: 고급 Python 기능 구현
-- `deployment-engineer`: 배포 및 CI/CD 설정
-
-### 프론트엔드 개발
-- `frontend-developer`: Next.js/React 개발
-- `typescript-expert`: TypeScript 타입 시스템
-- `graphql-architect`: GraphQL 스키마 설계
-
-### 데이터 및 AI
-- `data-scientist`: 데이터 분석 및 SQL
-- `ml-engineer`: ML 파이프라인 구축
-- `ai-engineer`: LLM 통합 및 RAG 시스템
-
-### 인프라 및 운영
-- `cloud-architect`: 클라우드 인프라 설계
-- `devops-troubleshooter`: 운영 이슈 해결
-- `database-optimizer`: DB 성능 최적화
-
-### 품질 관리
-- `test-automator`: 테스트 코드 작성
-- `security-auditor`: 보안 검토
-- `code-reviewer`: 코드 품질 검토
-
-## 📁 프로젝트별 주의사항
-
-### Archive-MAM
-- OpenCV 버전 호환성 확인
-- 대용량 비디오 처리 시 메모리 관리
-- Docker 환경에서 GUI 관련 이슈 주의
-
-### poker-trend
-- YouTube API 할당량 관리
-- Gemini API 키 보안
-- 일일 스케줄러 충돌 방지
-
-### slack-report-automation
-- Slack 권한 스코프 확인
-- 타임존 설정 주의
-- GitHub Actions 시크릿 관리
-
-### superclaude
-- 설치 경로 충돌 방지
-- 플러그인 의존성 관리
-- 버전 호환성 확인
-
-## 🛠️ 자주 사용하는 명령어
-
-```bash
-# 테스트 실행
-python aiden_test_advanced.py
-
-# Docker 컨테이너 관리
-docker-compose up -d
-docker-compose logs -f
-
-# 가상환경 활성화
-python -m venv venv
-venv\Scripts\activate  # Windows
-
-# 의존성 설치
-pip install -r requirements.txt
-npm install
+### 🔥 최우선 체크리스트 (Daily Start)
+```yaml
+📊 AI 결과물 추출 결과 대기중
+- 현재 상태: v12.15.8 AI 프롬프트 최적화 완료
+- 다음 단계: 실제 편집 버튼 테스트로 AI 프롬프트 개선 효과 확인
+- 확인 항목:
+  ✓ 파일명 밑줄 정리 작동 여부
+  ✓ BB 획득 정보 간결 표시 여부
+  ✓ 3단어 제한 AI 요약 정확도
+  ✓ 장황한 분석 제거 확인
 ```
 
-## 🔌 유용한 MCP 목록
-
-### Supabase MCP
-- 프로젝트 관리: `list_projects`, `get_project`
-- 데이터베이스: `execute_sql`, `apply_migration`
-- 보안 검사: `get_advisors`
-
-### Context7 MCP
-- 라이브러리 문서: `resolve-library-id`, `get-library-docs`
-- 최신 버전 확인 및 마이그레이션 가이드
-
-### Exa MCP
-- 웹 검색: `web_search_exa`
-- 기업 리서치: `company_research_exa`
-- 심층 분석: `deep_researcher_start`
-
-### GitHub MCP
-- 저장소 검색: `search_repositories`
-- 이슈 관리: `create_issue`, `update_issue`
-- PR 생성: `create_pull_request`
-
-## 📋 작업 흐름 예시
-
-### 새 기능 개발 시
+### 📋 작업 시작 전 체크리스트
+```yaml
 1. TodoWrite로 작업 계획 수립
-2. `backend-architect`로 API 설계
-3. `test-automator`로 테스트 작성
-4. 구현 후 `code-reviewer`로 검토
-5. `deployment-engineer`로 배포 설정
-
-### 버그 수정 시
-1. `devops-troubleshooter`로 원인 분석
-2. `debugger`로 상세 디버깅
-3. 수정 후 `test-automator`로 테스트
-4. `security-auditor`로 보안 검토
-
-### 성능 최적화 시
-1. `performance-engineer`로 병목 지점 분석
-2. `database-optimizer`로 쿼리 최적화
-3. `python-pro` 또는 `typescript-expert`로 코드 개선
-4. 테스트 및 모니터링 설정
-
-## 🔄 정기 점검 사항
-
-### 일일
-- [ ] 모든 테스트 통과 확인
-- [ ] API 할당량 확인
-- [ ] 로그 이상 징후 점검
-
-### 주간
-- [ ] 의존성 업데이트 확인
-- [ ] 보안 취약점 스캔
-- [ ] 백업 상태 확인
-
-### 월간
-- [ ] 전체 프로젝트 문서 업데이트
-- [ ] 성능 지표 분석
-- [ ] 비용 최적화 검토
-
-## 💡 팁과 모범 사례
-
-1. **병렬 처리**: 여러 도구를 동시에 호출하여 작업 시간 단축
-2. **컨텍스트 관리**: 큰 파일은 부분적으로 읽어 토큰 절약
-3. **에러 처리**: 항상 예외 상황 고려하여 안정적인 코드 작성
-4. **문서화**: 코드 작성과 동시에 문서 업데이트
-5. **테스트 우선**: TDD 접근 방식으로 품질 보장
-
-## 🔄 코드 수정 작업 예시
-
-### virtual_table_db_claude 프로젝트 버그 수정 예시
-```bash
-# 1. 오류 분석 및 수정
-- 오류 메시지 확인: "getAppsScriptUrl is not defined"
-- 원인 파악: 함수 정의 누락
-- 수정: 헬퍼 함수 추가
-
-# 2. 버전 업데이트
-- index.html: APP_VERSION = '10.1.6'
-- HTML 주석 버전 동기화
-- README.md 버전 정보 업데이트
-
-# 3. Git 작업
-git add -A
-git commit -m "fix: 구체적인 수정 내용"
-git push origin master
-
-# 4. GitHub 확인
-WebFetch: https://raw.githubusercontent.com/garimto81/virtual_table_db_claude/master/index.html
-- 버전 확인: v10.1.6
-- 함수 정의 확인
-- 수정사항 반영 확인
-
-# 5. 사용자 안내
-"브라우저 캐시 초기화: Ctrl+Shift+R"
+2. 적절한 Subagent 선정
+3. 필요한 MCP 도구 확인
+4. 병렬 처리 가능 작업 식별
 ```
 
-## 📞 도움말 및 참고 자료
+### 🚀 코드 수정 후 자동 실행 절차
+```bash
+# ✅ 자동으로 수행되는 작업
+1. 로컬 테스트 실행
+2. 버전 번호 자동 증가
+   - Major (x.0.0): 대규모 변경
+   - Minor (0.x.0): 새 기능 추가
+   - Patch (0.0.x): 버그 수정
+3. README.md 변경사항 기록
+4. Git 커밋 생성
+5. GitHub 푸시
+6. WebFetch로 배포 확인
+7. 브라우저 캐시 초기화 안내
+```
 
-- Claude Code 문서: https://docs.anthropic.com/en/docs/claude-code
-- 피드백 제출: https://github.com/anthropics/claude-code/issues
-- 프로젝트 마스터 플랜: [PROJECT_MASTER_PLAN.md](./PROJECT_MASTER_PLAN.md)
+### 📝 Git 커밋 메시지 규칙
+```
+feat: 새로운 기능 추가
+fix: 버그 수정
+refactor: 코드 개선
+docs: 문서 수정
+style: 스타일 변경
+test: 테스트 추가/수정
+chore: 기타 변경사항
+perf: 성능 개선
+```
+
+## 🛠️ Subagent 활용 가이드
+
+### 🎨 개발 영역별 전문 에이전트
+
+#### 백엔드 개발
+```yaml
+backend-architect: API 설계, DB 스키마 구성
+python-pro: 고급 Python 패턴, 최적화
+deployment-engineer: CI/CD, 배포 자동화
+database-optimizer: 쿼리 최적화, 인덱싱
+```
+
+#### 프론트엔드 개발
+```yaml
+frontend-developer: Next.js/React 구현
+typescript-expert: 타입 시스템 설계
+graphql-architect: GraphQL 스키마 구축
+performance-engineer: 프론트엔드 성능 최적화
+```
+
+#### 데이터 & AI
+```yaml
+data-scientist: 데이터 분석, SQL 쿼리
+ml-engineer: ML 파이프라인 구축
+ai-engineer: LLM 통합, RAG 구현
+data-engineer: ETL 파이프라인 설계
+```
+
+#### 인프라 & 운영
+```yaml
+cloud-architect: AWS/GCP/Azure 설계
+devops-troubleshooter: 운영 이슈 해결
+security-auditor: 보안 취약점 점검
+deployment-engineer: 배포 전략 수립
+```
+
+#### 품질 관리
+```yaml
+test-automator: 테스트 자동화
+code-reviewer: 코드 리뷰
+debugger: 버그 추적 및 수정
+security-auditor: OWASP 준수 검증
+```
+
+### 🔧 작업별 Subagent 조합 예시
+
+#### 새 기능 개발
+```mermaid
+1. backend-architect → API 설계
+2. test-automator → TDD 테스트 작성
+3. python-pro/frontend-developer → 구현
+4. code-reviewer → 코드 검토
+5. deployment-engineer → 배포
+```
+
+#### 버그 수정
+```mermaid
+1. debugger → 원인 분석
+2. devops-troubleshooter → 시스템 점검
+3. 코드 수정
+4. test-automator → 테스트
+5. security-auditor → 보안 검증
+```
+
+#### 성능 최적화
+```mermaid
+1. performance-engineer → 병목 분석
+2. database-optimizer → DB 최적화
+3. python-pro → 코드 개선
+4. 성능 테스트 및 모니터링
+```
+
+## 🔌 MCP 도구 활용
+
+### 📦 주요 MCP 도구 및 용도
+
+#### Supabase MCP
+```yaml
+용도: 데이터베이스 관리, 실시간 기능
+주요 기능:
+  - list_projects: 프로젝트 목록
+  - execute_sql: SQL 실행
+  - apply_migration: 마이그레이션
+  - get_advisors: 보안 검사
+```
+
+#### Context7 MCP
+```yaml
+용도: 라이브러리 문서 확인, 버전 관리
+주요 기능:
+  - resolve-library-id: 라이브러리 ID 확인
+  - get-library-docs: 최신 문서 조회
+  - 마이그레이션 가이드 제공
+```
+
+#### Exa MCP
+```yaml
+용도: 웹 검색, 정보 수집
+주요 기능:
+  - web_search_exa: 고급 웹 검색
+  - company_research_exa: 기업 정보
+  - deep_researcher_start: 심층 분석
+```
+
+#### GitHub MCP
+```yaml
+용도: 저장소 관리, 이슈 트래킹
+주요 기능:
+  - search_repositories: 저장소 검색
+  - create_issue: 이슈 생성
+  - create_pull_request: PR 생성
+```
+
+#### Sequential Thinking MCP
+```yaml
+용도: 복잡한 문제 분해, 단계별 해결
+주요 기능:
+  - 논리적 사고 체인 구성
+  - 문제 분해 및 분석
+  - 순차적 해결 방안 도출
+```
+
+## 📊 프로젝트 관리
+
+### 🗂️ 프로젝트 구조
+```
+C:\claude01\
+├── CLAUDE.md           # 메인 가이드라인
+├── PROJECT_NOTES.md    # 프로젝트별 주의사항
+├── README.md          # 전체 프로젝트 설명
+└── [프로젝트 폴더]/
+    ├── PROJECT_NOTES.md  # 개별 프로젝트 가이드
+    └── README.md        # 프로젝트별 문서
+```
+
+### 📈 버전 관리 자동화
+```javascript
+// 버전 업데이트 자동 수행
+const updateVersion = (type) => {
+  // type: 'major' | 'minor' | 'patch'
+  1. package.json 버전 업데이트
+  2. index.html APP_VERSION 수정
+  3. README.md 버전 기록 추가
+  4. CHANGELOG.md 자동 생성
+};
+```
+
+### 🔍 품질 보증 체크리스트
+```yaml
+코드 작성 완료:
+  ✓ 단위 테스트 작성
+  ✓ 통합 테스트 실행
+  ✓ 린트 검사 통과
+  ✓ 타입 체크 통과
+  ✓ 보안 취약점 스캔
+
+배포 전:
+  ✓ 성능 테스트
+  ✓ 브라우저 호환성
+  ✓ 모바일 반응형
+  ✓ 접근성 검사
+  ✓ SEO 최적화
+```
+
+## 🔄 정기 유지보수
+
+### 📅 일일 점검
+- [ ] 테스트 스위트 실행
+- [ ] API 사용량 모니터링
+- [ ] 에러 로그 분석
+- [ ] 성능 메트릭 확인
+
+### 📅 주간 점검
+- [ ] 의존성 업데이트 확인
+- [ ] 보안 패치 적용
+- [ ] 백업 무결성 검증
+- [ ] 코드 커버리지 분석
+
+### 📅 월간 점검
+- [ ] 전체 문서 업데이트
+- [ ] 인프라 비용 최적화
+- [ ] 성능 벤치마크
+- [ ] 사용자 피드백 분석
+
+## 💡 베스트 프랙티스
+
+### 🚀 성능 최적화
+1. **병렬 처리**: 독립적 작업은 동시 실행
+2. **캐싱 전략**: 반복 데이터 캐시 활용
+3. **지연 로딩**: 필요시에만 리소스 로드
+4. **코드 분할**: 번들 크기 최적화
+
+### 🛡️ 보안 강화
+1. **환경 변수**: 민감 정보 분리
+2. **권한 최소화**: 필요한 권한만 부여
+3. **입력 검증**: 모든 사용자 입력 검증
+4. **정기 감사**: 보안 취약점 스캔
+
+### 📝 문서화
+1. **코드 즉시 문서화**: 작성과 동시 진행
+2. **예제 포함**: 실제 사용 예시 제공
+3. **변경 이력**: 모든 변경사항 기록
+4. **API 문서**: OpenAPI 스펙 유지
+
+## 🆘 문제 해결 가이드
+
+### 🐛 일반적인 이슈 해결
+```yaml
+빌드 실패:
+  1. 의존성 재설치: npm ci
+  2. 캐시 초기화: npm cache clean --force
+  3. node_modules 재생성
+
+테스트 실패:
+  1. 테스트 DB 초기화
+  2. 목업 데이터 확인
+  3. 타임존 설정 확인
+
+배포 실패:
+  1. 환경 변수 확인
+  2. 빌드 로그 분석
+  3. 롤백 준비
+```
+
+### 📞 도움말 및 지원
+- **Claude Code 문서**: https://docs.anthropic.com/en/docs/claude-code
+- **이슈 제보**: https://github.com/anthropics/claude-code/issues
+- **커뮤니티 포럼**: 활발한 토론 참여
+- **긴급 지원**: 우선순위별 대응
+
+## 🎓 학습 리소스
+
+### 📚 추천 자료
+- Subagent 활용 가이드
+- MCP 도구 마스터 클래스
+- 성능 최적화 베스트 프랙티스
+- 보안 코딩 가이드라인
+
+### 🏆 인증 및 자격
+- Claude AI 개발자 인증
+- 클라우드 아키텍처 자격
+- 보안 전문가 인증
 
 ---
 
-이 문서는 지속적으로 업데이트됩니다.
-최종 수정일: 2025-09-16
+**📌 중요**: 이 가이드라인은 Claude AI가 프로젝트 작업 시 자동으로 참조합니다.
+모든 작업은 이 가이드라인에 따라 자동화되어 수행됩니다.
+
+**최종 수정일**: 2025-09-17
+**버전**: v2.0.0
