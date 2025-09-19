@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title id="page-title">포커 핸드 모니터링 v12.16.1 - AI 분석 시스템</title>
+  <title id="page-title">포커 핸드 모니터링 v12.16.2 - AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <!-- Papa Parse for accurate CSV parsing (multiline support) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -1188,7 +1188,7 @@
     }
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '12.16.1'; // 모듈화 완료 + localStorage 자동 로드 구현
+    const APP_VERSION = '12.16.2'; // GitHub Secrets 기본값 + VT 접두사 + AI 분석 템플릿
     const BUILD_TIME = '2025-09-18T17:00:00Z';
 
     // ====================================
@@ -2815,7 +2815,7 @@
       
       // AI API 설정 (Gemini 전용)
       AI_PROVIDER: 'gemini',
-      GEMINI_API_KEY: '',
+      GEMINI_API_KEY: '', // GitHub Secrets에서 자동 설정됨
       
       // 시트 업데이트 설정 (단일 시트로 통합)
       MAIN_SHEET_URL: 'https://docs.google.com/spreadsheets/d/1M-LM2KkwLNOTygtrPVdnYLqqBoz4MmZvbglUaptSYqE/edit?gid=561799849#gid=561799849', // 메인 시트 URL (읽기/쓰기 모두 사용)
@@ -9771,6 +9771,14 @@
     function loadSavedSettings() {
         console.log('📦 저장된 설정 불러오기 시작...');
 
+        // GitHub Secrets 또는 기본값 설정
+        const DEFAULT_CONFIG = {
+            GEMINI_API_KEY: window.ENV_CONFIG?.GEMINI_API_KEY || '',
+            GOOGLE_APP_SCRIPT: window.ENV_CONFIG?.GOOGLE_APP_SCRIPT || '',
+            FILENAME_PREFIX: 'VT',
+            TEMPLATE_PRESET: 'ai-analysis'
+        };
+
         // 1. CSV URL 설정
         const savedCsvUrl = localStorage.getItem('csvUrl');
         if (savedCsvUrl) {
@@ -9791,23 +9799,36 @@
             }
         }
 
-        // 3. Gemini API 키 설정
-        const savedApiKey = localStorage.getItem('GEMINI_API_KEY');
-        if (savedApiKey) {
-            CONFIG.GEMINI_API_KEY = savedApiKey;
-            console.log('✅ Gemini API 키 로드됨');
+        // 3. Gemini API 키 설정 (localStorage > GitHub Secrets > 빈값)
+        let apiKey = localStorage.getItem('GEMINI_API_KEY');
+        if (!apiKey && DEFAULT_CONFIG.GEMINI_API_KEY) {
+            apiKey = DEFAULT_CONFIG.GEMINI_API_KEY;
+            localStorage.setItem('GEMINI_API_KEY', apiKey);
+            console.log('✅ Gemini API 키 GitHub Secrets에서 로드');
+        }
+        if (apiKey) {
+            CONFIG.GEMINI_API_KEY = apiKey;
+            console.log('✅ Gemini API 키 설정됨');
         }
 
-        // 4. Apps Script URL 설정
-        const savedAppsScriptUrl = localStorage.getItem('appsScriptUrl');
-        if (savedAppsScriptUrl) {
-            // Apps Script URL은 이미 loadServerSettings에서 처리됨
-            console.log('✅ Apps Script URL 로드됨');
+        // 4. Apps Script URL 설정 (localStorage > GitHub Secrets > 빈값)
+        let appsScriptUrl = localStorage.getItem('appsScriptUrl');
+        if (!appsScriptUrl && DEFAULT_CONFIG.GOOGLE_APP_SCRIPT) {
+            appsScriptUrl = DEFAULT_CONFIG.GOOGLE_APP_SCRIPT;
+            localStorage.setItem('appsScriptUrl', appsScriptUrl);
+            console.log('✅ Apps Script URL GitHub Secrets에서 로드');
+        }
+        if (appsScriptUrl) {
+            console.log('✅ Apps Script URL 설정됨');
         }
 
-        // 5. 파일명 커스터마이징 설정
-        const filenamePrefix = localStorage.getItem('filenamePrefix');
-        if (filenamePrefix !== null) {
+        // 5. 파일명 커스터마이징 설정 (기본값: 'VT')
+        let filenamePrefix = localStorage.getItem('filenamePrefix');
+        if (filenamePrefix === null) {
+            filenamePrefix = DEFAULT_CONFIG.FILENAME_PREFIX;
+            localStorage.setItem('filenamePrefix', filenamePrefix);
+            console.log(`✅ 파일명 접두사 기본값 설정: ${filenamePrefix}`);
+        } else {
             console.log(`✅ 파일명 접두사 로드: ${filenamePrefix}`);
         }
 
@@ -9816,9 +9837,23 @@
             console.log(`✅ 파일명 접미사 로드: ${filenameSuffix}`);
         }
 
-        // 6. AI 기능 설정
-        const useAI = localStorage.getItem('useAIForFilename');
-        if (useAI !== null) {
+        // 6. 템플릿 프리셋 설정 (기본값: 'ai-analysis')
+        let templatePreset = localStorage.getItem('templatePreset');
+        if (!templatePreset) {
+            templatePreset = DEFAULT_CONFIG.TEMPLATE_PRESET;
+            localStorage.setItem('templatePreset', templatePreset);
+            console.log(`✅ 템플릿 프리셋 기본값 설정: ${templatePreset}`);
+        } else {
+            console.log(`✅ 템플릿 프리셋 로드: ${templatePreset}`);
+        }
+
+        // 7. AI 기능 설정 (기본값: true)
+        let useAI = localStorage.getItem('useAIForFilename');
+        if (useAI === null) {
+            useAI = 'true'; // AI 분석 템플릿이므로 기본 활성화
+            localStorage.setItem('useAIForFilename', useAI);
+            console.log('✅ AI 파일명 기본값 활성화');
+        } else {
             console.log(`✅ AI 파일명 사용: ${useAI}`);
         }
 
