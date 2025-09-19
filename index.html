@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 12.5.0
-  Last Updated: 2025-09-18
-  Description: CSV 파싱 성능 최적화 - 캐싱으로 반복 호출 방지 + API 액션명 수정
+  Version: 13.0.0
+  Last Updated: 2025-09-19
+  Description: SSE(Server-Sent Events) 실시간 새 핸드 감지 시스템 구현
 -->
 <html lang="ko">
 <head>
@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title id="page-title">포커 핸드 모니터링 v12.16.3 - AI 분석 시스템</title>
+  <title id="page-title">포커 핸드 모니터링 v13.0.0 - AI 분석 시스템 [SSE LIVE]</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <!-- Papa Parse for accurate CSV parsing (multiline support) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -22,6 +22,9 @@
   <script src="src/modules/ai-analyzer.js"></script>
   <script src="src/modules/filename-adapter.js"></script>
   <!-- 모듈화 완료: 기존 함수들은 모듈로 대체됨 -->
+
+  <!-- 🆕 SSE 실시간 핸드 감지 클라이언트 -->
+  <script src="sse-client.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
     
@@ -9912,16 +9915,170 @@
         }
     }
 
+    // ====================================
+    // SSE 실시간 핸드 감지 시스템 초기화
+    // ====================================
+    let sseDetector = null;
+    let sseUI = null;
+
+    /**
+     * SSE 시스템 초기화
+     */
+    function initializeSSE() {
+        console.log('🚀 SSE 실시간 감지 시스템 초기화...');
+
+        // Apps Script URL 가져오기
+        const appsScriptUrl = localStorage.getItem('appsScriptUrl') ||
+                            DEFAULT_CONFIG.GOOGLE_APP_SCRIPT;
+
+        if (!appsScriptUrl) {
+            console.warn('⚠️ Apps Script URL이 설정되지 않음 - SSE 비활성화');
+            return;
+        }
+
+        // SSE 스타일 주입
+        if (typeof injectSSEStyles === 'function') {
+            injectSSEStyles();
+        }
+
+        // SSE 감지기 생성
+        sseDetector = new SSEHandDetector({
+            sseUrl: appsScriptUrl,
+            reconnectDelay: 2000,
+            maxReconnectDelay: 60000,
+            heartbeatTimeout: 90000,
+            debug: true
+        });
+
+        // 이벤트 핸들러 등록
+        sseDetector.on('onNewHand', (handData) => {
+            console.log('🎯 SSE 새 핸드 감지:', handData);
+
+            // masterHandList에 추가
+            if (!masterHandList.has(handData.handNumber)) {
+                masterHandList.set(handData.handNumber, {
+                    ...handData,
+                    source: 'SSE',
+                    receivedAt: new Date().toISOString()
+                });
+
+                // DOM에 추가 (renderHands 함수 호출)
+                if (typeof renderHands === 'function') {
+                    renderHands();
+                }
+
+                // 알림 표시
+                showNotification(`새 핸드 #${handData.handNumber} 추가됨!`);
+
+                // 통계 업데이트
+                updateStats();
+            }
+        });
+
+        sseDetector.on('onConnect', () => {
+            console.log('✅ SSE 연결 성공');
+            updateSSEStatus('connected');
+        });
+
+        sseDetector.on('onDisconnect', () => {
+            console.log('❌ SSE 연결 끊김');
+            updateSSEStatus('disconnected');
+        });
+
+        sseDetector.on('onStatusChange', (newStatus, oldStatus) => {
+            console.log(`SSE 상태 변경: ${oldStatus} → ${newStatus}`);
+            updateSSEStatus(newStatus);
+        });
+
+        // UI 헬퍼 초기화
+        sseUI = new SSEHandUI(sseDetector);
+
+        // 연결 시작
+        sseDetector.connect();
+        console.log('✅ SSE 시스템 초기화 완료');
+    }
+
+    /**
+     * SSE 상태 표시 업데이트
+     */
+    function updateSSEStatus(status) {
+        // 헤더에 SSE 상태 표시 추가
+        const headerElement = document.querySelector('.flex.justify-between.items-center.mb-6');
+        if (!headerElement) return;
+
+        let statusElement = document.getElementById('sse-status');
+        if (!statusElement) {
+            statusElement = document.createElement('div');
+            statusElement.id = 'sse-status';
+            headerElement.appendChild(statusElement);
+        }
+
+        const statusMap = {
+            'connected': { text: 'SSE 연결됨', color: 'text-green-500', icon: '🟢' },
+            'connecting': { text: 'SSE 연결 중...', color: 'text-yellow-500', icon: '🟡' },
+            'disconnected': { text: 'SSE 연결 끊김', color: 'text-red-500', icon: '🔴' },
+            'reconnecting': { text: 'SSE 재연결 중...', color: 'text-orange-500', icon: '🟠' }
+        };
+
+        const info = statusMap[status] || statusMap['disconnected'];
+        statusElement.className = `flex items-center gap-2 ${info.color}`;
+        statusElement.innerHTML = `
+            <span>${info.icon}</span>
+            <span class="text-sm font-medium">${info.text}</span>
+        `;
+    }
+
+    /**
+     * 알림 표시 함수
+     */
+    function showNotification(message) {
+        // 브라우저 알림 권한 확인
+        if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('Virtual Table', {
+                body: message,
+                icon: '/favicon.ico',
+                tag: 'new-hand',
+                requireInteraction: false
+            });
+        }
+
+        // 화면 토스트 메시지
+        const toast = document.createElement('div');
+        toast.className = 'fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-all transform translate-x-full';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        // 애니메이션
+        setTimeout(() => {
+            toast.classList.remove('translate-x-full');
+        }, 100);
+
+        setTimeout(() => {
+            toast.classList.add('translate-x-full');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
     // 페이지 로드 완료 시 자동 실행
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
             loadSavedSettings();
             console.log('🚀 페이지 로드 완료 - 설정 자동 적용');
+
+            // SSE 시스템 초기화
+            setTimeout(() => {
+                initializeSSE();
+            }, 1000); // 다른 초기화 완료 후 실행
         });
     } else {
         // 이미 로드된 경우 즉시 실행
         setTimeout(() => {
             loadSavedSettings();
+
+            // SSE 시스템 초기화
+            setTimeout(() => {
+                initializeSSE();
+            }, 1000);
         }, 100); // 약간의 지연으로 다른 초기화 후 실행
     }
   </script>
