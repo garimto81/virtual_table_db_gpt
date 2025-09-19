@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>모듈 통합 테스트</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #ddd;
+            background: #f9f9f9;
+        }
+        .success {
+            border-color: #4CAF50;
+            background: #e8f5e9;
+        }
+        .error {
+            border-color: #f44336;
+            background: #ffebee;
+        }
+        .warning {
+            border-color: #ff9800;
+            background: #fff3e0;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        pre {
+            background: #263238;
+            color: #aed581;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .benchmark-result {
+            display: inline-block;
+            margin: 5px;
+            padding: 5px 10px;
+            background: #e3f2fd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Virtual Table DB 모듈 통합 테스트</h1>
+
+    <!-- 모듈 로드 -->
+    <script src="src/modules/filename-manager.js"></script>
+    <script src="src/modules/ai-analyzer.js"></script>
+    <script src="src/modules/filename-adapter.js"></script>
+
+    <div class="test-section">
+        <h2>1️⃣ 모듈 로드 테스트</h2>
+        <button onclick="testModuleLoad()">모듈 로드 테스트 실행</button>
+        <div id="module-load-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2️⃣ 파일명 생성 테스트</h2>
+        <button onclick="testFilenameGeneration()">파일명 생성 테스트 실행</button>
+        <div id="filename-gen-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3️⃣ 핸드번호 추출 테스트</h2>
+        <button onclick="testHandExtraction()">핸드번호 추출 테스트 실행</button>
+        <div id="hand-extract-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4️⃣ 호환성 어댑터 테스트</h2>
+        <button onclick="testCompatibility()">호환성 테스트 실행</button>
+        <div id="compat-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>5️⃣ 성능 벤치마크</h2>
+        <button onclick="runBenchmark()">벤치마크 실행</button>
+        <div id="benchmark-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>6️⃣ AI 분석 테스트 (선택사항)</h2>
+        <input type="text" id="gemini-api-key" placeholder="Gemini API 키 입력 (선택사항)" style="width: 300px; padding: 5px;">
+        <button onclick="testAIAnalysis()">AI 분석 테스트 실행</button>
+        <div id="ai-results"></div>
+    </div>
+
+    <script>
+        // 테스트 헬퍼 함수
+        function addResult(containerId, message, type = 'info') {
+            const container = document.getElementById(containerId);
+            const result = document.createElement('div');
+            result.className = `test-result ${type}`;
+            result.innerHTML = message;
+            container.appendChild(result);
+        }
+
+        // 1. 모듈 로드 테스트
+        function testModuleLoad() {
+            const results = document.getElementById('module-load-results');
+            results.innerHTML = '';
+
+            // FilenameManager 확인
+            if (window.FilenameManager) {
+                addResult('module-load-results', '✅ FilenameManager 모듈 로드 성공', 'success');
+            } else {
+                addResult('module-load-results', '❌ FilenameManager 모듈 로드 실패', 'error');
+            }
+
+            // AIAnalyzer 확인
+            if (window.AIAnalyzer) {
+                addResult('module-load-results', '✅ AIAnalyzer 모듈 로드 성공', 'success');
+            } else {
+                addResult('module-load-results', '❌ AIAnalyzer 모듈 로드 실패', 'error');
+            }
+
+            // 호환성 함수 확인
+            if (window.generateCustomFilename) {
+                addResult('module-load-results', '✅ 호환성 어댑터 로드 성공', 'success');
+            } else {
+                addResult('module-load-results', '❌ 호환성 어댑터 로드 실패', 'error');
+            }
+        }
+
+        // 2. 파일명 생성 테스트
+        async function testFilenameGeneration() {
+            const results = document.getElementById('filename-gen-results');
+            results.innerHTML = '';
+
+            try {
+                // 테스트 케이스
+                const testCases = [
+                    { handNumber: 142, expected: 'contains 142' },
+                    { handNumber: 1, expected: 'contains 1' },
+                    { handNumber: 99999, expected: 'contains 99999' }
+                ];
+
+                for (const test of testCases) {
+                    const filename = await window.FilenameManager.generateFilename(test.handNumber);
+                    if (filename && filename.includes(test.handNumber.toString())) {
+                        addResult('filename-gen-results',
+                            `✅ 핸드 #${test.handNumber}: "${filename}"`,
+                            'success');
+                    } else {
+                        addResult('filename-gen-results',
+                            `❌ 핸드 #${test.handNumber}: 생성 실패`,
+                            'error');
+                    }
+                }
+            } catch (error) {
+                addResult('filename-gen-results',
+                    `❌ 오류: ${error.message}`,
+                    'error');
+            }
+        }
+
+        // 3. 핸드번호 추출 테스트
+        function testHandExtraction() {
+            const results = document.getElementById('hand-extract-results');
+            results.innerHTML = '';
+
+            // 테스트 케이스
+            const testCases = [
+                { filename: 'VT142_BTN_3bet_win', expected: 142 },
+                { filename: 'H999_allin_fold', expected: 999 },
+                { filename: '142_simple', expected: 142 },
+                { filename: 'invalid_filename', expected: null }
+            ];
+
+            for (const test of testCases) {
+                const result = window.FilenameManager.extractHandNumber(test.filename);
+
+                if (result === test.expected) {
+                    addResult('hand-extract-results',
+                        `✅ "${test.filename}" → ${result}`,
+                        'success');
+                } else {
+                    addResult('hand-extract-results',
+                        `❌ "${test.filename}" → ${result} (예상: ${test.expected})`,
+                        'error');
+                }
+            }
+        }
+
+        // 4. 호환성 테스트
+        async function testCompatibility() {
+            const results = document.getElementById('compat-results');
+            results.innerHTML = '';
+
+            try {
+                // 레거시 함수 테스트
+                const filename = await window.generateCustomFilename(777);
+                if (filename) {
+                    addResult('compat-results',
+                        `✅ generateCustomFilename() 호환성 유지: "${filename}"`,
+                        'success');
+                }
+
+                const handNumber = window.extractHandNumberFromFilename('VT888_test');
+                if (handNumber === 888) {
+                    addResult('compat-results',
+                        `✅ extractHandNumberFromFilename() 호환성 유지: ${handNumber}`,
+                        'success');
+                } else {
+                    addResult('compat-results',
+                        `⚠️ extractHandNumberFromFilename() 결과 불일치: ${handNumber}`,
+                        'warning');
+                }
+
+            } catch (error) {
+                addResult('compat-results',
+                    `❌ 호환성 오류: ${error.message}`,
+                    'error');
+            }
+        }
+
+        // 5. 성능 벤치마크
+        async function runBenchmark() {
+            const results = document.getElementById('benchmark-results');
+            results.innerHTML = '<h3>📊 성능 측정 중...</h3>';
+
+            // 파일명 생성 벤치마크
+            const genStart = performance.now();
+            for (let i = 0; i < 1000; i++) {
+                await window.FilenameManager.generateFilename(i);
+            }
+            const genTime = performance.now() - genStart;
+
+            // 핸드번호 추출 벤치마크
+            const extractStart = performance.now();
+            for (let i = 0; i < 1000; i++) {
+                window.FilenameManager.extractHandNumber(`VT${i}_test_file`);
+            }
+            const extractTime = performance.now() - extractStart;
+
+            // Map 조회 성능
+            const mapStart = performance.now();
+            for (let i = 0; i < 10000; i++) {
+                window.FilenameManager.handToFilename.get(i);
+            }
+            const mapTime = performance.now() - mapStart;
+
+            results.innerHTML = `
+                <h3>📊 벤치마크 결과</h3>
+                <div class="benchmark-result">파일명 생성 1000회: ${genTime.toFixed(2)}ms</div>
+                <div class="benchmark-result">핸드번호 추출 1000회: ${extractTime.toFixed(2)}ms</div>
+                <div class="benchmark-result">Map 조회 10000회: ${mapTime.toFixed(2)}ms</div>
+                <br>
+                <div class="benchmark-result">평균 파일명 생성: ${(genTime/1000).toFixed(3)}ms</div>
+                <div class="benchmark-result">평균 추출: ${(extractTime/1000).toFixed(3)}ms</div>
+                <div class="benchmark-result">Map 조회: ${(mapTime/10000).toFixed(4)}ms (O(1) 확인)</div>
+            `;
+
+            // 성능 평가
+            if (mapTime / 10000 < 0.01) {
+                addResult('benchmark-results',
+                    '✅ O(1) Map 조회 성능 확인 - 매우 빠름!',
+                    'success');
+            }
+        }
+
+        // 6. AI 분석 테스트
+        async function testAIAnalysis() {
+            const results = document.getElementById('ai-results');
+            results.innerHTML = '';
+
+            const apiKey = document.getElementById('gemini-api-key').value;
+            if (apiKey) {
+                localStorage.setItem('geminiApiKey', apiKey);
+                window.AIAnalyzer.config.apiKey = apiKey;
+                addResult('ai-results', '🔑 API 키 설정됨', 'success');
+            }
+
+            try {
+                // 간단한 AI 분석 테스트
+                const mockHandData = {
+                    handNumber: 999,
+                    hero: { name: 'Hero', cards: 'AK' },
+                    villain: { name: 'Villain', cards: 'QQ' },
+                    actions: [{ action: 'Hero raises to 3BB' }, { action: 'Villain 3-bets to 10BB' }],
+                    board: 'A K 7 2 9',
+                    result: 'Hero wins with two pair'
+                };
+
+                // loadHandData 모킹
+                window.loadHandData = async () => mockHandData;
+
+                const analysis = await window.AIAnalyzer.analyzeHand(999);
+
+                if (analysis && !analysis.includes('오류')) {
+                    addResult('ai-results',
+                        `✅ AI 분석 성공:<br><pre>${analysis}</pre>`,
+                        'success');
+                } else {
+                    addResult('ai-results',
+                        `⚠️ AI 분석 폴백 사용: ${analysis}`,
+                        'warning');
+                }
+
+                // 파일 요약 테스트
+                const summary = await window.AIAnalyzer.generateFileSummary(mockHandData);
+                addResult('ai-results',
+                    `📝 AI 파일 요약: "${summary}"`,
+                    'success');
+
+            } catch (error) {
+                addResult('ai-results',
+                    `❌ AI 테스트 오류: ${error.message}`,
+                    'error');
+            }
+        }
+
+        // 페이지 로드 시 자동 테스트
+        window.addEventListener('load', () => {
+            console.log('🚀 모듈 테스트 페이지 준비 완료');
+
+            // 자동으로 모듈 로드 테스트 실행
+            setTimeout(() => {
+                testModuleLoad();
+            }, 500);
+        });
+    </script>
+</body>
+</html>

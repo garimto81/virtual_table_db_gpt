@@ -12,16 +12,11 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title id="page-title">포커 핸드 모니터링 v12.16.1 - AI 분석 시스템</title>
+  <title id="page-title">포커 핸드 모니터링 v12.13.0 - AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <!-- Papa Parse for accurate CSV parsing (multiline support) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-
-  <!-- 🆕 모듈화된 파일 (파일명 관리 + AI 분석) -->
-  <script src="src/modules/filename-manager.js"></script>
-  <script src="src/modules/ai-analyzer.js"></script>
-  <script src="src/modules/filename-adapter.js"></script>
-  <!-- 모듈화 완료: 기존 함수들은 모듈로 대체됨 -->
+  <!-- 성능 모니터링 도구 - 통합됨 (외부 파일 제거) -->
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
     
@@ -735,45 +730,18 @@
         <!-- 파일명 커스터마이징 설정 -->
         <div class="mt-4 pt-4 border-t border-gray-700">
           <h3 class="text-sm font-bold mb-2">📁 파일명 커스터마이징</h3>
-
-          <!-- 템플릿 설정 섹션 -->
           <div class="mb-3">
-            <label class="block text-xs mb-1">🎨 파일명 템플릿</label>
-            <textarea id="filename-template"
-                      class="w-full bg-gray-700 rounded px-3 py-2 text-sm font-mono"
-                      rows="2"
-                      placeholder="{prefix}{handNumber}_{position}_{action}">{prefix}{handNumber}</textarea>
-            <div class="text-xs mt-1 text-gray-400">
-              사용 가능한 변수:
-              <br>• {prefix} - 접두사 설정값
-              <br>• {suffix} - 접미사 설정값
-              <br>• {handNumber} - 핸드 번호
-              <br>• {date} - 현재 날짜 (YYYYMMDD)
-              <br>• {timestamp} - 타임스탬프
-              <br>• {position} - 포지션 (BTN, SB, BB 등)
-              <br>• {action} - 주요 액션 (3bet, fold, allin 등)
-              <br>• {result} - 결과 (win, lose, chop)
-              <br>• {ai_summary} - AI 3단어 요약 (AI 사용시)
+            <label class="block text-xs mb-1">📝 파일명 형식</label>
+            <div class="p-2 bg-gray-700 rounded text-xs font-mono text-green-300">
+              접두사{핸드번호}_플레이어A_핸드_플레이어B_핸드_요약
             </div>
-          </div>
-
-          <!-- 템플릿 프리셋 -->
-          <div class="mb-3">
-            <label class="block text-xs mb-1">📋 템플릿 프리셋</label>
-            <select id="template-preset" class="w-full bg-gray-700 rounded px-3 py-1 text-sm">
-              <option value="simple">간단 - {prefix}{handNumber}</option>
-              <option value="detailed">상세 - {prefix}{handNumber}_{position}_{action}</option>
-              <option value="timestamped">시간포함 - {prefix}{handNumber}_{date}_{timestamp}</option>
-              <option value="ai">AI분석 - {prefix}{handNumber}_{ai_summary}</option>
-              <option value="custom">커스텀</option>
-            </select>
-          </div>
-
-          <!-- 실시간 미리보기 -->
-          <div class="mb-3">
-            <label class="block text-xs mb-1">👁️ 미리보기</label>
-            <div id="filename-preview" class="p-2 bg-gray-700 rounded text-xs font-mono text-green-300">
-              H142_BTN_3bet
+            <div class="text-xs mt-1 text-gray-400">
+              자동으로 추출되는 정보:
+              <br>• 핸드 번호 - hand 시트에서 자동 추출
+              <br>• 플레이어 이름 - 현재 핸드의 플레이어 정보
+              <br>• 핸드 카드 - 각 플레이어의 카드 (예: AK, QQ)
+              <br>• 요약 - 액션 기반 3단어 이내 자동 생성
+              <br><br>💡 편집과 완료 시 동일한 파일명 사용
             </div>
           </div>
 
@@ -801,16 +769,14 @@
             <label class="block text-xs mb-1">📌 파일명 접두사</label>
             <input type="text" id="filename-prefix"
                    class="w-full bg-gray-700 rounded px-3 py-1 text-sm"
-                   placeholder="예: POK_"
-                   oninput="updateFilenamePreview()">
+                   placeholder="예: POK_">
           </div>
 
           <div class="mb-3">
             <label class="block text-xs mb-1">📌 파일명 접미사</label>
             <input type="text" id="filename-suffix"
                    class="w-full bg-gray-700 rounded px-3 py-1 text-sm"
-                   placeholder="예: _final"
-                   oninput="updateFilenamePreview()">
+                   placeholder="예: _final">
           </div>
 
           <button id="preview-filename" class="w-full px-3 py-1 bg-purple-600 rounded text-xs hover:bg-purple-700 transition">
@@ -833,24 +799,6 @@
       <div class="flex justify-end gap-2 mt-6">
         <button id="cancel-settings" class="px-4 py-2 bg-gray-600 rounded text-sm">취소</button>
         <button id="save-settings" class="px-4 py-2 bg-blue-600 rounded text-sm">저장</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 로딩 팝업 모달 -->
-  <div id="loading-popup" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-    <div class="bg-gray-800 rounded-lg p-6 max-w-sm w-full">
-      <div class="flex items-center space-x-3">
-        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div>
-        <div>
-          <h3 id="loading-title" class="text-lg font-semibold">작업 중...</h3>
-          <p id="loading-message" class="text-sm text-gray-400 mt-1">잠시만 기다려 주세요</p>
-        </div>
-      </div>
-      <div id="loading-progress" class="mt-4 hidden">
-        <div class="w-full bg-gray-700 rounded-full h-2">
-          <div id="loading-progress-bar" class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
-        </div>
       </div>
     </div>
   </div>
@@ -894,30 +842,11 @@
     // 포커 핸드 모니터링 시스템 - Gemini AI 분석 시스템
     // ====================================
 
-    // 🔧 디버그 모드 설정 (false = 프로덕션, true = 개발)
-    window.DEBUG_MODE = false;  // 프로덕션에서는 false로 설정
-
-    /* ========================================================================
-     * 🆕 모듈화 알림: 아래 파일명 관련 함수들은 모듈로 이동되었습니다.
-     *
-     * 이동된 위치:
-     * - generateCustomFilename → src/modules/filename-manager.js
-     * - extractHandNumberFromFilename → src/modules/filename-manager.js
-     * - saveHandFilenameMapping → src/modules/filename-manager.js
-     *
-     * filename-adapter.js가 자동으로 기존 호출을 리다이렉트하므로
-     * 코드 수정 없이 정상 작동합니다.
-     *
-     * [이 섹션은 테스트 완료 후 삭제 예정]
-     * ======================================================================== */
-
     /**
-     * @deprecated 모듈화 완료 - src/modules/filename-adapter.js로 리다이렉트
      * 파일명 생성 함수 - 통합 분석 데이터 활용
      * 형식: 접두사(핸드번호)_플레이어A이름_핸드_플레이어B이름_핸드_(3단어 요약)
      */
     async function generateCustomFilename(handNumber) {
-      console.warn('⚠️ [DEPRECATED] generateCustomFilename - 모듈로 리다이렉트됨');
       try {
         // localStorage에서 설정 불러오기
         const prefix = localStorage.getItem('filenamePrefix') || 'H';
@@ -1188,7 +1117,7 @@
     }
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '12.16.1'; // 모듈화 완료 + localStorage 자동 로드 구현
+    const APP_VERSION = '12.15.8'; // AI 프롬프트 최적화: 간결한 응답 및 파일명 정리
     const BUILD_TIME = '2025-09-18T17:00:00Z';
 
     // ====================================
@@ -1215,19 +1144,46 @@
     }
 
     /**
-     * @deprecated 모듈화 완료 - src/modules/ai-analyzer.js로 리다이렉트
      * AI를 사용한 파일명 요약 생성 (3단어)
      */
     async function generateAIFileSummary(analysis) {
-      console.warn('⚠️ [DEPRECATED] generateAIFileSummary - AIAnalyzer.generateFileSummary 사용 권장');
-
-      // AIAnalyzer 모듈로 리다이렉트
-      if (window.AIAnalyzer && typeof window.AIAnalyzer.generateFileSummary === 'function') {
-        return await window.AIAnalyzer.generateFileSummary(analysis);
+      // 캐시 확인
+      const cacheKey = `file_${analysis.handData.handNumber}`;
+      const cached = aiAnalysisCache.get(cacheKey);
+      if (cached && (Date.now() - cached.timestamp < AI_CACHE_TTL)) {
+        debugLog(`✅ AI 파일명 캐시 사용: ${cached.value}`);
+        return cached.value;
       }
 
-      // 폴백: 기본 요약
-      return analysis?.keywords ? analysis.keywords.slice(0, 3).join('_') : 'hand';
+      // 프롬프트 생성
+      const actions = analysis.keywords ? analysis.keywords.slice(0, 5).join(', ') : '';
+      const prompt = `포커 액션을 3개 단어로 간단히 요약하세요.
+
+액션: ${actions}
+
+규칙:
+- 분석 불가능하면 "fold_call_bet" 같은 기본 액션만 사용
+- 파일명용이므로 밑줄(_)만 사용, 공백이나 특수문자 금지
+- 3단어 초과 금지
+
+예시: "블러프_캐치_성공", "셋오버셋_승부", "리버_올인"
+답(단어_단어_단어):`;
+
+      // API 호출
+      const result = await callGeminiAPI(prompt);
+
+      if (result) {
+        // 캐시 저장
+        aiAnalysisCache.set(cacheKey, {
+          value: result,
+          timestamp: Date.now()
+        });
+        debugLog(`🤖 AI 파일명 생성: ${result}`);
+        return result;
+      }
+
+      // 폴백: 키워드 기반
+      return analysis.keywords ? analysis.keywords.slice(0, 3).join('_') : 'hand';
     }
 
     /**
@@ -2189,7 +2145,6 @@
     }
 
     /**
-     * @deprecated 모듈화 완료 - FilenameManager 내부에서 자동 처리
      * 핸드번호와 파일명 매핑 저장 함수 (파일명 생성 시 호출)
      */
     function saveHandFilenameMapping(handNumber, filename) {
@@ -2217,12 +2172,32 @@
     }
 
     /**
-     * @deprecated 모듈화 완료 - src/modules/filename-adapter.js로 리다이렉트
      * 파일명에서 핸드번호 추출 함수 (폴백용)
      */
     function extractHandNumberFromFilename(filename) {
-      console.warn('⚠️ [DEPRECATED] extractHandNumberFromFilename - 모듈로 리다이렉트됨');
-      // 모듈화 후 자동 리다이렉트 (filename-adapter.js에서 처리)
+      if (!filename) return null;
+
+      // 레거시 파일명 패턴 (주요 3개만 유지)
+      // 예: "VT142_...", "H142_...", "142_..."
+      const patterns = [
+        /^[A-Z]+(\d+)_/,        // VT142_, H142_ 패턴 (가장 일반적)
+        /^(\d+)_/,              // 142_... 패턴 (순수 숫자)
+        /^(\d+)$/               // 142 (숫자만)
+      ];
+
+      for (let i = 0; i < patterns.length; i++) {
+        const match = filename.match(patterns[i]);
+        if (match && match[1]) {
+          const handNumber = parseInt(match[1], 10);
+          if (!isNaN(handNumber) && handNumber > 0) {
+            debugLog(`✅ 패턴 ${i+1} 매치: "${filename}" → 핸드 #${handNumber}`);
+            return handNumber;
+          }
+        }
+      }
+
+      // 레거시 패턴 매칭 실패 (정상 - 매핑 테이블 사용 권장)
+      debugLog(`ℹ️ 레거시 패턴 매칭 실패: "${filename}" (매핑 테이블에서 조회하세요)`);
       return null;
     }
 
@@ -5641,60 +5616,6 @@
       }
     }
 
-    // 🎨 파일명 템플릿 관련 함수들
-    function updateFilenamePreview() {
-      const template = document.getElementById('filename-template')?.value || '{prefix}{handNumber}';
-      const prefix = document.getElementById('filename-prefix')?.value || '';
-      const suffix = document.getElementById('filename-suffix')?.value || '';
-      const previewElement = document.getElementById('filename-preview');
-
-      if (!previewElement) return;
-
-      // 예시 데이터로 미리보기 생성
-      const sampleData = {
-        prefix: prefix,
-        suffix: suffix,
-        handNumber: 142,
-        date: new Date().toISOString().slice(0, 10).replace(/-/g, ''),
-        timestamp: Date.now(),
-        position: 'BTN',
-        action: '3bet',
-        result: 'win',
-        ai_summary: 'bluff_catch_win'
-      };
-
-      // 템플릿 변수 치환
-      let preview = template;
-      Object.entries(sampleData).forEach(([key, value]) => {
-        preview = preview.replace(new RegExp(`\\{${key}\\}`, 'g'), value || '');
-      });
-
-      // 연속된 밑줄 정리
-      preview = preview.replace(/_{2,}/g, '_').replace(/^_+|_+$/g, '');
-
-      previewElement.textContent = preview || 'H142';
-    }
-
-    // 템플릿 프리셋 변경 처리
-    function handleTemplatePresetChange(event) {
-      const templateField = document.getElementById('filename-template');
-      if (!templateField) return;
-
-      const presets = {
-        'simple': '{prefix}{handNumber}',
-        'detailed': '{prefix}{handNumber}_{position}_{action}',
-        'timestamped': '{prefix}{handNumber}_{date}_{timestamp}',
-        'ai': '{prefix}{handNumber}_{ai_summary}',
-        'custom': templateField.value // 현재 값 유지
-      };
-
-      const selectedPreset = event.target.value;
-      if (selectedPreset !== 'custom') {
-        templateField.value = presets[selectedPreset];
-        updateFilenamePreview();
-      }
-    }
-
     // 💾 모든 설정 저장하는 함수 (개선된 버전)
     function saveAllSettings() {
       console.log('💾 모든 설정 저장 시작...');
@@ -5731,23 +5652,12 @@
           CONFIG.SHEET_UPDATE_SCRIPT_URL = appsScriptUrl;
         }
 
-        // 3. 파일명 설정 저장 (템플릿 포함)
+        // 3. 파일명 설정 저장
         const filenamePrefix = document.getElementById('filename-prefix')?.value || '';
         const filenameSuffix = document.getElementById('filename-suffix')?.value || '';
-        const filenameTemplate = document.getElementById('filename-template')?.value || '{prefix}{handNumber}';
-        const templatePreset = document.getElementById('template-preset')?.value || 'simple';
 
         localStorage.setItem('filenamePrefix', filenamePrefix);
         localStorage.setItem('filenameSuffix', filenameSuffix);
-        localStorage.setItem('filenameTemplate', filenameTemplate);
-        localStorage.setItem('templatePreset', templatePreset);
-
-        // FilenameManager에 템플릿 설정 전달
-        if (window.FilenameManager) {
-          window.FilenameManager.config.template = filenameTemplate;
-          window.FilenameManager.config.prefix = filenamePrefix;
-          window.FilenameManager.config.suffix = filenameSuffix;
-        }
 
         // 4. AI 설정 저장 (중요!)
         const aiFilenameEnabled = document.getElementById('ai-filename-enable')?.checked || false;
@@ -5974,10 +5884,7 @@
     
     
     // 핸드에서 키 플레이어 찾기
-    /**
-     * @deprecated 모듈화 완료 - AIAnalyzer.analyzeHand() 사용
-     * AI 핸드 분석 함수
-     */
+    // AI 핸드 분석 함수
     async function analyzeHandWithAI(handNumber) {
       try {
         debugLog('🔍 정확한 핸드 분석 시작 - 핸드 #' + handNumber);
@@ -7205,9 +7112,6 @@
       const editBtn = document.getElementById('edit-btn');
       const completeBtn = document.getElementById('complete-btn');
 
-      // 로딩 팝업 표시
-      showLoadingPopup('완료 처리 중...', '클립보드에 복사하고 상태를 업데이트합니다');
-
       try {
         // 0. 시트 URL 먼저 확인 (전체 함수에서 사용)
         const sheetUrl = getSheetUrl();
@@ -7310,8 +7214,6 @@
             recordCompleteTime(handNumber);
           }, 100);
 
-          hideLoadingPopup();  // 로딩 팝업 닫기
-
           // 상세한 정보를 포함한 팝업 메시지
           const detailMessage = `✅ 완료 처리되었습니다!
 
@@ -7337,7 +7239,6 @@
         }
 
       } catch (error) {
-        hideLoadingPopup();  // 오류 시에도 팝업 닫기
         console.error('❌ 완료 버튼 처리 오류:', error);
 
         // 오류 시 버튼 복원
@@ -7349,53 +7250,11 @@
       }
     }
 
-    // 로딩 팝업 표시 함수
-    function showLoadingPopup(title = '작업 중...', message = '잠시만 기다려 주세요', showProgress = false) {
-      const popup = document.getElementById('loading-popup');
-      const titleEl = document.getElementById('loading-title');
-      const messageEl = document.getElementById('loading-message');
-      const progressEl = document.getElementById('loading-progress');
-
-      titleEl.textContent = title;
-      messageEl.textContent = message;
-
-      if (showProgress) {
-        progressEl.classList.remove('hidden');
-      } else {
-        progressEl.classList.add('hidden');
-      }
-
-      popup.classList.remove('hidden');
-
-      // 모달 비활성화
-      const modal = document.getElementById('hand-detail-modal');
-      if (modal) {
-        modal.style.pointerEvents = 'none';
-        modal.style.opacity = '0.7';
-      }
-    }
-
-    // 로딩 팝업 닫기 함수
-    function hideLoadingPopup() {
-      const popup = document.getElementById('loading-popup');
-      popup.classList.add('hidden');
-
-      // 모달 다시 활성화
-      const modal = document.getElementById('hand-detail-modal');
-      if (modal) {
-        modal.style.pointerEvents = 'auto';
-        modal.style.opacity = '1';
-      }
-    }
-
     // 편집 버튼 처리 함수 (캐시 우선 사용)
     async function processEditButton(handNumber) {
-      if (window.DEBUG_MODE) console.log(`\n🔴🔴🔴 [편집 버튼 클릭] 핸드 #${handNumber} 처리 시작 🔴🔴🔴`);
+      console.log(`\n🔴🔴🔴 [편집 버튼 클릭] 핸드 #${handNumber} 처리 시작 🔴🔴🔴`);
       const editBtn = document.getElementById('edit-btn');
       const completeBtn = document.getElementById('complete-btn');
-
-      // 로딩 팝업 표시
-      showLoadingPopup('편집 중...', '시트에서 시간 매칭을 수행하고 있습니다');
 
       try {
         // 0. 시트 URL 먼저 확인 (전체 함수에서 사용)
@@ -7483,7 +7342,6 @@
 
         if (result && result.success) {
           // 7. 성공 시 UI 업데이트
-          hideLoadingPopup();  // 로딩 팝업 닫기
           editBtn.textContent = '편집';
           editBtn.disabled = true;      // 편집 완료 후 비활성화
           completeBtn.disabled = false;  // 완료 버튼 활성화
@@ -7683,27 +7541,6 @@
       if (aiHColumn) {
         aiHColumn.checked = localStorage.getItem('useAIForHColumn') === 'true';
       }
-
-      // 템플릿 설정 로드
-      const filenameTemplate = document.getElementById('filename-template');
-      const templatePreset = document.getElementById('template-preset');
-
-      if (filenameTemplate) {
-        filenameTemplate.value = localStorage.getItem('filenameTemplate') || '{prefix}{handNumber}';
-
-        // 템플릿 변경 시 미리보기 업데이트 이벤트
-        filenameTemplate.addEventListener('input', updateFilenamePreview);
-      }
-
-      if (templatePreset) {
-        templatePreset.value = localStorage.getItem('templatePreset') || 'simple';
-
-        // 프리셋 변경 시 템플릿 업데이트
-        templatePreset.addEventListener('change', handleTemplatePresetChange);
-      }
-
-      // 초기 미리보기 업데이트
-      updateFilenamePreview();
 
       document.getElementById('settings-modal').classList.remove('hidden');
     });
@@ -8198,13 +8035,19 @@
 
     document.getElementById('edit-btn').addEventListener('click', async () => {
       if (currentHand) {
-        await processEditButton(currentHand);
+        const confirmed = confirm('이 핸드를 편집 상태로 설정하시겠습니까?\n\n• 시트에서 시간 매칭을 수행합니다\n• E열에 "미완료" 상태를 설정합니다\n• AI 분석을 실행합니다');
+        if (confirmed) {
+          await processEditButton(currentHand);
+        }
       }
     });
     
     document.getElementById('complete-btn').addEventListener('click', async () => {
       if (currentHand) {
-        await processCompleteButton(currentHand);
+        const confirmed = confirm('이 핸드를 완료 처리하시겠습니까?\n\n자동으로 시트가 업데이트되고 E열이 "복사완료"로 설정됩니다.');
+        if (confirmed) {
+          await processCompleteButton(currentHand);
+        }
       }
     });
     
@@ -9766,86 +9609,6 @@
 
         console.log('\n✅ 테스트 완료');
     };
-
-    // 🔧 페이지 로드 시 자동으로 설정 불러오기
-    function loadSavedSettings() {
-        console.log('📦 저장된 설정 불러오기 시작...');
-
-        // 1. CSV URL 설정
-        const savedCsvUrl = localStorage.getItem('csvUrl');
-        if (savedCsvUrl) {
-            const csvInput = document.getElementById('csv-url');
-            if (csvInput) {
-                csvInput.value = savedCsvUrl;
-                console.log('✅ CSV URL 로드됨');
-            }
-        }
-
-        // 2. 시트 이름 설정
-        const savedSheetName = localStorage.getItem('sheetName');
-        if (savedSheetName) {
-            const sheetInput = document.getElementById('sheet-name');
-            if (sheetInput) {
-                sheetInput.value = savedSheetName;
-                console.log('✅ 시트 이름 로드됨');
-            }
-        }
-
-        // 3. Gemini API 키 설정
-        const savedApiKey = localStorage.getItem('GEMINI_API_KEY');
-        if (savedApiKey) {
-            CONFIG.GEMINI_API_KEY = savedApiKey;
-            console.log('✅ Gemini API 키 로드됨');
-        }
-
-        // 4. Apps Script URL 설정
-        const savedAppsScriptUrl = localStorage.getItem('appsScriptUrl');
-        if (savedAppsScriptUrl) {
-            // Apps Script URL은 이미 loadServerSettings에서 처리됨
-            console.log('✅ Apps Script URL 로드됨');
-        }
-
-        // 5. 파일명 커스터마이징 설정
-        const filenamePrefix = localStorage.getItem('filenamePrefix');
-        if (filenamePrefix !== null) {
-            console.log(`✅ 파일명 접두사 로드: ${filenamePrefix}`);
-        }
-
-        const filenameSuffix = localStorage.getItem('filenameSuffix');
-        if (filenameSuffix !== null) {
-            console.log(`✅ 파일명 접미사 로드: ${filenameSuffix}`);
-        }
-
-        // 6. AI 기능 설정
-        const useAI = localStorage.getItem('useAIForFilename');
-        if (useAI !== null) {
-            console.log(`✅ AI 파일명 사용: ${useAI}`);
-        }
-
-        console.log('✅ 모든 설정 로드 완료');
-
-        // 자동으로 loadServerSettings 실행 (설정이 이미 있는 경우)
-        if (savedCsvUrl || savedSheetName) {
-            console.log('🚀 저장된 설정으로 자동 데이터 로드 시작...');
-            // loadServerSettings 함수가 있다면 실행
-            if (typeof loadServerSettings === 'function') {
-                loadServerSettings();
-            }
-        }
-    }
-
-    // 페이지 로드 완료 시 자동 실행
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            loadSavedSettings();
-            console.log('🚀 페이지 로드 완료 - 설정 자동 적용');
-        });
-    } else {
-        // 이미 로드된 경우 즉시 실행
-        setTimeout(() => {
-            loadSavedSettings();
-        }, 100); // 약간의 지연으로 다른 초기화 후 실행
-    }
   </script>
 </body>
 </html>
