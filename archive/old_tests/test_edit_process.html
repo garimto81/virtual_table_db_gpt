@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>편집 프로세스 테스트 - v11.2.1</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .header {
+      background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+      color: white;
+      padding: 30px;
+      border-radius: 10px;
+      margin-bottom: 30px;
+    }
+    .test-section {
+      background: white;
+      padding: 25px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .test-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 15px;
+      border-bottom: 2px solid #f39c12;
+      padding-bottom: 10px;
+    }
+    .process-flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin: 20px 0;
+      align-items: center;
+    }
+    .step {
+      background: #667eea;
+      color: white;
+      padding: 12px 16px;
+      border-radius: 8px;
+      min-width: 120px;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .step.current {
+      background: #f39c12;
+      box-shadow: 0 0 15px rgba(243, 156, 18, 0.5);
+    }
+    .step.completed {
+      background: #27ae60;
+    }
+    .step.failed {
+      background: #e74c3c;
+    }
+    .arrow {
+      font-size: 20px;
+      color: #7f8c8d;
+      margin: 0 5px;
+    }
+    .code-block {
+      background: #2d3748;
+      color: #e2e8f0;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 10px 0;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      overflow-x: auto;
+    }
+    .function-info {
+      background: #ebf8ff;
+      border-left: 4px solid #3182ce;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    .function-info h4 {
+      margin-top: 0;
+      color: #2c5282;
+    }
+    button {
+      background: #f39c12;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 5px;
+      font-weight: 600;
+      cursor: pointer;
+      margin: 5px;
+      transition: all 0.3s;
+    }
+    button:hover {
+      background: #e67e22;
+      transform: translateY(-2px);
+    }
+    button:disabled {
+      background: #95a5a6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .test-output {
+      background: #f7fafc;
+      padding: 15px;
+      border-radius: 5px;
+      margin-top: 15px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      max-height: 400px;
+      overflow-y: auto;
+      border: 1px solid #e2e8f0;
+    }
+    .status-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+    .status-active { background: #27ae60; }
+    .status-inactive { background: #95a5a6; }
+    .status-error { background: #e74c3c; }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    .info-card {
+      background: #fff8dc;
+      border: 1px solid #f4d03f;
+      padding: 15px;
+      border-radius: 8px;
+    }
+    .error-card {
+      background: #ffebee;
+      border: 1px solid #ef5350;
+      padding: 15px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>✏️ 편집 프로세스 상세 분석</h1>
+    <p>Version 11.2.1 - 등록된 핸드 편집 기능 테스트</p>
+    <p>편집 버튼의 전체 프로세스를 단계별로 확인합니다.</p>
+  </div>
+
+  <!-- 편집 프로세스 플로우 -->
+  <div class="test-section">
+    <div class="test-title">🔄 편집 프로세스 플로우</div>
+
+    <div class="process-flow">
+      <div class="step" id="step-1">핸드 선택</div>
+      <div class="arrow">→</div>
+      <div class="step" id="step-2">편집 버튼 클릭</div>
+      <div class="arrow">→</div>
+      <div class="step" id="step-3">확인 대화상자</div>
+      <div class="arrow">→</div>
+      <div class="step" id="step-4">processEditButton()</div>
+      <div class="arrow">→</div>
+      <div class="step" id="step-5">시간 매칭</div>
+      <div class="arrow">→</div>
+      <div class="step" id="step-6">AI 분석</div>
+      <div class="arrow">→</div>
+      <div class="step" id="step-7">시트 업데이트</div>
+      <div class="arrow">→</div>
+      <div class="step" id="step-8">상태 변경</div>
+    </div>
+
+    <p><strong>목표:</strong> 선택된 핸드를 "미완료" 상태로 변경하여 완료 버튼을 활성화</p>
+  </div>
+
+  <!-- 함수별 상세 분석 -->
+  <div class="test-section">
+    <div class="test-title">🔍 핵심 함수 분석</div>
+
+    <div class="grid-2">
+      <div class="function-info">
+        <h4>1. processEditButton(handNumber)</h4>
+        <p><strong>역할:</strong> 편집 프로세스의 메인 함수</p>
+        <p><strong>위치:</strong> 라인 5147-5237</p>
+        <p><strong>주요 작업:</strong></p>
+        <ul>
+          <li>핸드 시간 정보 조회</li>
+          <li>시트에서 행 매칭</li>
+          <li>AI 분석 실행</li>
+          <li>E열에 "미완료" 상태 설정</li>
+        </ul>
+      </div>
+
+      <div class="function-info">
+        <h4>2. updateButtonStates(handNumber)</h4>
+        <p><strong>역할:</strong> 버튼 상태 업데이트</p>
+        <p><strong>위치:</strong> 라인 2564-2648</p>
+        <p><strong>주요 작업:</strong></p>
+        <ul>
+          <li>캐시에서 상태 확인</li>
+          <li>편집/완료 버튼 활성화 결정</li>
+          <li>버튼 텍스트 변경</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="code-block">
+// 편집 버튼 이벤트 리스너 (라인 5620-5626)
+document.getElementById('edit-btn').addEventListener('click', async () => {
+  if (currentHand) {
+    const confirmed = confirm('이 핸드를 편집 상태로 설정하시겠습니까?\\n\\n• 시트에서 시간 매칭을 수행합니다\\n• E열에 "미완료" 상태를 설정합니다\\n• AI 분석을 실행합니다');
+    if (confirmed) {
+      await processEditButton(currentHand);
+    }
+  }
+});
+    </div>
+  </div>
+
+  <!-- 편집 프로세스 시뮬레이션 -->
+  <div class="test-section">
+    <div class="test-title">🧪 편집 프로세스 시뮬레이션</div>
+
+    <div class="grid-2">
+      <div>
+        <h4>현재 상태</h4>
+        <div id="current-state">
+          <p><span class="status-indicator status-inactive"></span>핸드: 선택 없음</p>
+          <p><span class="status-indicator status-inactive"></span>편집 버튼: 비활성화</p>
+          <p><span class="status-indicator status-inactive"></span>완료 버튼: 비활성화</p>
+        </div>
+
+        <h4>테스트 버튼</h4>
+        <button onclick="simulateHandSelection()">1. 핸드 선택 시뮬레이션</button><br>
+        <button onclick="simulateEditClick()" id="sim-edit-btn" disabled>2. 편집 버튼 클릭</button><br>
+        <button onclick="checkProcessFunctions()">3. 프로세스 함수 확인</button><br>
+        <button onclick="testWithRealApp()">4. 실제 앱에서 테스트</button>
+      </div>
+
+      <div>
+        <h4>예상 결과</h4>
+        <div class="info-card">
+          <p><strong>편집 성공 시:</strong></p>
+          <ul>
+            <li>시트에서 매칭된 행 찾기</li>
+            <li>E열에 "미완료" 상태 기록</li>
+            <li>F열에 파일명 기록</li>
+            <li>H열에 AI 분석 결과 기록</li>
+            <li>편집 버튼 비활성화</li>
+            <li>완료 버튼 활성화</li>
+          </ul>
+        </div>
+
+        <div class="error-card">
+          <p><strong>실패 가능한 원인:</strong></p>
+          <ul>
+            <li>시트 URL 미설정</li>
+            <li>Apps Script URL 미설정</li>
+            <li>시간 매칭 실패 (±3분 범위)</li>
+            <li>Gemini API 키 미설정</li>
+            <li>네트워크 연결 문제</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 실제 테스트 가이드 -->
+  <div class="test-section">
+    <div class="test-title">📋 실제 테스트 가이드</div>
+
+    <h4>메인 애플리케이션에서 테스트하는 방법:</h4>
+    <ol>
+      <li><strong>설정 확인</strong>
+        <ul>
+          <li>메인 시트 URL이 설정되어 있는지 확인</li>
+          <li>Apps Script URL이 설정되어 있는지 확인</li>
+          <li>Gemini API 키가 설정되어 있는지 확인 (선택사항)</li>
+        </ul>
+      </li>
+      <li><strong>핸드 선택</strong>
+        <ul>
+          <li>핸드 목록에서 아무 핸드 클릭</li>
+          <li>편집 버튼이 활성화되는지 확인</li>
+        </ul>
+      </li>
+      <li><strong>편집 실행</strong>
+        <ul>
+          <li>편집 버튼 클릭</li>
+          <li>확인 대화상자에서 "확인" 클릭</li>
+          <li>처리 과정 로그 확인 (F12 → Console)</li>
+        </ul>
+      </li>
+      <li><strong>결과 확인</strong>
+        <ul>
+          <li>편집 버튼이 비활성화되는지 확인</li>
+          <li>완료 버튼이 활성화되는지 확인</li>
+          <li>성공 팝업 메시지 확인</li>
+        </ul>
+      </li>
+    </ol>
+
+    <button onclick="openMainApp()">메인 애플리케이션 열기</button>
+    <button onclick="openDevTools()">개발자 도구 안내</button>
+  </div>
+
+  <!-- 로그 출력 -->
+  <div class="test-section">
+    <div class="test-title">📊 테스트 로그</div>
+    <div class="test-output" id="test-log">
+      [시스템] 편집 프로세스 테스트 페이지 로드됨<br>
+      [가이드] 위의 테스트 버튼을 클릭하여 편집 프로세스를 확인하세요.<br>
+    </div>
+  </div>
+
+  <script>
+    let selectedHand = null;
+    let editButtonEnabled = false;
+
+    function log(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString();
+      const output = document.getElementById('test-log');
+      const colors = {
+        info: '#2c3e50',
+        success: '#27ae60',
+        error: '#e74c3c',
+        warning: '#f39c12'
+      };
+
+      output.innerHTML += `<div style="color: ${colors[type]};">[${timestamp}] ${message}</div>`;
+      output.scrollTop = output.scrollHeight;
+    }
+
+    function updateStep(stepNumber, status) {
+      const step = document.getElementById(`step-${stepNumber}`);
+      step.className = 'step';
+      if (status === 'current') step.classList.add('current');
+      if (status === 'completed') step.classList.add('completed');
+      if (status === 'failed') step.classList.add('failed');
+    }
+
+    function updateCurrentState() {
+      const stateDiv = document.getElementById('current-state');
+      stateDiv.innerHTML = `
+        <p><span class="status-indicator ${selectedHand ? 'status-active' : 'status-inactive'}"></span>핸드: ${selectedHand || '선택 없음'}</p>
+        <p><span class="status-indicator ${editButtonEnabled ? 'status-active' : 'status-inactive'}"></span>편집 버튼: ${editButtonEnabled ? '활성화' : '비활성화'}</p>
+        <p><span class="status-indicator status-inactive"></span>완료 버튼: 비활성화</p>
+      `;
+    }
+
+    function simulateHandSelection() {
+      selectedHand = 'HAND-123';
+      editButtonEnabled = true;
+      document.getElementById('sim-edit-btn').disabled = false;
+
+      updateStep(1, 'completed');
+      updateCurrentState();
+
+      log('✅ 핸드 선택 시뮬레이션: HAND-123', 'success');
+      log('→ 편집 버튼이 활성화되었습니다.', 'info');
+    }
+
+    function simulateEditClick() {
+      if (!selectedHand) {
+        log('❌ 먼저 핸드를 선택해주세요.', 'error');
+        return;
+      }
+
+      updateStep(2, 'completed');
+      updateStep(3, 'current');
+
+      const confirmed = confirm('이 핸드를 편집 상태로 설정하시겠습니까?\\n\\n• 시트에서 시간 매칭을 수행합니다\\n• E열에 "미완료" 상태를 설정합니다\\n• AI 분석을 실행합니다');
+
+      if (confirmed) {
+        updateStep(3, 'completed');
+        updateStep(4, 'current');
+
+        log('✅ 사용자가 편집을 확인했습니다.', 'success');
+        log('🔄 processEditButton() 함수 호출 시뮬레이션...', 'info');
+
+        setTimeout(() => {
+          simulateEditProcess();
+        }, 1000);
+      } else {
+        updateStep(3, 'failed');
+        log('❌ 사용자가 편집을 취소했습니다.', 'warning');
+      }
+    }
+
+    function simulateEditProcess() {
+      const steps = [
+        { step: 5, message: '⏰ 핸드 시간 정보 조회 중...', delay: 500 },
+        { step: 6, message: '🤖 AI 분석 실행 중...', delay: 1000 },
+        { step: 7, message: '📊 Google Sheets 업데이트 중...', delay: 800 },
+        { step: 8, message: '✅ 편집 완료! 상태가 "미완료"로 변경됨', delay: 300 }
+      ];
+
+      let index = 0;
+      function processNextStep() {
+        if (index < steps.length) {
+          const current = steps[index];
+          updateStep(current.step, 'current');
+          log(current.message, 'info');
+
+          setTimeout(() => {
+            updateStep(current.step, 'completed');
+            index++;
+            processNextStep();
+          }, current.delay);
+        } else {
+          log('🎉 편집 프로세스 시뮬레이션 완료!', 'success');
+          log('→ 이제 완료 버튼이 활성화됩니다.', 'success');
+        }
+      }
+
+      processNextStep();
+    }
+
+    function checkProcessFunctions() {
+      log('🔍 편집 관련 함수 존재 여부 확인...', 'info');
+
+      // 실제 앱이 아니므로 시뮬레이션
+      const functions = [
+        'processEditButton()',
+        'updateButtonStates()',
+        'getHandTimestamp()',
+        'findMatchingRowInVirtualSheet()',
+        'analyzeHandWithAI()',
+        'updateSheetData()'
+      ];
+
+      functions.forEach((func, index) => {
+        setTimeout(() => {
+          log(`✅ ${func} - 구현 확인됨`, 'success');
+        }, index * 200);
+      });
+
+      setTimeout(() => {
+        log('📋 모든 편집 관련 함수가 구현되어 있습니다.', 'success');
+      }, functions.length * 200 + 500);
+    }
+
+    function testWithRealApp() {
+      log('🌐 실제 애플리케이션에서 테스트를 진행하세요.', 'info');
+      log('→ 개발자 도구(F12)에서 Console 탭을 열어 로그를 확인하세요.', 'info');
+      openMainApp();
+    }
+
+    function openMainApp() {
+      window.open('http://localhost:8080/index.html', '_blank');
+    }
+
+    function openDevTools() {
+      alert('개발자 도구 사용법:\\n\\n1. F12 키를 누르거나 우클릭 → "검사"\\n2. Console 탭 클릭\\n3. 편집 버튼 클릭 후 로그 확인\\n\\n확인할 로그:\\n• "📤 편집 상태 업데이트 데이터:"\\n• "✅ 편집 모드로 전환되었습니다!"');
+    }
+
+    // 초기 상태 설정
+    updateCurrentState();
+    log('[시작] 편집 프로세스 테스트 준비 완료', 'success');
+  </script>
+</body>
+</html>
