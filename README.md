@@ -1,14 +1,14 @@
-# Virtual Table DB - Poker Hand Monitoring System v12.16.2
+# Virtual Table DB - Poker Hand Monitoring System v12.16.3
 
 ## 📋 프로젝트 개요
 AI 기반 포커 핸드 모니터링 및 분석 시스템으로 Google Sheets와 연동하여 실시간 핸드 데이터를 관리합니다.
 
-### 🚀 최신 버전: v12.16.2 (2025-09-19)
-- **🔐 GitHub Secrets 통합**: GEMINI_API_KEY, GOOGLE_APP_SCRIPT 자동 설정
-- **🎯 기본값 최적화**: 접두사 'VT', 템플릿 'AI 분석' 기본 설정
-- **💾 설정 우선순위**: localStorage > GitHub Secrets > 기본값
-- **⚡ 자동 초기화**: 첫 방문 시 최적 설정 자동 적용
-- **🔧 환경 변수 지원**: GitHub Actions 워크플로우 추가
+### 🚀 최신 버전: v12.16.3 (2025-09-19)
+- **📊 상세 로깅 추가**: GitHub Secrets 호출 확인 로그
+- **🔐 환경 변수 디버깅**: ENV_CONFIG 로드 상태 실시간 확인
+- **📝 설정 출처 표시**: localStorage vs GitHub Secrets 구분
+- **✅ 최종 상태 요약**: 모든 설정값 한눈에 확인
+- **🎯 명확한 피드백**: 각 설정의 로드 경로 표시
 
 ## 🔥 최우선 개발 과제 (v12.16.0 목표)
 

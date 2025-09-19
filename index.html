@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title id="page-title">포커 핸드 모니터링 v12.16.2 - AI 분석 시스템</title>
+  <title id="page-title">포커 핸드 모니터링 v12.16.3 - AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <!-- Papa Parse for accurate CSV parsing (multiline support) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -1188,7 +1188,7 @@
     }
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '12.16.2'; // GitHub Secrets 기본값 + VT 접두사 + AI 분석 템플릿
+    const APP_VERSION = '12.16.3'; // GitHub Secrets 호출 확인 로그 추가
     const BUILD_TIME = '2025-09-18T17:00:00Z';
 
     // ====================================
@@ -9771,6 +9771,20 @@
     function loadSavedSettings() {
         console.log('📦 저장된 설정 불러오기 시작...');
 
+        // GitHub Secrets 확인 로깅
+        console.log('🔐 === GitHub Secrets 확인 ===');
+        if (window.ENV_CONFIG) {
+            console.log('✅ ENV_CONFIG 객체 발견');
+            console.log('📌 GEMINI_API_KEY:', window.ENV_CONFIG.GEMINI_API_KEY ?
+                `설정됨 (${window.ENV_CONFIG.GEMINI_API_KEY.substring(0, 10)}...)` : '❌ 미설정');
+            console.log('📌 GOOGLE_APP_SCRIPT:', window.ENV_CONFIG.GOOGLE_APP_SCRIPT ?
+                `설정됨 (${window.ENV_CONFIG.GOOGLE_APP_SCRIPT.substring(0, 30)}...)` : '❌ 미설정');
+        } else {
+            console.log('⚠️ ENV_CONFIG 없음 - GitHub Secrets가 주입되지 않음');
+            console.log('💡 로컬 환경이거나 GitHub Actions가 아직 실행되지 않았을 수 있습니다.');
+        }
+        console.log('🔐 ======================');
+
         // GitHub Secrets 또는 기본값 설정
         const DEFAULT_CONFIG = {
             GEMINI_API_KEY: window.ENV_CONFIG?.GEMINI_API_KEY || '',
@@ -9801,25 +9815,45 @@
 
         // 3. Gemini API 키 설정 (localStorage > GitHub Secrets > 빈값)
         let apiKey = localStorage.getItem('GEMINI_API_KEY');
-        if (!apiKey && DEFAULT_CONFIG.GEMINI_API_KEY) {
+        let apiKeySource = '';
+
+        if (apiKey) {
+            apiKeySource = 'localStorage';
+            console.log('📦 Gemini API 키: localStorage에서 로드');
+        } else if (DEFAULT_CONFIG.GEMINI_API_KEY) {
             apiKey = DEFAULT_CONFIG.GEMINI_API_KEY;
+            apiKeySource = 'GitHub Secrets';
             localStorage.setItem('GEMINI_API_KEY', apiKey);
-            console.log('✅ Gemini API 키 GitHub Secrets에서 로드');
+            console.log('🔐 Gemini API 키: GitHub Secrets에서 로드 및 저장');
+        } else {
+            apiKeySource = '미설정';
+            console.log('⚠️ Gemini API 키: 미설정 상태');
         }
+
         if (apiKey) {
             CONFIG.GEMINI_API_KEY = apiKey;
-            console.log('✅ Gemini API 키 설정됨');
+            console.log(`✅ Gemini API 키 설정 완료 [출처: ${apiKeySource}]`);
         }
 
         // 4. Apps Script URL 설정 (localStorage > GitHub Secrets > 빈값)
         let appsScriptUrl = localStorage.getItem('appsScriptUrl');
-        if (!appsScriptUrl && DEFAULT_CONFIG.GOOGLE_APP_SCRIPT) {
-            appsScriptUrl = DEFAULT_CONFIG.GOOGLE_APP_SCRIPT;
-            localStorage.setItem('appsScriptUrl', appsScriptUrl);
-            console.log('✅ Apps Script URL GitHub Secrets에서 로드');
-        }
+        let scriptSource = '';
+
         if (appsScriptUrl) {
-            console.log('✅ Apps Script URL 설정됨');
+            scriptSource = 'localStorage';
+            console.log('📦 Apps Script URL: localStorage에서 로드');
+        } else if (DEFAULT_CONFIG.GOOGLE_APP_SCRIPT) {
+            appsScriptUrl = DEFAULT_CONFIG.GOOGLE_APP_SCRIPT;
+            scriptSource = 'GitHub Secrets';
+            localStorage.setItem('appsScriptUrl', appsScriptUrl);
+            console.log('🔐 Apps Script URL: GitHub Secrets에서 로드 및 저장');
+        } else {
+            scriptSource = '미설정';
+            console.log('⚠️ Apps Script URL: 미설정 상태');
+        }
+
+        if (appsScriptUrl) {
+            console.log(`✅ Apps Script URL 설정 완료 [출처: ${scriptSource}]`);
         }
 
         // 5. 파일명 커스터마이징 설정 (기본값: 'VT')
@@ -9857,7 +9891,16 @@
             console.log(`✅ AI 파일명 사용: ${useAI}`);
         }
 
-        console.log('✅ 모든 설정 로드 완료');
+        // 최종 설정 상태 요약
+        console.log('📊 === 최종 설정 상태 ===');
+        console.log('🔑 API 키:', CONFIG.GEMINI_API_KEY ? '✅ 설정됨' : '❌ 미설정');
+        console.log('📜 Apps Script:', appsScriptUrl ? '✅ 설정됨' : '❌ 미설정');
+        console.log('🏷️ 파일명 접두사:', filenamePrefix || '미설정');
+        console.log('🎨 템플릿 프리셋:', templatePreset || '미설정');
+        console.log('🤖 AI 기능:', useAI === 'true' ? '✅ 활성화' : '❌ 비활성화');
+        console.log('📊 ======================');
+
+        console.log('✅ 모든 설정 로드 완료!');
 
         // 자동으로 loadServerSettings 실행 (설정이 이미 있는 경우)
         if (savedCsvUrl || savedSheetName) {
