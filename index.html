@@ -1182,8 +1182,99 @@
     }
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '13.2.0'; // 파일명 단순화 - 플레이어 정보만 포함
-    const BUILD_TIME = '2025-09-22T13:00:00Z';
+    const APP_VERSION = '13.3.0'; // J열 자막 생성 기능 추가
+    const BUILD_TIME = '2025-09-22T14:00:00Z';
+
+    // ====================================
+    // 자막 생성 시스템
+    // ====================================
+
+    /**
+     * Hand 시트에서 키 플레이어 정보를 추출하여 자막 생성
+     * @param {number} handNumber - 핸드 번호
+     * @returns {string} 자막 텍스트
+     */
+    async function generateSubtitle(handNumber) {
+      try {
+        // Hand 시트 CSV 데이터 로드
+        const response = await fetch(CONFIG.CSV_HAND_URL + '&t=' + Date.now());
+        const text = await response.text();
+        const rows = parseCSV(text);
+
+        // 해당 핸드의 키 플레이어 찾기
+        let inTargetHand = false;
+        let keyPlayer = null;
+
+        for (const row of rows) {
+          // HAND 행으로 핸드 시작 확인
+          if (row[0] === 'HAND' && row[1] === handNumber.toString()) {
+            inTargetHand = true;
+            continue;
+          }
+
+          // 다른 핸드 시작 시 종료
+          if (inTargetHand && row[0] === 'HAND' && row[1] !== handNumber.toString()) {
+            break;
+          }
+
+          // 현재 핸드의 PLAYER 행 처리
+          if (inTargetHand && row[0] === 'PLAYER') {
+            const playerName = row[1];         // B열: 플레이어 이름
+            const position = row[2];           // C열: 포지션
+            const startStack = parseInt(row[3]) || 0;   // D열: 시작 스택
+            const currentStack = parseInt(row[4]) || 0; // E열: 현재 스택
+            const cards = row[5];              // F열: 카드
+            const isKeyPlayer = row[9];        // J열: 키 플레이어 여부 (True/False)
+            const country = row[10];           // K열: 국가
+
+            // 키 플레이어 확인
+            if (isKeyPlayer === 'True' || isKeyPlayer === 'TRUE' || isKeyPlayer === 'true') {
+              keyPlayer = {
+                name: playerName,
+                position: position,
+                startStack: startStack,
+                currentStack: currentStack,
+                cards: cards,
+                country: country || 'Unknown'
+              };
+              break; // 키 플레이어 찾았으므로 종료
+            }
+          }
+        }
+
+        // 키 플레이어가 없으면 빈 문자열 반환
+        if (!keyPlayer) {
+          console.log(`⚠️ 핸드 #${handNumber}에서 키 플레이어를 찾을 수 없음`);
+          return '';
+        }
+
+        // 빅블라인드 계산 (핸드 정보에서 추출)
+        let bigBlind = 0;
+        inTargetHand = false;
+        for (const row of rows) {
+          if (row[0] === 'HAND' && row[1] === handNumber.toString()) {
+            bigBlind = parseInt(row[5]) || 1000; // F열: 빅블라인드
+            break;
+          }
+        }
+
+        // BB 계산
+        const stackInBB = Math.round(keyPlayer.currentStack / bigBlind);
+        const stackFormatted = keyPlayer.currentStack.toLocaleString();
+
+        // 자막 생성: "국가\n이름\n스택 (BB)"
+        const subtitle = `"${keyPlayer.country}
+${keyPlayer.name.toUpperCase()}
+${stackFormatted} (${stackInBB}BB)"`;
+
+        console.log(`✅ 자막 생성 완료 (핸드 #${handNumber}):`, subtitle);
+        return subtitle;
+
+      } catch (error) {
+        console.error(`❌ 자막 생성 오류 (핸드 #${handNumber}):`, error);
+        return '';
+      }
+    }
 
     // ====================================
     // AI 분석 시스템
@@ -5881,6 +5972,7 @@
           handNumber: handNumber,  // D열
           filename: filename,  // F열
           aiAnalysis: safeAiAnalysis,  // H열 (CSV 안전 처리됨)
+          subtitle: '',  // J열 자막 (기본값)
           status: '복사완료'  // ✅ 완료 버튼에서 기본값으로 '복사완료' 설정
         };
       }
@@ -7447,9 +7539,10 @@
         console.log(`   - 매칭된 행 번호: ${rowNumber}`);
         console.log(`🔴🔴🔴 편집 버튼 매칭 완료 🔴🔴🔴\n`);
 
-        // 5. AI 분석 실행
+        // 5. AI 분석 및 자막 생성 실행
         const aiAnalysis = await analyzeHandWithAI(handNumber);
         const filename = await generateCustomFilename(handNumber);
+        const subtitle = await generateSubtitle(handNumber);
 
         // 🚀 매핑 저장
         saveHandFilenameMapping(handNumber, filename);
@@ -7468,6 +7561,7 @@
           handNumber: handNumber,
           filename: filename,
           aiAnalysis: safeAiAnalysis,  // CSV 안전 처리된 AI 분석
+          subtitle: subtitle,  // 자막 정보 추가
           status: '미완료',  // ✅ 편집 단계에서 '미완료' 설정
           timestamp: handTime
         };

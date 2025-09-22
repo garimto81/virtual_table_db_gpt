@@ -144,6 +144,7 @@ function handleSheetUpdate(data) {
       handNumber,
       filename,
       aiAnalysis,
+      subtitle,
       timestamp,
       indexSheetUrl,
       status
@@ -226,6 +227,12 @@ function handleSheetUpdate(data) {
       // I열: 업데이트 시간
       sheet.getRange(targetRow, 9).setValue(updateTime);
       updates.push('업데이트시간(I열)');
+
+      // J열: 자막 (subtitle)
+      if (subtitle) {
+        sheet.getRange(targetRow, 10).setValue(subtitle);
+        updates.push('자막(J열)');
+      }
 
       // 변경사항 저장
       SpreadsheetApp.flush();
