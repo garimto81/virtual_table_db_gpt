@@ -338,7 +338,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span id="version-display" class="text-xs text-gray-500">v13.0.0</span>
+        <span id="version-display" class="text-xs text-gray-500">v13.3.2</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
@@ -1196,37 +1196,46 @@
      */
     async function generateSubtitle(handNumber) {
       try {
+        console.log(`🎬 자막 생성 시작: 핸드 #${handNumber}`);
+
         // Hand 시트 CSV 데이터 로드
         const response = await fetch(CONFIG.CSV_HAND_URL + '&t=' + Date.now());
+        console.log(`📥 Hand 시트 응답 상태: ${response.status}`);
+
         const text = await response.text();
+        console.log(`📝 CSV 텍스트 길이: ${text.length} 문자`);
+
         const rows = parseCSV(text);
+        console.log(`📊 파싱된 행 수: ${rows.length}`);
 
         // 해당 핸드의 키 플레이어 찾기
         let inTargetHand = false;
         let keyPlayer = null;
         let bigBlind = 0;
 
+        console.log(`🔍 핸드 #${handNumber} 검색 시작...`);
+
         for (const row of rows) {
           // HAND 행으로 핸드 시작 확인
-          if (row[0] === 'HAND' && row[1] === handNumber.toString()) {
+          if (row[1] === 'HAND' && row[2] === handNumber.toString()) {
             inTargetHand = true;
             bigBlind = parseInt(row[5]) || 1000; // F열: 빅블라인드
-            console.log(`🎲 빅블라인드 추출: ${bigBlind}`);
+            console.log(`🎯 핸드 #${handNumber} 발견! 빅블라인드: ${bigBlind}`);
             continue;
           }
 
           // 다른 핸드 시작 시 종료
-          if (inTargetHand && row[0] === 'HAND' && row[1] !== handNumber.toString()) {
+          if (inTargetHand && row[1] === 'HAND' && row[2] !== handNumber.toString()) {
             break;
           }
 
           // 현재 핸드의 PLAYER 행 처리
-          if (inTargetHand && row[0] === 'PLAYER') {
-            const playerName = row[1];         // B열: 플레이어 이름
-            const position = row[2];           // C열: 포지션
-            const startStack = parseInt(row[3]) || 0;   // D열: 시작 스택
-            const currentStack = parseInt(row[4]) || 0; // E열: 현재 스택
-            const cards = row[5];              // F열: 카드
+          if (inTargetHand && row[1] === 'PLAYER') {
+            const playerName = row[2];         // C열: 플레이어 이름
+            const position = row[4];           // E열: 포지션
+            const startStack = parseInt(row[5]) || 0;   // F열: 시작 스택
+            const currentStack = parseInt(row[6]) || 0; // G열: 현재 스택
+            const cards = row[7];              // H열: 카드
             const isKeyPlayer = row[9];        // J열: 키 플레이어 여부 (True/False)
             const country = row[10];           // K열: 국가
 
@@ -1259,7 +1268,7 @@
         if (!bigBlind) {
           // 혹시 놓친 경우를 위한 재추출
           for (const row of rows) {
-            if (row[0] === 'HAND' && row[1] === handNumber.toString()) {
+            if (row[1] === 'HAND' && row[2] === handNumber.toString()) {
               bigBlind = parseInt(row[5]) || 1000; // F열: 빅블라인드
               console.log(`🎲 빅블라인드 재추출: ${bigBlind}`);
               break;
@@ -2915,7 +2924,7 @@ ${stackFormatted} (${stackInBB}BB)
       
       // 시트 업데이트 설정 (단일 시트로 통합)
       MAIN_SHEET_URL: 'https://docs.google.com/spreadsheets/d/1M-LM2KkwLNOTygtrPVdnYLqqBoz4MmZvbglUaptSYqE/edit?gid=561799849#gid=561799849', // 메인 시트 URL (읽기/쓰기 모두 사용)
-      SHEET_UPDATE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycby9hGqvMPogyFfOjTRM3SSSEnD6MRjC_ql37qpZOf-O95s02qEPyme8xTakKUnZ1l_zeA/exec', // 시트 업데이트 전용 Apps Script URL
+      SHEET_UPDATE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzbya-VriY5oEDOEO4W80VJz4GaY6QhBb38-3JvSrwl5Qo-7K8D0jqbjTO06bO6VAYj/exec', // 시트 업데이트 전용 Apps Script URL (APPS_SCRIPT_URL과 통일)
       
       // 기존 URL들 (호환성 유지용 - 추후 제거 예정)
       READ_SHEET_URL: '', // Deprecated - MAIN_SHEET_URL 사용

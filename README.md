@@ -1,9 +1,18 @@
-# Virtual Table DB - Poker Hand Monitoring System v13.3.0
+# Virtual Table DB - Poker Hand Monitoring System v13.3.1
 
 ## 📋 프로젝트 개요
 AI 기반 포커 핸드 모니터링 및 분석 시스템으로 Google Sheets와 연동하여 실시간 핸드 데이터를 관리합니다.
 
-### 🚀 최신 버전: v13.3.1 (2025-09-22) - J열 자막 디버깅 및 안정성 개선
+### 🚀 최신 버전: v13.3.2 (2025-09-22) - J열 자막 컬럼 매핑 수정 및 Apps Script URL 통일
+
+#### v13.3.2 수정 사항:
+- **🔧 Hand 시트 컬럼 매핑 수정**: generateSubtitle 함수에서 HAND/PLAYER 행 인덱스 올바르게 수정
+  - HAND 행: `row[0]` → `row[1]`, 핸드번호: `row[1]` → `row[2]`
+  - PLAYER 행: `row[0]` → `row[1]`, 플레이어명: `row[3]` → `row[2]`
+- **🔗 Apps Script URL 통일**: `SHEET_UPDATE_SCRIPT_URL`과 `APPS_SCRIPT_URL` 동일하게 설정하여 연결 오류 해결
+- **✅ 자막 생성 정상화**: 핸드 #182, #183에서 키 플레이어 자막 정상 생성 확인
+
+### v13.3.1 (2025-09-22) - J열 자막 디버깅 및 안정성 개선
 - **🔧 자막 형식 개선**: 큰따옴표도 줄바꿈으로 처리하여 가독성 향상
 - **🐛 Apps Script 조건문 수정**: subtitle.trim() 추가로 빈 자막 필터링 개선
 - **🔍 디버깅 로그 강화**: 자막 생성부터 업데이트까지 전 과정 추적 가능
