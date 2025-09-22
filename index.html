@@ -25,6 +25,9 @@
 
   <!-- 🆕 SSE 실시간 핸드 감지 클라이언트 -->
   <script src="sse-client.js"></script>
+
+  <!-- 🆕 CORS 프록시 모듈 -->
+  <script src="cors-proxy.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
     
@@ -377,8 +380,8 @@
     </div>
   </div>
 
-  <!-- Phase 2: 캐시 통계 패널 -->
-  <div id="cache-stats-panel" class="fixed bottom-4 left-4 bg-gray-900 bg-opacity-95 rounded-lg p-3 text-xs max-w-xs z-40 border border-gray-700">
+  <!-- Phase 2: 캐시 통계 패널 (숨김 처리) -->
+  <div id="cache-stats-panel" class="fixed bottom-4 left-4 bg-gray-900 bg-opacity-95 rounded-lg p-3 text-xs max-w-xs z-40 border border-gray-700" style="display: none;">
     <div class="flex items-center justify-between mb-2">
       <span class="font-bold text-yellow-400">📊 성능 최적화 통계</span>
       <button onclick="toggleCacheStats()" class="text-gray-400 hover:text-white">×</button>
@@ -941,12 +944,22 @@
         let filename = `${prefix}${handNumber}`;
 
         if (analysis) {
-          // 플레이어와 핸드 정보 추가 (규칙 기반)
-          if (analysis.hero) {
-            filename += `_${analysis.hero.name}_${analysis.hero.cards}`;
-          }
-          if (analysis.villain) {
-            filename += `_${analysis.villain.name}_${analysis.villain.cards}`;
+          // 모든 플레이어와 핸드 정보 추가 (전체 플레이어 포함)
+          if (analysis.players && analysis.players.length > 0) {
+            // 모든 플레이어 정보를 파일명에 추가
+            analysis.players.forEach(player => {
+              if (player && player.name && player.cards) {
+                filename += `_${player.name}_${player.cards}`;
+              }
+            });
+          } else {
+            // 플레이어 정보가 없는 경우 기존 hero/villain 방식 폴백
+            if (analysis.hero) {
+              filename += `_${analysis.hero.name}_${analysis.hero.cards}`;
+            }
+            if (analysis.villain) {
+              filename += `_${analysis.villain.name}_${analysis.villain.cards}`;
+            }
           }
 
           // 마지막 요약 부분: AI 또는 키워드
@@ -1191,8 +1204,8 @@
     }
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '13.0.0'; // SSE 실시간 감지 시스템 구현
-    const BUILD_TIME = '2025-09-18T17:00:00Z';
+    const APP_VERSION = '13.1.0'; // 파일명에 모든 플레이어 정보 포함
+    const BUILD_TIME = '2025-09-22T12:00:00Z';
 
     // ====================================
     // AI 분석 시스템
@@ -5456,6 +5469,7 @@
         
         const response = await fetch(appsScriptUrl, {
           method: 'POST',
+          mode: 'no-cors',  // CORS 정책 우회
           headers: {
             'Content-Type': 'text/plain',  // CORS 회피용
           },

@@ -147,12 +147,22 @@ class FilenameManager {
       let filename = `${prefix}${handNumber}`;
 
       if (analysis) {
-        // 플레이어와 핸드 정보 추가 (규칙 기반)
-        if (analysis.hero) {
-          filename += `_${analysis.hero.name}_${analysis.hero.cards}`;
-        }
-        if (analysis.villain) {
-          filename += `_${analysis.villain.name}_${analysis.villain.cards}`;
+        // 모든 플레이어와 핸드 정보 추가 (전체 플레이어 포함)
+        if (analysis.players && analysis.players.length > 0) {
+          // 모든 플레이어 정보를 파일명에 추가
+          analysis.players.forEach(player => {
+            if (player && player.name && player.cards) {
+              filename += `_${player.name}_${player.cards}`;
+            }
+          });
+        } else {
+          // 플레이어 정보가 없는 경우 기존 hero/villain 방식 폴백
+          if (analysis.hero) {
+            filename += `_${analysis.hero.name}_${analysis.hero.cards}`;
+          }
+          if (analysis.villain) {
+            filename += `_${analysis.villain.name}_${analysis.villain.cards}`;
+          }
         }
 
         // 마지막 요약 부분: AI 또는 키워드
