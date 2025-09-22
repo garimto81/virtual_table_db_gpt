@@ -165,33 +165,7 @@ class FilenameManager {
           }
         }
 
-        // 마지막 요약 부분: AI 또는 키워드
-        if (useAI && window.CONFIG?.GEMINI_API_KEY) {
-          // AI 요약 사용
-          if (window.AIAnalyzer) {
-            try {
-              const aiSummary = await window.AIAnalyzer.generateFileSummary(analysis);
-              // 오류 메시지나 null/undefined 체크
-              if (aiSummary && !aiSummary.includes('❌') && !aiSummary.includes('Cannot read properties') && !aiSummary.includes('오류')) {
-                filename += `_${aiSummary.replace(/[\s_]+/g, '_')}`;
-              } else {
-                // AI 실패 시 키워드 폴백
-                if (window.DEBUG_MODE) console.warn('🔄 AI 요약 실패, 키워드 폴백 사용:', aiSummary);
-                if (analysis.summary) {
-                  filename += `_${analysis.summary}`;
-                }
-              }
-            } catch (error) {
-              if (window.DEBUG_MODE) console.warn('AI 요약 오류:', error);
-              if (analysis.summary) {
-                filename += `_${analysis.summary}`;
-              }
-            }
-          }
-        } else if (analysis.summary) {
-          // 기존 summary 사용
-          filename += `_${analysis.summary}`;
-        }
+        // AI 요약 및 키워드 로직 제거 - 플레이어 정보만 사용
       }
 
       // 접미사 추가

@@ -962,24 +962,7 @@
             }
           }
 
-          // 마지막 요약 부분: AI 또는 키워드
-          if (useAI && CONFIG.GEMINI_API_KEY) {
-            // AI 요약 사용
-            const aiSummary = await generateAIFileSummary(analysis);
-            // 🛡️ 오류 메시지나 null/undefined 체크
-            if (aiSummary && !aiSummary.includes('❌') && !aiSummary.includes('Cannot read properties') && !aiSummary.includes('오류')) {
-              filename += `_${aiSummary.replace(/[\s_]+/g, '_')}`;
-            } else {
-              // AI 실패 시 키워드 폴백
-              console.warn('🔄 AI 요약 실패, 키워드 폴백 사용:', aiSummary);
-              if (analysis.summary) {
-                filename += `_${analysis.summary}`;
-              }
-            }
-          } else if (analysis.summary) {
-            // 기존 summary 사용
-            filename += `_${analysis.summary}`;
-          }
+          // AI 요약 및 키워드 로직 제거 - 플레이어 정보만 사용
         }
 
         // 접미사 추가
@@ -1089,21 +1072,16 @@
         // 2. 플레이어 정보 한 번만 추출
         const players = extractPlayersInfo(handData);
 
-        // 3. 액션 키워드 한 번만 추출
-        const keywords = extractActionKeywords(handData);
-
-        // 4. 히어로와 빌런 식별
+        // 3. 히어로와 빌런 식별
         const hero = players.find(p => p.isSanta || p.name.toLowerCase().includes('santa')) || players[0];
         const villain = players.find(p => p !== hero) || players[1];
 
-        // 5. 분석 결과 구조화
+        // 4. 분석 결과 구조화 (키워드 제거)
         const analysis = {
           handData: handData,
           players: players,
-          keywords: keywords,
           hero: hero,
           villain: villain,
-          summary: keywords.slice(0, 3).join('_') || 'hand',
           fullAnalysis: null // AI 분석 텍스트 (필요시 생성)
         };
 
@@ -1204,8 +1182,8 @@
     }
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '13.1.0'; // 파일명에 모든 플레이어 정보 포함
-    const BUILD_TIME = '2025-09-22T12:00:00Z';
+    const APP_VERSION = '13.2.0'; // 파일명 단순화 - 플레이어 정보만 포함
+    const BUILD_TIME = '2025-09-22T13:00:00Z';
 
     // ====================================
     // AI 분석 시스템

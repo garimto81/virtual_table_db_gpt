@@ -148,7 +148,7 @@
             document.getElementById('log-output').textContent = '로그 초기화됨.';
         }
 
-        // 모의 generateCustomFilename 함수 (수정된 버전)
+        // 모의 generateCustomFilename 함수 (키워드 제거 버전)
         async function generateCustomFilename(handNumber, analysisData) {
             try {
                 const prefix = 'H';
@@ -167,11 +167,7 @@
                             }
                         });
                     }
-
-                    // 요약 추가
-                    if (analysisData.summary) {
-                        filename += `_${analysisData.summary}`;
-                    }
+                    // 키워드/요약 로직 제거 - 플레이어 정보만 사용
                 }
 
                 // 접미사 추가
@@ -202,13 +198,12 @@
                 players: [
                     { name: 'Santa', cards: 'AK' },
                     { name: 'Villain', cards: 'QQ' }
-                ],
-                summary: 'allin'
+                ]
             };
             const result1 = await generateCustomFilename(1001, test1Data);
             document.getElementById('test1-output').innerHTML =
                 `<span class="success">결과:</span> ${result1}<br>
-                <span style="color: #666;">예상: H1001_Santa_AK_Villain_QQ_allin</span>`;
+                <span style="color: #666;">예상: H1001_Santa_AK_Villain_QQ</span>`;
             log(`결과: ${result1}`);
 
             // 테스트 케이스 2: 4명
@@ -219,13 +214,12 @@
                     { name: 'Player2', cards: 'QQ' },
                     { name: 'Player3', cards: 'JT' },
                     { name: 'Player4', cards: '99' }
-                ],
-                summary: 'fold'
+                ]
             };
             const result2 = await generateCustomFilename(1002, test2Data);
             document.getElementById('test2-output').innerHTML =
                 `<span class="success">결과:</span> ${result2}<br>
-                <span style="color: #666;">예상: H1002_Santa_AK_Player2_QQ_Player3_JT_Player4_99_fold</span>`;
+                <span style="color: #666;">예상: H1002_Santa_AK_Player2_QQ_Player3_JT_Player4_99</span>`;
             log(`결과: ${result2}`);
 
             // 테스트 케이스 3: 6명
@@ -238,13 +232,12 @@
                     { name: 'Player4', cards: '99' },
                     { name: 'Player5', cards: 'A5' },
                     { name: 'Player6', cards: 'KJ' }
-                ],
-                summary: 'river_bluff'
+                ]
             };
             const result3 = await generateCustomFilename(1003, test3Data);
             document.getElementById('test3-output').innerHTML =
                 `<span class="success">결과:</span> ${result3}<br>
-                <span style="color: #666;">예상: H1003_Santa_AK_Player2_QQ_Player3_JT_Player4_99_Player5_A5_Player6_KJ_river_bluff</span>`;
+                <span style="color: #666;">예상: H1003_Santa_AK_Player2_QQ_Player3_JT_Player4_99_Player5_A5_Player6_KJ</span>`;
             log(`결과: ${result3}`);
 
             log('\n========== 테스트 완료 ==========');
