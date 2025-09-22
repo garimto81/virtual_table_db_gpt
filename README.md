@@ -1,9 +1,15 @@
-# Virtual Table DB - Poker Hand Monitoring System v13.3.1
+# Virtual Table DB - Poker Hand Monitoring System v13.3.3
 
 ## 📋 프로젝트 개요
 AI 기반 포커 핸드 모니터링 및 분석 시스템으로 Google Sheets와 연동하여 실시간 핸드 데이터를 관리합니다.
 
-### 🚀 최신 버전: v13.3.2 (2025-09-22) - J열 자막 컬럼 매핑 수정 및 Apps Script URL 통일
+### 🚀 최신 버전: v13.3.3 (2025-09-22) - Google API Key 관리 최적화
+
+#### v13.3.3 수정 사항:
+- **🔑 localStorage 키 통일**: `gemini_api_key` → `GEMINI_API_KEY`로 통일하여 일관성 확보
+- **🔄 중복 로직 제거**: `loadAPIKeys()`와 `initializeGitHubSecrets()` 함수의 API Key 로딩 중복 제거
+- **📦 로딩 순서 최적화**: localStorage > GitHub Secrets > 빈값 순서로 명확한 우선순위 설정
+- **🧹 코드 정리**: API Key 관리 로직을 `loadAPIKeys()` 함수로 통합하여 유지보수성 향상
 
 #### v13.3.2 수정 사항:
 - **🔧 Hand 시트 컬럼 매핑 수정**: generateSubtitle 함수에서 HAND/PLAYER 행 인덱스 올바르게 수정

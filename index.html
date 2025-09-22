@@ -1182,7 +1182,7 @@
     }
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '13.3.2'; // J열 자막 컬럼 매핑 수정 및 Apps Script URL 통일
+    const APP_VERSION = '13.3.3'; // Google API Key 관리 최적화 - localStorage 키 통일 및 중복 로직 제거
     const BUILD_TIME = '2025-09-22T15:00:00Z';
 
     // ====================================
@@ -2868,7 +2868,7 @@ ${stackFormatted} (${stackInBB}BB)
           console.log('🧹 캐시 초기화 중...');
           // 중요한 설정은 보존
           const keepSettings = {
-            'gemini_api_key': localStorage.getItem('gemini_api_key'),
+            'GEMINI_API_KEY': localStorage.getItem('GEMINI_API_KEY'),
             'read_sheet_url': localStorage.getItem('read_sheet_url'),
             'write_sheet_url': localStorage.getItem('write_sheet_url'),
             'sheet_update_script_url': localStorage.getItem('sheet_update_script_url')
@@ -8764,15 +8764,38 @@ ${stackFormatted} (${stackInBB}BB)
     
     // Virtual 시트 URL 저장 기능은 설정 모달에서 처리됨
     
-    // localStorage에서 Gemini API 키 로드
+    // Gemini API 키 로드 (localStorage > GitHub Secrets > 빈값)
     function loadAPIKeys() {
-      CONFIG.GEMINI_API_KEY = localStorage.getItem('gemini_api_key') || '';
-      console.log('🔓 API 키 로드:', CONFIG.GEMINI_API_KEY ? `설정됨 (길이: ${CONFIG.GEMINI_API_KEY.length})` : '없음');
+      // localStorage에서 먼저 확인
+      let apiKey = localStorage.getItem('GEMINI_API_KEY');
+      let apiKeySource = '';
+
+      if (apiKey) {
+        apiKeySource = 'localStorage';
+        console.log('📦 Gemini API 키: localStorage에서 로드');
+      } else if (window.ENV_CONFIG?.GEMINI_API_KEY) {
+        // GitHub Secrets에서 로드 및 localStorage에 저장
+        apiKey = window.ENV_CONFIG.GEMINI_API_KEY;
+        apiKeySource = 'GitHub Secrets';
+        localStorage.setItem('GEMINI_API_KEY', apiKey);
+        console.log('🔐 Gemini API 키: GitHub Secrets에서 로드 및 저장');
+      } else {
+        apiKeySource = '미설정';
+        console.log('⚠️ Gemini API 키: 미설정 상태');
+      }
+
+      if (apiKey) {
+        CONFIG.GEMINI_API_KEY = apiKey;
+        console.log(`✅ Gemini API 키 설정 완료 [출처: ${apiKeySource}] (길이: ${apiKey.length})`);
+      } else {
+        CONFIG.GEMINI_API_KEY = '';
+        console.log('🔓 API 키 로드: 없음');
+      }
     }
-    
+
     // Gemini API 키 저장
     function saveAPIKeys() {
-      localStorage.setItem('gemini_api_key', CONFIG.GEMINI_API_KEY);
+      localStorage.setItem('GEMINI_API_KEY', CONFIG.GEMINI_API_KEY);
     }
 
     // 디버그 로그 함수
@@ -9349,7 +9372,7 @@ ${stackFormatted} (${stackInBB}BB)
         const settings = {
           main_sheet_url: localStorage.getItem('main_sheet_url'),
           sheet_update_script_url: localStorage.getItem('sheet_update_script_url'),
-          gemini_api_key: localStorage.getItem('gemini_api_key')
+          GEMINI_API_KEY: localStorage.getItem('GEMINI_API_KEY')
         };
 
         localStorage.clear();
@@ -9925,27 +9948,9 @@ ${stackFormatted} (${stackInBB}BB)
             }
         }
 
-        // 3. Gemini API 키 설정 (localStorage > GitHub Secrets > 빈값)
-        let apiKey = localStorage.getItem('GEMINI_API_KEY');
-        let apiKeySource = '';
-
-        if (apiKey) {
-            apiKeySource = 'localStorage';
-            console.log('📦 Gemini API 키: localStorage에서 로드');
-        } else if (DEFAULT_CONFIG.GEMINI_API_KEY) {
-            apiKey = DEFAULT_CONFIG.GEMINI_API_KEY;
-            apiKeySource = 'GitHub Secrets';
-            localStorage.setItem('GEMINI_API_KEY', apiKey);
-            console.log('🔐 Gemini API 키: GitHub Secrets에서 로드 및 저장');
-        } else {
-            apiKeySource = '미설정';
-            console.log('⚠️ Gemini API 키: 미설정 상태');
-        }
-
-        if (apiKey) {
-            CONFIG.GEMINI_API_KEY = apiKey;
-            console.log(`✅ Gemini API 키 설정 완료 [출처: ${apiKeySource}]`);
-        }
+        // 3. Gemini API 키 설정 (loadAPIKeys 함수에서 처리)
+        // loadAPIKeys() 함수가 이미 localStorage > GitHub Secrets 순서로 처리함
+        console.log('🔑 API 키 로딩은 loadAPIKeys() 함수에서 처리됨');
 
         // 4. Apps Script URL 설정 (localStorage > GitHub Secrets > 빈값)
         let appsScriptUrl = localStorage.getItem('appsScriptUrl');
