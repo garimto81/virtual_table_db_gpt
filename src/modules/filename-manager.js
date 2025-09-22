@@ -147,41 +147,25 @@ class FilenameManager {
       let filename = `${prefix}${handNumber}`;
 
       if (analysis) {
-        // 플레이어와 핸드 정보 추가 (규칙 기반)
-        if (analysis.hero) {
-          filename += `_${analysis.hero.name}_${analysis.hero.cards}`;
-        }
-        if (analysis.villain) {
-          filename += `_${analysis.villain.name}_${analysis.villain.cards}`;
+        // 모든 플레이어와 핸드 정보 추가 (전체 플레이어 포함)
+        if (analysis.players && analysis.players.length > 0) {
+          // 모든 플레이어 정보를 파일명에 추가
+          analysis.players.forEach(player => {
+            if (player && player.name && player.cards) {
+              filename += `_${player.name}_${player.cards}`;
+            }
+          });
+        } else {
+          // 플레이어 정보가 없는 경우 기존 hero/villain 방식 폴백
+          if (analysis.hero) {
+            filename += `_${analysis.hero.name}_${analysis.hero.cards}`;
+          }
+          if (analysis.villain) {
+            filename += `_${analysis.villain.name}_${analysis.villain.cards}`;
+          }
         }
 
-        // 마지막 요약 부분: AI 또는 키워드
-        if (useAI && window.CONFIG?.GEMINI_API_KEY) {
-          // AI 요약 사용
-          if (window.AIAnalyzer) {
-            try {
-              const aiSummary = await window.AIAnalyzer.generateFileSummary(analysis);
-              // 오류 메시지나 null/undefined 체크
-              if (aiSummary && !aiSummary.includes('❌') && !aiSummary.includes('Cannot read properties') && !aiSummary.includes('오류')) {
-                filename += `_${aiSummary.replace(/[\s_]+/g, '_')}`;
-              } else {
-                // AI 실패 시 키워드 폴백
-                if (window.DEBUG_MODE) console.warn('🔄 AI 요약 실패, 키워드 폴백 사용:', aiSummary);
-                if (analysis.summary) {
-                  filename += `_${analysis.summary}`;
-                }
-              }
-            } catch (error) {
-              if (window.DEBUG_MODE) console.warn('AI 요약 오류:', error);
-              if (analysis.summary) {
-                filename += `_${analysis.summary}`;
-              }
-            }
-          }
-        } else if (analysis.summary) {
-          // 기존 summary 사용
-          filename += `_${analysis.summary}`;
-        }
+        // AI 요약 및 키워드 로직 제거 - 플레이어 정보만 사용
       }
 
       // 접미사 추가
