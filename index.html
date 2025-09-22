@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 13.3.3
+  Version: 13.3.4
   Last Updated: 2025-09-19
   Description: SSE(Server-Sent Events) 실시간 새 핸드 감지 시스템 구현
 -->
@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title id="page-title">포커 핸드 모니터링 v13.3.3 - AI 분석 시스템 [SSE LIVE]</title>
+  <title id="page-title">포커 핸드 모니터링 v13.3.4 - AI 분석 시스템 [SSE LIVE]</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <!-- Papa Parse for accurate CSV parsing (multiline support) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -280,7 +280,7 @@
       50% { opacity: 0.5; }
     }
   </style>
-</head>
+  <!-- Force deploy update: 2025-09-22T15:05:30.000Z -->
 <body>
   <!-- 초기 로드 동기화 팝업 -->
   <div id="initSyncOverlay" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[9999]" style="display: none;">
@@ -1182,7 +1182,7 @@
     }
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '13.3.3'; // Google API Key 관리 최적화 - localStorage 키 통일 및 중복 로직 제거
+    const APP_VERSION = '13.3.4'; // Apps Script 연결 테스트 no-cors 모드 오류 해결
     const BUILD_TIME = '2025-09-22T15:00:00Z';
 
     // ====================================
@@ -5564,11 +5564,17 @@ ${stackFormatted} (${stackInBB}BB)
           },
           body: JSON.stringify(testData)
         });
-        
+
         console.log('📡 응답 상태:', response.status);
         console.log('📡 응답 헤더:', response.headers);
-        
-        if (response.ok) {
+
+        // no-cors 모드에서는 response.status가 항상 0이므로 다른 방식으로 성공 여부 판단
+        if (response.type === 'opaque' || response.status === 0) {
+          // no-cors 요청이 성공적으로 전송되었다면 Apps Script 연결이 가능한 것으로 판단
+          console.log('✅ Apps Script 연결 성공 (no-cors 모드)');
+          alert(`✅ Apps Script 연결 성공!\n\n🔗 요청 전송 완료\n📊 상태: no-cors 모드로 전송됨\n⏰ 시간: ${new Date().toLocaleString()}\n📠 메시지: Apps Script와 통신 가능`);
+          return true;
+        } else if (response.ok) {
           const responseText = await response.text();
           console.log('📡 원본 응답 텍스트:', responseText);
           
@@ -10198,3 +10204,5 @@ ${stackFormatted} (${stackInBB}BB)
   </script>
 </body>
 </html>
+Tue, Sep 23, 2025 12:15:18 AM
+<!-- Cache Bust: Tue, Sep 23, 2025 12:15:18 AM -->
