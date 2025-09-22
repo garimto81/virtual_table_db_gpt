@@ -177,6 +177,7 @@ function handleSheetUpdate(data) {
       - 행 번호: ${rowNumber}
       - 핸드 번호: ${handNumber}
       - 파일명: ${filename}
+      - 자막: ${subtitle || '없음'}
       - 상태: ${status}`);
 
     // 시트 열기
@@ -229,9 +230,12 @@ function handleSheetUpdate(data) {
       updates.push('업데이트시간(I열)');
 
       // J열: 자막 (subtitle)
-      if (subtitle) {
+      if (subtitle && subtitle.trim()) {
         sheet.getRange(targetRow, 10).setValue(subtitle);
         updates.push('자막(J열)');
+        console.log(`✅ J열 자막 업데이트 완료: ${subtitle.substring(0, 50)}...`);
+      } else {
+        console.log(`⚠️ J열 자막 없음 또는 빈값: "${subtitle}"`);
       }
 
       // 변경사항 저장
@@ -257,6 +261,7 @@ function handleSheetUpdate(data) {
         updatedFields: updates,
         filename: filename,
         aiAnalysis: aiAnalysis,
+        subtitle: subtitle,
         updatedAt: updateTime.toISOString()
       }
     };

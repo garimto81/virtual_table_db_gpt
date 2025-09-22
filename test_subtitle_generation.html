@@ -243,10 +243,12 @@
                 const stackInBB = Math.round(keyPlayer.currentStack / bigBlind);
                 const stackFormatted = keyPlayer.currentStack.toLocaleString();
 
-                // 자막 생성: "국가\n이름\n스택 (BB)"
-                const subtitle = `"${keyPlayer.country}
+                // 자막 생성: 큰따옴표도 줄바꿈으로 처리
+                const subtitle = `"
+${keyPlayer.country}
 ${keyPlayer.name.toUpperCase()}
-${stackFormatted} (${stackInBB}BB)"`;
+${stackFormatted} (${stackInBB}BB)
+"`;
 
                 log(`✅ 자막 생성 완료`);
                 return subtitle;

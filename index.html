@@ -1182,8 +1182,8 @@
     }
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '13.3.0'; // J열 자막 생성 기능 추가
-    const BUILD_TIME = '2025-09-22T14:00:00Z';
+    const APP_VERSION = '13.3.1'; // J열 자막 디버깅 및 안정성 개선
+    const BUILD_TIME = '2025-09-22T15:00:00Z';
 
     // ====================================
     // 자막 생성 시스템
@@ -1204,11 +1204,14 @@
         // 해당 핸드의 키 플레이어 찾기
         let inTargetHand = false;
         let keyPlayer = null;
+        let bigBlind = 0;
 
         for (const row of rows) {
           // HAND 행으로 핸드 시작 확인
           if (row[0] === 'HAND' && row[1] === handNumber.toString()) {
             inTargetHand = true;
+            bigBlind = parseInt(row[5]) || 1000; // F열: 빅블라인드
+            console.log(`🎲 빅블라인드 추출: ${bigBlind}`);
             continue;
           }
 
@@ -1245,16 +1248,22 @@
         // 키 플레이어가 없으면 빈 문자열 반환
         if (!keyPlayer) {
           console.log(`⚠️ 핸드 #${handNumber}에서 키 플레이어를 찾을 수 없음`);
+          console.log(`🔍 디버그: 해당 핸드의 모든 PLAYER 행을 확인하세요`);
           return '';
         }
 
-        // 빅블라인드 계산 (핸드 정보에서 추출)
-        let bigBlind = 0;
-        inTargetHand = false;
-        for (const row of rows) {
-          if (row[0] === 'HAND' && row[1] === handNumber.toString()) {
-            bigBlind = parseInt(row[5]) || 1000; // F열: 빅블라인드
-            break;
+        console.log(`🎯 키 플레이어 발견: ${keyPlayer.name} (${keyPlayer.country})`);
+        console.log(`💰 스택 정보: ${keyPlayer.currentStack} / BB: ${bigBlind}`);
+
+        // 빅블라인드는 이미 위에서 추출했으므로 다시 추출할 필요 없음
+        if (!bigBlind) {
+          // 혹시 놓친 경우를 위한 재추출
+          for (const row of rows) {
+            if (row[0] === 'HAND' && row[1] === handNumber.toString()) {
+              bigBlind = parseInt(row[5]) || 1000; // F열: 빅블라인드
+              console.log(`🎲 빅블라인드 재추출: ${bigBlind}`);
+              break;
+            }
           }
         }
 
@@ -1262,10 +1271,12 @@
         const stackInBB = Math.round(keyPlayer.currentStack / bigBlind);
         const stackFormatted = keyPlayer.currentStack.toLocaleString();
 
-        // 자막 생성: "국가\n이름\n스택 (BB)"
-        const subtitle = `"${keyPlayer.country}
+        // 자막 생성: 큰따옴표도 줄바꿈으로 처리
+        const subtitle = `"
+${keyPlayer.country}
 ${keyPlayer.name.toUpperCase()}
-${stackFormatted} (${stackInBB}BB)"`;
+${stackFormatted} (${stackInBB}BB)
+"`;
 
         console.log(`✅ 자막 생성 완료 (핸드 #${handNumber}):`, subtitle);
         return subtitle;
@@ -5942,6 +5953,7 @@ ${stackFormatted} (${stackInBB}BB)"`;
       console.log(`📁 파일명: ${filename}`);
       console.log(`🤖 AI 분석: ${aiAnalysis}`);
       console.log(`🔍 customData:`, customData);
+      console.log(`🎬 자막 정보: ${customData?.subtitle || '없음'}`);
 
       // AI 분석 텍스트를 CSV 안전하게 처리 (큰따옴표로 묶고 내부 큰따옴표는 이중화)
       let safeAiAnalysis = aiAnalysis || `핸드 #${handNumber} - ${new Date().toLocaleString('ko-KR')}`;
@@ -5979,6 +5991,7 @@ ${stackFormatted} (${stackInBB}BB)"`;
 
       console.log(`📋 E열 상태: ${updateData.status || '설정되지 않음'}`);
       console.log(`🎯 Action: ${updateData.action}`);
+      console.log(`🎬 최종 자막 확인: ${updateData.subtitle || '없음'}`);
 
       // action이 누락된 경우 경고
       if (!updateData.action) {
@@ -7567,6 +7580,7 @@ ${stackFormatted} (${stackInBB}BB)"`;
         };
 
         console.log('📤 편집 상태 업데이트 데이터:', updateData);
+        console.log('🎬 생성된 자막:', subtitle);
 
         const result = await updateSheetData(rowNumber, handNumber, filename, aiAnalysis, updateData);
 
