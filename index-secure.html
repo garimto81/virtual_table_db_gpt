@@ -1,21 +1,25 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 13.3.4
+  Version: 13.0.0
   Last Updated: 2025-09-19
   Description: SSE(Server-Sent Events) 실시간 새 핸드 감지 시스템 구현
 -->
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=d
+  
+  evice-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title id="page-title">포커 핸드 모니터링 v13.3.4 - AI 분석 시스템 [SSE LIVE]</title>
+  <title id="page-title">포커 핸드 모니터링 v13.0.0 - AI 분석 시스템 [SSE LIVE]</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <!-- Papa Parse for accurate CSV parsing (multiline support) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <!-- DOMPurify for XSS protection -->
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.5/dist/purify.min.js"></script>
 
   <!-- 🆕 모듈화된 파일 (파일명 관리 + AI 분석) -->
   <script src="src/modules/filename-manager.js"></script>
@@ -25,9 +29,6 @@
 
   <!-- 🆕 SSE 실시간 핸드 감지 클라이언트 -->
   <script src="sse-client.js"></script>
-
-  <!-- 🆕 CORS 프록시 모듈 -->
-  <script src="cors-proxy.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
     
@@ -280,7 +281,7 @@
       50% { opacity: 0.5; }
     }
   </style>
-  <!-- Force deploy update: 2025-09-22T15:05:30.000Z -->
+</head>
 <body>
   <!-- 초기 로드 동기화 팝업 -->
   <div id="initSyncOverlay" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[9999]" style="display: none;">
@@ -338,7 +339,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span id="version-display" class="text-xs text-gray-500">v13.3.3</span>
+        <span id="version-display" class="text-xs text-gray-500">v13.0.0</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
@@ -380,8 +381,8 @@
     </div>
   </div>
 
-  <!-- Phase 2: 캐시 통계 패널 (숨김 처리) -->
-  <div id="cache-stats-panel" class="fixed bottom-4 left-4 bg-gray-900 bg-opacity-95 rounded-lg p-3 text-xs max-w-xs z-40 border border-gray-700" style="display: none;">
+  <!-- Phase 2: 캐시 통계 패널 -->
+  <div id="cache-stats-panel" class="fixed bottom-4 left-4 bg-gray-900 bg-opacity-95 rounded-lg p-3 text-xs max-w-xs z-40 border border-gray-700">
     <div class="flex items-center justify-between mb-2">
       <span class="font-bold text-yellow-400">📊 성능 최적화 통계</span>
       <button onclick="toggleCacheStats()" class="text-gray-400 hover:text-white">×</button>
@@ -944,25 +945,32 @@
         let filename = `${prefix}${handNumber}`;
 
         if (analysis) {
-          // 모든 플레이어와 핸드 정보 추가 (전체 플레이어 포함)
-          if (analysis.players && analysis.players.length > 0) {
-            // 모든 플레이어 정보를 파일명에 추가
-            analysis.players.forEach(player => {
-              if (player && player.name && player.cards) {
-                filename += `_${player.name}_${player.cards}`;
-              }
-            });
-          } else {
-            // 플레이어 정보가 없는 경우 기존 hero/villain 방식 폴백
-            if (analysis.hero) {
-              filename += `_${analysis.hero.name}_${analysis.hero.cards}`;
-            }
-            if (analysis.villain) {
-              filename += `_${analysis.villain.name}_${analysis.villain.cards}`;
-            }
+          // 플레이어와 핸드 정보 추가 (규칙 기반)
+          if (analysis.hero) {
+            filename += `_${analysis.hero.name}_${analysis.hero.cards}`;
+          }
+          if (analysis.villain) {
+            filename += `_${analysis.villain.name}_${analysis.villain.cards}`;
           }
 
-          // AI 요약 및 키워드 로직 제거 - 플레이어 정보만 사용
+          // 마지막 요약 부분: AI 또는 키워드
+          if (useAI && CONFIG.GEMINI_API_KEY) {
+            // AI 요약 사용
+            const aiSummary = await generateAIFileSummary(analysis);
+            // 🛡️ 오류 메시지나 null/undefined 체크
+            if (aiSummary && !aiSummary.includes('❌') && !aiSummary.includes('Cannot read properties') && !aiSummary.includes('오류')) {
+              filename += `_${aiSummary.replace(/[\s_]+/g, '_')}`;
+            } else {
+              // AI 실패 시 키워드 폴백
+              console.warn('🔄 AI 요약 실패, 키워드 폴백 사용:', aiSummary);
+              if (analysis.summary) {
+                filename += `_${analysis.summary}`;
+              }
+            }
+          } else if (analysis.summary) {
+            // 기존 summary 사용
+            filename += `_${analysis.summary}`;
+          }
         }
 
         // 접미사 추가
@@ -1072,16 +1080,21 @@
         // 2. 플레이어 정보 한 번만 추출
         const players = extractPlayersInfo(handData);
 
-        // 3. 히어로와 빌런 식별
+        // 3. 액션 키워드 한 번만 추출
+        const keywords = extractActionKeywords(handData);
+
+        // 4. 히어로와 빌런 식별
         const hero = players.find(p => p.isSanta || p.name.toLowerCase().includes('santa')) || players[0];
         const villain = players.find(p => p !== hero) || players[1];
 
-        // 4. 분석 결과 구조화 (키워드 제거)
+        // 5. 분석 결과 구조화
         const analysis = {
           handData: handData,
           players: players,
+          keywords: keywords,
           hero: hero,
           villain: villain,
+          summary: keywords.slice(0, 3).join('_') || 'hand',
           fullAnalysis: null // AI 분석 텍스트 (필요시 생성)
         };
 
@@ -1182,119 +1195,8 @@
     }
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '13.3.4'; // Apps Script 연결 테스트 no-cors 모드 오류 해결
-    const BUILD_TIME = '2025-09-22T15:00:00Z';
-
-    // ====================================
-    // 자막 생성 시스템
-    // ====================================
-
-    /**
-     * Hand 시트에서 키 플레이어 정보를 추출하여 자막 생성
-     * @param {number} handNumber - 핸드 번호
-     * @returns {string} 자막 텍스트
-     */
-    async function generateSubtitle(handNumber) {
-      try {
-        console.log(`🎬 자막 생성 시작: 핸드 #${handNumber}`);
-
-        // Hand 시트 CSV 데이터 로드
-        const response = await fetch(CONFIG.CSV_HAND_URL + '&t=' + Date.now());
-        console.log(`📥 Hand 시트 응답 상태: ${response.status}`);
-
-        const text = await response.text();
-        console.log(`📝 CSV 텍스트 길이: ${text.length} 문자`);
-
-        const rows = parseCSV(text);
-        console.log(`📊 파싱된 행 수: ${rows.length}`);
-
-        // 해당 핸드의 키 플레이어 찾기
-        let inTargetHand = false;
-        let keyPlayer = null;
-        let bigBlind = 0;
-
-        console.log(`🔍 핸드 #${handNumber} 검색 시작...`);
-
-        for (const row of rows) {
-          // HAND 행으로 핸드 시작 확인
-          if (row[1] === 'HAND' && row[2] === handNumber.toString()) {
-            inTargetHand = true;
-            bigBlind = parseInt(row[5]) || 1000; // F열: 빅블라인드
-            console.log(`🎯 핸드 #${handNumber} 발견! 빅블라인드: ${bigBlind}`);
-            continue;
-          }
-
-          // 다른 핸드 시작 시 종료
-          if (inTargetHand && row[1] === 'HAND' && row[2] !== handNumber.toString()) {
-            break;
-          }
-
-          // 현재 핸드의 PLAYER 행 처리
-          if (inTargetHand && row[1] === 'PLAYER') {
-            const playerName = row[2];         // C열: 플레이어 이름
-            const position = row[4];           // E열: 포지션
-            const startStack = parseInt(row[5]) || 0;   // F열: 시작 스택
-            const currentStack = parseInt(row[6]) || 0; // G열: 현재 스택
-            const cards = row[7];              // H열: 카드
-            const isKeyPlayer = row[9];        // J열: 키 플레이어 여부 (True/False)
-            const country = row[10];           // K열: 국가
-
-            // 키 플레이어 확인
-            if (isKeyPlayer === 'True' || isKeyPlayer === 'TRUE' || isKeyPlayer === 'true') {
-              keyPlayer = {
-                name: playerName,
-                position: position,
-                startStack: startStack,
-                currentStack: currentStack,
-                cards: cards,
-                country: country || 'Unknown'
-              };
-              break; // 키 플레이어 찾았으므로 종료
-            }
-          }
-        }
-
-        // 키 플레이어가 없으면 빈 문자열 반환
-        if (!keyPlayer) {
-          console.log(`⚠️ 핸드 #${handNumber}에서 키 플레이어를 찾을 수 없음`);
-          console.log(`🔍 디버그: 해당 핸드의 모든 PLAYER 행을 확인하세요`);
-          return '';
-        }
-
-        console.log(`🎯 키 플레이어 발견: ${keyPlayer.name} (${keyPlayer.country})`);
-        console.log(`💰 스택 정보: ${keyPlayer.currentStack} / BB: ${bigBlind}`);
-
-        // 빅블라인드는 이미 위에서 추출했으므로 다시 추출할 필요 없음
-        if (!bigBlind) {
-          // 혹시 놓친 경우를 위한 재추출
-          for (const row of rows) {
-            if (row[1] === 'HAND' && row[2] === handNumber.toString()) {
-              bigBlind = parseInt(row[5]) || 1000; // F열: 빅블라인드
-              console.log(`🎲 빅블라인드 재추출: ${bigBlind}`);
-              break;
-            }
-          }
-        }
-
-        // BB 계산
-        const stackInBB = Math.round(keyPlayer.currentStack / bigBlind);
-        const stackFormatted = keyPlayer.currentStack.toLocaleString();
-
-        // 자막 생성: 큰따옴표도 줄바꿈으로 처리
-        const subtitle = `"
-${keyPlayer.country}
-${keyPlayer.name.toUpperCase()}
-${stackFormatted} (${stackInBB}BB)
-"`;
-
-        console.log(`✅ 자막 생성 완료 (핸드 #${handNumber}):`, subtitle);
-        return subtitle;
-
-      } catch (error) {
-        console.error(`❌ 자막 생성 오류 (핸드 #${handNumber}):`, error);
-        return '';
-      }
-    }
+    const APP_VERSION = '13.0.0'; // SSE 실시간 감지 시스템 구현
+    const BUILD_TIME = '2025-09-18T17:00:00Z';
 
     // ====================================
     // AI 분석 시스템
@@ -1411,7 +1313,7 @@ ${stackFormatted} (${stackInBB}BB)
       show() {
         this.overlay.style.display = 'flex';
         this.startTime = performance.now();
-        this.logsContainer.innerHTML = '';
+        this.logsContainer.textContent = '';
         this.addLog('시스템 초기화를 시작합니다...');
       }
 
@@ -1482,7 +1384,7 @@ ${stackFormatted} (${stackInBB}BB)
 
         const logEntry = document.createElement('div');
         logEntry.className = colorClass;
-        logEntry.innerHTML = `[${timestamp}] ${message}`;
+        logEntry.textContent = `[${timestamp}] ${message}`;
 
         this.logsContainer.appendChild(logEntry);
         this.logsContainer.scrollTop = this.logsContainer.scrollHeight;
@@ -2868,7 +2770,7 @@ ${stackFormatted} (${stackInBB}BB)
           console.log('🧹 캐시 초기화 중...');
           // 중요한 설정은 보존
           const keepSettings = {
-            'GEMINI_API_KEY': localStorage.getItem('GEMINI_API_KEY'),
+            'gemini_api_key': localStorage.getItem('gemini_api_key'),
             'read_sheet_url': localStorage.getItem('read_sheet_url'),
             'write_sheet_url': localStorage.getItem('write_sheet_url'),
             'sheet_update_script_url': localStorage.getItem('sheet_update_script_url')
@@ -2924,7 +2826,7 @@ ${stackFormatted} (${stackInBB}BB)
       
       // 시트 업데이트 설정 (단일 시트로 통합)
       MAIN_SHEET_URL: 'https://docs.google.com/spreadsheets/d/1M-LM2KkwLNOTygtrPVdnYLqqBoz4MmZvbglUaptSYqE/edit?gid=561799849#gid=561799849', // 메인 시트 URL (읽기/쓰기 모두 사용)
-      SHEET_UPDATE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzbya-VriY5oEDOEO4W80VJz4GaY6QhBb38-3JvSrwl5Qo-7K8D0jqbjTO06bO6VAYj/exec', // 시트 업데이트 전용 Apps Script URL (APPS_SCRIPT_URL과 통일)
+      SHEET_UPDATE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycby9hGqvMPogyFfOjTRM3SSSEnD6MRjC_ql37qpZOf-O95s02qEPyme8xTakKUnZ1l_zeA/exec', // 시트 업데이트 전용 Apps Script URL
       
       // 기존 URL들 (호환성 유지용 - 추후 제거 예정)
       READ_SHEET_URL: '', // Deprecated - MAIN_SHEET_URL 사용
@@ -4467,15 +4369,15 @@ ${stackFormatted} (${stackInBB}BB)
       switch(status) {
         case '복사완료':
           element.classList.add('border-green-500', 'bg-green-900/20');
-          statusIcon.innerHTML = '<span class="text-green-400">✓</span>';
+          statusIcon.innerHTML = DOMPurify.sanitize('<span class="text-green-400">✓</span>');
           break;
         case '미완료':
           element.classList.add('border-yellow-500', 'bg-yellow-900/20');
-          statusIcon.innerHTML = '<span class="text-yellow-400">⚡</span>';
+          statusIcon.innerHTML = DOMPurify.sanitize('<span class="text-yellow-400">⚡</span>');
           break;
         default:
           element.classList.add('border-gray-600', 'bg-gray-800');
-          statusIcon.innerHTML = '';
+          statusIcon.textContent = '';
       }
 
       // 상태 아이콘이 없으면 추가
@@ -4508,7 +4410,7 @@ ${stackFormatted} (${stackInBB}BB)
       }
 
       // Phase 1 최적화: data-hand-number 속성 추가
-      listEl.innerHTML = filteredHands.map(hand => {
+      const handHtml = filteredHands.map(hand => {
         // 상태에 따른 색상 설정
         const statusColor = hand.handEdit ? 'border-green-500 bg-green-900/20' : 
                           hand.workStatus === '진행중' ? 'border-yellow-500 bg-yellow-900/20' : 
@@ -4582,7 +4484,8 @@ ${stackFormatted} (${stackInBB}BB)
         </div>
       `;
       }).join('');
-      
+
+      listEl.innerHTML = DOMPurify.sanitize(handHtml);
       document.getElementById('hand-count').textContent = filteredHands.length;
       
       // 테이블 필터 옵션 업데이트 (현재 선택된 값 유지)
@@ -4596,8 +4499,9 @@ ${stackFormatted} (${stackInBB}BB)
                         tables.some(t => !currentOptions.includes(t));
       
       if (hasChanged) {
-        tableFilterEl.innerHTML = '<option value="">모든 테이블</option>' +
-          tables.map(table => `<option value="${table}">${table}</option>`).join('');
+        const tableOptions = '<option value="">모든 테이블</option>' +
+          tables.map(table => `<option value="${DOMPurify.sanitize(table)}">${DOMPurify.sanitize(table)}</option>`).join('');
+        tableFilterEl.innerHTML = DOMPurify.sanitize(tableOptions);
       }
       
       // 현재 선택된 값 복원
@@ -4684,13 +4588,13 @@ ${stackFormatted} (${stackInBB}BB)
         }
       }
       
-      container.innerHTML = html;
+      container.innerHTML = DOMPurify.sanitize(html);
     }
     
     function updatePlayersSection(players) {
       const container = document.getElementById('players-section');
       
-      container.innerHTML = players.map(player => `
+      const playersHtml = players.map(player => `
         <div class="player-item ${player.status === 'folded' ? 'folded' : ''}">
           <div class="flex items-center gap-2">
             <span class="pos-badge ${getPositionBadgeClass(player.position)}">${player.position}</span>
@@ -4704,6 +4608,7 @@ ${stackFormatted} (${stackInBB}BB)
           </div>
         </div>
       `).join('');
+      container.innerHTML = DOMPurify.sanitize(playersHtml);
     }
     
     function updateActionHistory(hand) {
@@ -4729,7 +4634,7 @@ ${stackFormatted} (${stackInBB}BB)
         }
       });
       
-      container.innerHTML = html || '<div class="text-xs text-gray-500">액션 기록 없음</div>';
+      container.innerHTML = DOMPurify.sanitize(html || '<div class="text-xs text-gray-500">액션 기록 없음</div>');
     }
     
     function updateHandResult(hand) {
@@ -5372,25 +5277,25 @@ ${stackFormatted} (${stackInBB}BB)
       // 보드 카드 초기화
       const boardEl = document.getElementById('community-cards');
       if (boardEl) {
-        boardEl.innerHTML = '<div class="card-placeholder">보드 카드</div>';
+        boardEl.innerHTML = DOMPurify.sanitize('<div class="card-placeholder">보드 카드</div>');
       }
       
       // 플레이어 섹션 초기화
       const playersEl = document.getElementById('players-section');
       if (playersEl) {
-        playersEl.innerHTML = '<div class="text-gray-500 text-center py-4">선택된 핸드가 없습니다</div>';
+        playersEl.textContent = '선택된 핸드가 없습니다';
       }
       
       // 액션 히스토리 초기화
       const historyEl = document.getElementById('action-history');
       if (historyEl) {
-        historyEl.innerHTML = '<div class="text-gray-500 text-center py-4">액션 히스토리가 없습니다</div>';
+        historyEl.textContent = '액션 히스토리가 없습니다';
       }
       
       // 핸드 결과 초기화
       const resultEl = document.getElementById('hand-result');
       if (resultEl) {
-        resultEl.innerHTML = '<div class="text-gray-500 text-center py-4">핸드 결과가 없습니다</div>';
+        resultEl.textContent = '핸드 결과가 없습니다';
       }
       
       console.log('✅ 핸드 세부 정보 초기화 완료');
@@ -5558,23 +5463,16 @@ ${stackFormatted} (${stackInBB}BB)
         
         const response = await fetch(appsScriptUrl, {
           method: 'POST',
-          mode: 'no-cors',  // CORS 정책 우회
           headers: {
             'Content-Type': 'text/plain',  // CORS 회피용
           },
           body: JSON.stringify(testData)
         });
-
+        
         console.log('📡 응답 상태:', response.status);
         console.log('📡 응답 헤더:', response.headers);
-
-        // no-cors 모드에서는 response.status가 항상 0이므로 다른 방식으로 성공 여부 판단
-        if (response.type === 'opaque' || response.status === 0) {
-          // no-cors 요청이 성공적으로 전송되었다면 Apps Script 연결이 가능한 것으로 판단
-          console.log('✅ Apps Script 연결 성공 (no-cors 모드)');
-          alert(`✅ Apps Script 연결 성공!\n\n🔗 요청 전송 완료\n📊 상태: no-cors 모드로 전송됨\n⏰ 시간: ${new Date().toLocaleString()}\n📠 메시지: Apps Script와 통신 가능`);
-          return true;
-        } else if (response.ok) {
+        
+        if (response.ok) {
           const responseText = await response.text();
           console.log('📡 원본 응답 텍스트:', responseText);
           
@@ -5968,7 +5866,6 @@ ${stackFormatted} (${stackInBB}BB)
       console.log(`📁 파일명: ${filename}`);
       console.log(`🤖 AI 분석: ${aiAnalysis}`);
       console.log(`🔍 customData:`, customData);
-      console.log(`🎬 자막 정보: ${customData?.subtitle || '없음'}`);
 
       // AI 분석 텍스트를 CSV 안전하게 처리 (큰따옴표로 묶고 내부 큰따옴표는 이중화)
       let safeAiAnalysis = aiAnalysis || `핸드 #${handNumber} - ${new Date().toLocaleString('ko-KR')}`;
@@ -5999,14 +5896,12 @@ ${stackFormatted} (${stackInBB}BB)
           handNumber: handNumber,  // D열
           filename: filename,  // F열
           aiAnalysis: safeAiAnalysis,  // H열 (CSV 안전 처리됨)
-          subtitle: '',  // J열 자막 (기본값)
           status: '복사완료'  // ✅ 완료 버튼에서 기본값으로 '복사완료' 설정
         };
       }
 
       console.log(`📋 E열 상태: ${updateData.status || '설정되지 않음'}`);
       console.log(`🎯 Action: ${updateData.action}`);
-      console.log(`🎬 최종 자막 확인: ${updateData.subtitle || '없음'}`);
 
       // action이 누락된 경우 경고
       if (!updateData.action) {
@@ -7567,10 +7462,9 @@ ${stackFormatted} (${stackInBB}BB)
         console.log(`   - 매칭된 행 번호: ${rowNumber}`);
         console.log(`🔴🔴🔴 편집 버튼 매칭 완료 🔴🔴🔴\n`);
 
-        // 5. AI 분석 및 자막 생성 실행
+        // 5. AI 분석 실행
         const aiAnalysis = await analyzeHandWithAI(handNumber);
         const filename = await generateCustomFilename(handNumber);
-        const subtitle = await generateSubtitle(handNumber);
 
         // 🚀 매핑 저장
         saveHandFilenameMapping(handNumber, filename);
@@ -7589,13 +7483,11 @@ ${stackFormatted} (${stackInBB}BB)
           handNumber: handNumber,
           filename: filename,
           aiAnalysis: safeAiAnalysis,  // CSV 안전 처리된 AI 분석
-          subtitle: subtitle,  // 자막 정보 추가
           status: '미완료',  // ✅ 편집 단계에서 '미완료' 설정
           timestamp: handTime
         };
 
         console.log('📤 편집 상태 업데이트 데이터:', updateData);
-        console.log('🎬 생성된 자막:', subtitle);
 
         const result = await updateSheetData(rowNumber, handNumber, filename, aiAnalysis, updateData);
 
@@ -7854,11 +7746,12 @@ ${stackFormatted} (${stackInBB}BB)
 
       // 미리보기 표시
       const previewDiv = document.getElementById('filename-preview');
-      previewDiv.innerHTML = `
-        <div>📁 예시: ${exampleFilename}.mp4</div>
+      const previewHtml = `
+        <div>📁 예시: ${DOMPurify.sanitize(exampleFilename)}.mp4</div>
         <div class="text-xs text-gray-400 mt-1">형식: 접두사{핸드번호}_플레이어A_핸드_플레이어B_핸드_요약</div>
         <div class="text-xs text-gray-400">💡 편집과 완료 시 동일한 파일명 사용</div>
       `;
+      previewDiv.innerHTML = DOMPurify.sanitize(previewHtml);
       previewDiv.classList.remove('hidden');
     });
 
@@ -8770,38 +8663,15 @@ ${stackFormatted} (${stackInBB}BB)
     
     // Virtual 시트 URL 저장 기능은 설정 모달에서 처리됨
     
-    // Gemini API 키 로드 (localStorage > GitHub Secrets > 빈값)
+    // localStorage에서 Gemini API 키 로드
     function loadAPIKeys() {
-      // localStorage에서 먼저 확인
-      let apiKey = localStorage.getItem('GEMINI_API_KEY');
-      let apiKeySource = '';
-
-      if (apiKey) {
-        apiKeySource = 'localStorage';
-        console.log('📦 Gemini API 키: localStorage에서 로드');
-      } else if (window.ENV_CONFIG?.GEMINI_API_KEY) {
-        // GitHub Secrets에서 로드 및 localStorage에 저장
-        apiKey = window.ENV_CONFIG.GEMINI_API_KEY;
-        apiKeySource = 'GitHub Secrets';
-        localStorage.setItem('GEMINI_API_KEY', apiKey);
-        console.log('🔐 Gemini API 키: GitHub Secrets에서 로드 및 저장');
-      } else {
-        apiKeySource = '미설정';
-        console.log('⚠️ Gemini API 키: 미설정 상태');
-      }
-
-      if (apiKey) {
-        CONFIG.GEMINI_API_KEY = apiKey;
-        console.log(`✅ Gemini API 키 설정 완료 [출처: ${apiKeySource}] (길이: ${apiKey.length})`);
-      } else {
-        CONFIG.GEMINI_API_KEY = '';
-        console.log('🔓 API 키 로드: 없음');
-      }
+      CONFIG.GEMINI_API_KEY = localStorage.getItem('gemini_api_key') || '';
+      console.log('🔓 API 키 로드:', CONFIG.GEMINI_API_KEY ? `설정됨 (길이: ${CONFIG.GEMINI_API_KEY.length})` : '없음');
     }
-
+    
     // Gemini API 키 저장
     function saveAPIKeys() {
-      localStorage.setItem('GEMINI_API_KEY', CONFIG.GEMINI_API_KEY);
+      localStorage.setItem('gemini_api_key', CONFIG.GEMINI_API_KEY);
     }
 
     // 디버그 로그 함수
@@ -9378,7 +9248,7 @@ ${stackFormatted} (${stackInBB}BB)
         const settings = {
           main_sheet_url: localStorage.getItem('main_sheet_url'),
           sheet_update_script_url: localStorage.getItem('sheet_update_script_url'),
-          GEMINI_API_KEY: localStorage.getItem('GEMINI_API_KEY')
+          gemini_api_key: localStorage.getItem('gemini_api_key')
         };
 
         localStorage.clear();
@@ -9778,7 +9648,7 @@ ${stackFormatted} (${stackInBB}BB)
 
     async function runDay1Tests() {
       const resultsDiv = document.getElementById('test-results');
-      resultsDiv.innerHTML = '<div class="text-yellow-400">🔄 테스트 실행 중...</div>';
+      resultsDiv.textContent = '🔄 테스트 실행 중...';
 
       try {
         const automation = new TestAutomation();
@@ -9800,7 +9670,7 @@ ${stackFormatted} (${stackInBB}BB)
         }
 
         html += '</div>';
-        resultsDiv.innerHTML = html;
+        resultsDiv.innerHTML = DOMPurify.sanitize(html);
 
         // 테스트 결과에 따른 Todo 업데이트
         if (results.failed === 0) {
@@ -9810,7 +9680,7 @@ ${stackFormatted} (${stackInBB}BB)
         }
 
       } catch (error) {
-        resultsDiv.innerHTML = `<div class="text-red-400">❌ 테스트 실행 오류: ${error.message}</div>`;
+        resultsDiv.innerHTML = DOMPurify.sanitize(`<div class="text-red-400">❌ 테스트 실행 오류: ${error.message}</div>`);
       }
     }
 
@@ -9954,9 +9824,27 @@ ${stackFormatted} (${stackInBB}BB)
             }
         }
 
-        // 3. Gemini API 키 설정 (loadAPIKeys 함수에서 처리)
-        // loadAPIKeys() 함수가 이미 localStorage > GitHub Secrets 순서로 처리함
-        console.log('🔑 API 키 로딩은 loadAPIKeys() 함수에서 처리됨');
+        // 3. Gemini API 키 설정 (localStorage > GitHub Secrets > 빈값)
+        let apiKey = localStorage.getItem('GEMINI_API_KEY');
+        let apiKeySource = '';
+
+        if (apiKey) {
+            apiKeySource = 'localStorage';
+            console.log('📦 Gemini API 키: localStorage에서 로드');
+        } else if (DEFAULT_CONFIG.GEMINI_API_KEY) {
+            apiKey = DEFAULT_CONFIG.GEMINI_API_KEY;
+            apiKeySource = 'GitHub Secrets';
+            localStorage.setItem('GEMINI_API_KEY', apiKey);
+            console.log('🔐 Gemini API 키: GitHub Secrets에서 로드 및 저장');
+        } else {
+            apiKeySource = '미설정';
+            console.log('⚠️ Gemini API 키: 미설정 상태');
+        }
+
+        if (apiKey) {
+            CONFIG.GEMINI_API_KEY = apiKey;
+            console.log(`✅ Gemini API 키 설정 완료 [출처: ${apiKeySource}]`);
+        }
 
         // 4. Apps Script URL 설정 (localStorage > GitHub Secrets > 빈값)
         let appsScriptUrl = localStorage.getItem('appsScriptUrl');
@@ -10142,10 +10030,11 @@ ${stackFormatted} (${stackInBB}BB)
 
         const info = statusMap[status] || statusMap['disconnected'];
         statusElement.className = `flex items-center gap-2 ${info.color}`;
-        statusElement.innerHTML = `
+        const statusHtml = `
             <span>${info.icon}</span>
             <span class="text-sm font-medium">${info.text}</span>
         `;
+        statusElement.innerHTML = DOMPurify.sanitize(statusHtml);
     }
 
     /**
@@ -10204,5 +10093,3 @@ ${stackFormatted} (${stackInBB}BB)
   </script>
 </body>
 </html>
-Tue, Sep 23, 2025 12:15:18 AM
-<!-- Cache Bust: Tue, Sep 23, 2025 12:15:18 AM -->

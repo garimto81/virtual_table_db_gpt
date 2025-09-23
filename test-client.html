@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔒 Virtual Table DB 보안 서버 테스트</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            color: #444;
+            margin-bottom: 15px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .test-group {
+            display: grid;
+            gap: 10px;
+        }
+        
+        .test-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .test-item:hover {
+            background: #e8e8e8;
+        }
+        
+        .test-button {
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        .test-button:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+        }
+        
+        .test-button:active {
+            transform: translateY(0);
+        }
+        
+        .status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .response-box {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .security-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .feature {
+            padding: 10px;
+            background: #f0f9ff;
+            border-radius: 8px;
+            border-left: 3px solid #38b2ac;
+            font-size: 14px;
+        }
+        
+        .feature.enabled {
+            border-left-color: #48bb78;
+            background: #f0fdf4;
+        }
+        
+        .server-info {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .info-item {
+            flex: 1;
+            padding: 15px;
+            background: #f7fafc;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .info-label {
+            font-size: 12px;
+            color: #718096;
+            margin-bottom: 5px;
+        }
+        
+        .info-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #2d3748;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>
+            🔒 Virtual Table DB 보안 서버 테스트
+        </h1>
+        <p class="subtitle">Phase 1: Security Enhancement - 테스트 클라이언트</p>
+        
+        <div class="server-info">
+            <div class="info-item">
+                <div class="info-label">서버 상태</div>
+                <div class="info-value" id="server-status">확인 중...</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">서버 URL</div>
+                <div class="info-value" style="font-size: 14px;">http://localhost:3001</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">버전</div>
+                <div class="info-value" id="server-version">-</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2 class="section-title">✨ 보안 기능</h2>
+            <div class="security-features" id="security-features">
+                <div class="feature enabled">✅ JWT 인증 시스템</div>
+                <div class="feature enabled">✅ RBAC (역할 기반 접근 제어)</div>
+                <div class="feature enabled">✅ API 키 서버 사이드 관리</div>
+                <div class="feature enabled">✅ XSS/CSRF 방어</div>
+                <div class="feature enabled">✅ Rate Limiting</div>
+                <div class="feature enabled">✅ 입력 검증</div>
+                <div class="feature enabled">✅ 보안 로깅</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2 class="section-title">🧪 API 테스트</h2>
+            <div class="test-group">
+                <div class="test-item">
+                    <span>🏥 Health Check</span>
+                    <button class="test-button" onclick="testEndpoint('/health', 'GET')">TEST</button>
+                </div>
+                <div class="test-item">
+                    <span>🏠 Home Page</span>
+                    <button class="test-button" onclick="testEndpoint('/', 'GET')">TEST</button>
+                </div>
+                <div class="test-item">
+                    <span>📊 API Version</span>
+                    <button class="test-button" onclick="testEndpoint('/api/version', 'GET')">TEST</button>
+                </div>
+                <div class="test-item">
+                    <span>🔐 보안 API (인증 필요)</span>
+                    <button class="test-button" onclick="testSecureEndpoint()">TEST</button>
+                </div>
+                <div class="test-item">
+                    <span>⚡ Rate Limiting 테스트</span>
+                    <button class="test-button" onclick="testRateLimiting()">TEST</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="response-box" id="response" style="display: none;"></div>
+    </div>
+    
+    <script>
+        const SERVER_URL = 'http://localhost:3001';
+        
+        // 페이지 로드 시 서버 상태 확인
+        window.onload = async () => {
+            await checkServerStatus();
+        };
+        
+        async function checkServerStatus() {
+            const statusEl = document.getElementById('server-status');
+            const versionEl = document.getElementById('server-version');
+            
+            try {
+                const response = await fetch(`${SERVER_URL}/health`);
+                if (response.ok) {
+                    const data = await response.json();
+                    statusEl.innerHTML = '<span style="color: #48bb78;">✅ 연결됨</span>';
+                    
+                    // 버전 정보 가져오기
+                    const versionResponse = await fetch(`${SERVER_URL}/api/version`);
+                    if (versionResponse.ok) {
+                        const versionData = await versionResponse.json();
+                        versionEl.textContent = versionData.version;
+                    }
+                } else {
+                    statusEl.innerHTML = '<span style="color: #f56565;">❌ 연결 실패</span>';
+                }
+            } catch (error) {
+                statusEl.innerHTML = '<span style="color: #f56565;">❌ 오프라인</span>';
+                versionEl.textContent = '-';
+                showResponse(`서버가 실행되지 않았습니다.\n\n서버 실행 방법:\nnode ./virtual_table_db_claude/start-server.js`, 'error');
+            }
+        }
+        
+        async function testEndpoint(path, method = 'GET', body = null) {
+            try {
+                const options = {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                };
+                
+                if (body) {
+                    options.body = JSON.stringify(body);
+                }
+                
+                const response = await fetch(`${SERVER_URL}${path}`, options);
+                const data = await response.json();
+                
+                showResponse(JSON.stringify(data, null, 2), response.ok ? 'success' : 'error');
+            } catch (error) {
+                showResponse(`Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testSecureEndpoint() {
+            try {
+                // 먼저 인증 없이 시도
+                const response1 = await fetch(`${SERVER_URL}/api/proxy/gemini/analyze`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        handInfo: 'test',
+                        currentStack: 100
+                    })
+                });
+                
+                const data1 = await response1.json();
+                
+                // 가짜 토큰으로 시도
+                const response2 = await fetch(`${SERVER_URL}/api/proxy/gemini/analyze`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer fake-jwt-token'
+                    },
+                    body: JSON.stringify({
+                        handInfo: 'test',
+                        currentStack: 100
+                    })
+                });
+                
+                const data2 = await response2.json();
+                
+                showResponse(
+                    `인증 없이 접근 (401 예상):\n${JSON.stringify(data1, null, 2)}\n\n` +
+                    `가짜 토큰으로 접근 (200 또는 401 예상):\n${JSON.stringify(data2, null, 2)}`,
+                    response1.status === 401 ? 'success' : 'error'
+                );
+            } catch (error) {
+                showResponse(`Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testRateLimiting() {
+            showResponse('🚀 10개의 빠른 요청을 보내는 중...', 'pending');
+            
+            const promises = [];
+            for (let i = 0; i < 10; i++) {
+                promises.push(
+                    fetch(`${SERVER_URL}/health`)
+                        .then(res => ({ 
+                            status: res.status, 
+                            ok: res.ok,
+                            index: i + 1
+                        }))
+                        .catch(() => ({ 
+                            status: 'error', 
+                            ok: false,
+                            index: i + 1
+                        }))
+                );
+            }
+            
+            const results = await Promise.all(promises);
+            const rateLimited = results.filter(r => r.status === 429);
+            
+            let message = `테스트 결과:\n`;
+            message += `✅ 성공: ${results.filter(r => r.ok).length}\n`;
+            message += `⚠️ Rate Limited: ${rateLimited.length}\n`;
+            message += `❌ 실패: ${results.filter(r => !r.ok && r.status !== 429).length}\n\n`;
+            
+            if (rateLimited.length > 0) {
+                message += 'Rate limiting이 작동 중입니다! 🎉';
+            } else {
+                message += 'Rate limit이 충분히 높거나 테스트 요청이 너무 적습니다.';
+            }
+            
+            showResponse(message, rateLimited.length > 0 ? 'success' : 'pending');
+        }
+        
+        function showResponse(text, type = 'success') {
+            const responseEl = document.getElementById('response');
+            responseEl.style.display = 'block';
+            responseEl.textContent = text;
+            
+            // 상태에 따른 색상 변경
+            if (type === 'error') {
+                responseEl.style.borderLeftColor = '#f56565';
+                responseEl.style.background = '#fff5f5';
+            } else if (type === 'pending') {
+                responseEl.style.borderLeftColor = '#ed8936';
+                responseEl.style.background = '#fffdf7';
+            } else {
+                responseEl.style.borderLeftColor = '#48bb78';
+                responseEl.style.background = '#f0fff4';
+            }
+        }
+    </script>
+</body>
+</html>

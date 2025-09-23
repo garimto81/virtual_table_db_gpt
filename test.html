@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Table DB API 테스트</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+        }
+        .endpoint {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        .success {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 Virtual Table DB API 테스트</h1>
+
+    <div class="endpoint">
+        <h2>1. 홈 (API 문서)</h2>
+        <button onclick="testHome()">GET /</button>
+        <div id="home-result" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="endpoint">
+        <h2>2. 헬스 체크</h2>
+        <button onclick="testHealth()">GET /health</button>
+        <div id="health-result" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="endpoint">
+        <h2>3. 버전 정보</h2>
+        <button onclick="testVersion()">GET /api/version</button>
+        <div id="version-result" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="endpoint">
+        <h2>4. 인사말 생성</h2>
+        <input type="text" id="name" placeholder="이름 입력" value="테스터">
+        <button onclick="testGreeting()">POST /api/greeting</button>
+        <div id="greeting-result" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="endpoint">
+        <h2>5. SSE 이벤트 (5초마다 업데이트)</h2>
+        <button onclick="startSSE()">SSE 시작</button>
+        <button onclick="stopSSE()">SSE 중지</button>
+        <div id="sse-result" class="result" style="display:none;"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000';
+        let eventSource = null;
+
+        async function testHome() {
+            const resultDiv = document.getElementById('home-result');
+            try {
+                const response = await fetch(API_URL);
+                const data = await response.json();
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+                resultDiv.className = 'result success';
+                resultDiv.style.display = 'block';
+            } catch (error) {
+                resultDiv.textContent = '오류: ' + error.message;
+                resultDiv.className = 'result error';
+                resultDiv.style.display = 'block';
+            }
+        }
+
+        async function testHealth() {
+            const resultDiv = document.getElementById('health-result');
+            try {
+                const response = await fetch(API_URL + '/health');
+                const data = await response.json();
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+                resultDiv.className = 'result success';
+                resultDiv.style.display = 'block';
+            } catch (error) {
+                resultDiv.textContent = '오류: ' + error.message;
+                resultDiv.className = 'result error';
+                resultDiv.style.display = 'block';
+            }
+        }
+
+        async function testVersion() {
+            const resultDiv = document.getElementById('version-result');
+            try {
+                const response = await fetch(API_URL + '/api/version');
+                const data = await response.json();
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+                resultDiv.className = 'result success';
+                resultDiv.style.display = 'block';
+            } catch (error) {
+                resultDiv.textContent = '오류: ' + error.message;
+                resultDiv.className = 'result error';
+                resultDiv.style.display = 'block';
+            }
+        }
+
+        async function testGreeting() {
+            const resultDiv = document.getElementById('greeting-result');
+            const name = document.getElementById('name').value;
+            try {
+                const response = await fetch(API_URL + '/api/greeting', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name }),
+                });
+                const data = await response.json();
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+                resultDiv.className = response.ok ? 'result success' : 'result error';
+                resultDiv.style.display = 'block';
+            } catch (error) {
+                resultDiv.textContent = '오류: ' + error.message;
+                resultDiv.className = 'result error';
+                resultDiv.style.display = 'block';
+            }
+        }
+
+        function startSSE() {
+            const resultDiv = document.getElementById('sse-result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.textContent = 'SSE 연결 중...\n';
+
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            eventSource = new EventSource(API_URL + '/api/events');
+
+            eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                resultDiv.textContent += `[${new Date().toLocaleTimeString()}] ${JSON.stringify(data, null, 2)}\n`;
+                resultDiv.scrollTop = resultDiv.scrollHeight;
+            };
+
+            eventSource.onerror = (error) => {
+                resultDiv.textContent += '연결 오류 발생\n';
+                eventSource.close();
+            };
+        }
+
+        function stopSSE() {
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+                const resultDiv = document.getElementById('sse-result');
+                resultDiv.textContent += 'SSE 연결 종료됨\n';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -7,10 +7,25 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "dev": "nodemon --exec ts-node src/server.ts",
+    "dev:watch": "tsc --watch",
+    "start": "node dist/server.js",
+    "start:simple": "node start-server.js",
+    "test:server": "node test-server.js",
+    "server": "ts-node src/server.ts",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "format": "prettier --write src/**/*.ts",
+    "type-check": "tsc --noEmit",
     "monitor": "node version-monitor.js",
     "monitor:quick": "node quick-version-check.js",
-    "install-browsers": "npx playwright install"
+    "install-browsers": "npx playwright install",
+    "prepare": "husky",
+    "pre-commit": "lint-staged"
   },
   "repository": {
     "type": "git",
@@ -25,6 +40,24 @@
   "homepage": "https://github.com/garimto81/virtual_table_db_claude#readme",
   "dependencies": {
     "@playwright/test": "^1.55.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
     "playwright": "^1.55.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
+    "@types/jest": "^30.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.44.1",
+    "@typescript-eslint/parser": "^8.44.1",
+    "husky": "^9.1.7",
+    "jest": "^30.1.3",
+    "lint-staged": "^16.2.0",
+    "nodemon": "^3.1.10",
+    "ts-jest": "^29.4.4",
+    "ts-node": "^10.9.2"
   }
 }

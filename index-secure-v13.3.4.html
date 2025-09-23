@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 13.3.4
+  Version: 13.4.0
   Last Updated: 2025-09-19
   Description: SSE(Server-Sent Events) 실시간 새 핸드 감지 시스템 구현
 -->
@@ -12,10 +12,12 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title id="page-title">포커 핸드 모니터링 v13.3.4 - AI 분석 시스템 [SSE LIVE]</title>
+  <title id="page-title">포커 핸드 모니터링 v13.4.0 - AI 분석 시스템 [SSE LIVE]</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <!-- Papa Parse for accurate CSV parsing (multiline support) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <!-- DOMPurify for XSS protection -->
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.5/dist/purify.min.js"></script>
 
   <!-- 🆕 모듈화된 파일 (파일명 관리 + AI 분석) -->
   <script src="src/modules/filename-manager.js"></script>
@@ -1182,7 +1184,7 @@
     }
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '13.3.4'; // Apps Script 연결 테스트 no-cors 모드 오류 해결
+    const APP_VERSION = '13.4.0'; // Phase 1 Security Enhancement - DOMPurify XSS 보안 강화
     const BUILD_TIME = '2025-09-22T15:00:00Z';
 
     // ====================================
@@ -1411,7 +1413,7 @@ ${stackFormatted} (${stackInBB}BB)
       show() {
         this.overlay.style.display = 'flex';
         this.startTime = performance.now();
-        this.logsContainer.innerHTML = '';
+        this.logsContainer.textContent = '';
         this.addLog('시스템 초기화를 시작합니다...');
       }
 
@@ -1482,7 +1484,7 @@ ${stackFormatted} (${stackInBB}BB)
 
         const logEntry = document.createElement('div');
         logEntry.className = colorClass;
-        logEntry.innerHTML = `[${timestamp}] ${message}`;
+        logEntry.textContent = `[${timestamp}] ${message}`;
 
         this.logsContainer.appendChild(logEntry);
         this.logsContainer.scrollTop = this.logsContainer.scrollHeight;
@@ -4467,15 +4469,15 @@ ${stackFormatted} (${stackInBB}BB)
       switch(status) {
         case '복사완료':
           element.classList.add('border-green-500', 'bg-green-900/20');
-          statusIcon.innerHTML = '<span class="text-green-400">✓</span>';
+          statusIcon.innerHTML = DOMPurify.sanitize('<span class="text-green-400">✓</span>');
           break;
         case '미완료':
           element.classList.add('border-yellow-500', 'bg-yellow-900/20');
-          statusIcon.innerHTML = '<span class="text-yellow-400">⚡</span>';
+          statusIcon.innerHTML = DOMPurify.sanitize('<span class="text-yellow-400">⚡</span>');
           break;
         default:
           element.classList.add('border-gray-600', 'bg-gray-800');
-          statusIcon.innerHTML = '';
+          statusIcon.textContent = '';
       }
 
       // 상태 아이콘이 없으면 추가
@@ -4508,7 +4510,7 @@ ${stackFormatted} (${stackInBB}BB)
       }
 
       // Phase 1 최적화: data-hand-number 속성 추가
-      listEl.innerHTML = filteredHands.map(hand => {
+      listEl.innerHTML = DOMPurify.sanitize(filteredHands.map(hand => {
         // 상태에 따른 색상 설정
         const statusColor = hand.handEdit ? 'border-green-500 bg-green-900/20' : 
                           hand.workStatus === '진행중' ? 'border-yellow-500 bg-yellow-900/20' : 
@@ -4581,7 +4583,7 @@ ${stackFormatted} (${stackInBB}BB)
           </div>
         </div>
       `;
-      }).join('');
+      }).join('')));
       
       document.getElementById('hand-count').textContent = filteredHands.length;
       
@@ -4596,8 +4598,8 @@ ${stackFormatted} (${stackInBB}BB)
                         tables.some(t => !currentOptions.includes(t));
       
       if (hasChanged) {
-        tableFilterEl.innerHTML = '<option value="">모든 테이블</option>' +
-          tables.map(table => `<option value="${table}">${table}</option>`).join('');
+        tableFilterEl.innerHTML = DOMPurify.sanitize('<option value="">모든 테이블</option>' +
+          tables.map(table => `<option value="${table}">${table}</option>`).join(''));
       }
       
       // 현재 선택된 값 복원
@@ -4684,13 +4686,13 @@ ${stackFormatted} (${stackInBB}BB)
         }
       }
       
-      container.innerHTML = html;
+      container.innerHTML = DOMPurify.sanitize(html);
     }
     
     function updatePlayersSection(players) {
       const container = document.getElementById('players-section');
       
-      container.innerHTML = players.map(player => `
+      container.innerHTML = DOMPurify.sanitize(players.map(player => `
         <div class="player-item ${player.status === 'folded' ? 'folded' : ''}">
           <div class="flex items-center gap-2">
             <span class="pos-badge ${getPositionBadgeClass(player.position)}">${player.position}</span>
@@ -4703,7 +4705,7 @@ ${stackFormatted} (${stackInBB}BB)
             <span class="text-xs text-gray-400">${formatNumber(player.chips)}</span>
           </div>
         </div>
-      `).join('');
+      `).join(''));
     }
     
     function updateActionHistory(hand) {
@@ -4729,7 +4731,7 @@ ${stackFormatted} (${stackInBB}BB)
         }
       });
       
-      container.innerHTML = html || '<div class="text-xs text-gray-500">액션 기록 없음</div>';
+      container.innerHTML = DOMPurify.sanitize(html || '<div class="text-xs text-gray-500">액션 기록 없음</div>');
     }
     
     function updateHandResult(hand) {
@@ -5372,25 +5374,25 @@ ${stackFormatted} (${stackInBB}BB)
       // 보드 카드 초기화
       const boardEl = document.getElementById('community-cards');
       if (boardEl) {
-        boardEl.innerHTML = '<div class="card-placeholder">보드 카드</div>';
+        boardEl.innerHTML = DOMPurify.sanitize('<div class="card-placeholder">보드 카드</div>');
       }
       
       // 플레이어 섹션 초기화
       const playersEl = document.getElementById('players-section');
       if (playersEl) {
-        playersEl.innerHTML = '<div class="text-gray-500 text-center py-4">선택된 핸드가 없습니다</div>';
+        playersEl.innerHTML = DOMPurify.sanitize('<div class="text-gray-500 text-center py-4">선택된 핸드가 없습니다</div>');
       }
       
       // 액션 히스토리 초기화
       const historyEl = document.getElementById('action-history');
       if (historyEl) {
-        historyEl.innerHTML = '<div class="text-gray-500 text-center py-4">액션 히스토리가 없습니다</div>';
+        historyEl.innerHTML = DOMPurify.sanitize('<div class="text-gray-500 text-center py-4">액션 히스토리가 없습니다</div>');
       }
       
       // 핸드 결과 초기화
       const resultEl = document.getElementById('hand-result');
       if (resultEl) {
-        resultEl.innerHTML = '<div class="text-gray-500 text-center py-4">핸드 결과가 없습니다</div>';
+        resultEl.innerHTML = DOMPurify.sanitize('<div class="text-gray-500 text-center py-4">핸드 결과가 없습니다</div>');
       }
       
       console.log('✅ 핸드 세부 정보 초기화 완료');
@@ -7854,11 +7856,11 @@ ${stackFormatted} (${stackInBB}BB)
 
       // 미리보기 표시
       const previewDiv = document.getElementById('filename-preview');
-      previewDiv.innerHTML = `
+      previewDiv.innerHTML = DOMPurify.sanitize(`
         <div>📁 예시: ${exampleFilename}.mp4</div>
         <div class="text-xs text-gray-400 mt-1">형식: 접두사{핸드번호}_플레이어A_핸드_플레이어B_핸드_요약</div>
         <div class="text-xs text-gray-400">💡 편집과 완료 시 동일한 파일명 사용</div>
-      `;
+      `);
       previewDiv.classList.remove('hidden');
     });
 
@@ -9778,7 +9780,7 @@ ${stackFormatted} (${stackInBB}BB)
 
     async function runDay1Tests() {
       const resultsDiv = document.getElementById('test-results');
-      resultsDiv.innerHTML = '<div class="text-yellow-400">🔄 테스트 실행 중...</div>';
+      resultsDiv.innerHTML = DOMPurify.sanitize('<div class="text-yellow-400">🔄 테스트 실행 중...</div>');
 
       try {
         const automation = new TestAutomation();
@@ -9800,7 +9802,7 @@ ${stackFormatted} (${stackInBB}BB)
         }
 
         html += '</div>';
-        resultsDiv.innerHTML = html;
+        resultsDiv.innerHTML = DOMPurify.sanitize(html);
 
         // 테스트 결과에 따른 Todo 업데이트
         if (results.failed === 0) {
@@ -9810,7 +9812,7 @@ ${stackFormatted} (${stackInBB}BB)
         }
 
       } catch (error) {
-        resultsDiv.innerHTML = `<div class="text-red-400">❌ 테스트 실행 오류: ${error.message}</div>`;
+        resultsDiv.innerHTML = DOMPurify.sanitize(`<div class="text-red-400">❌ 테스트 실행 오류: ${error.message}</div>`);
       }
     }
 
@@ -10142,10 +10144,10 @@ ${stackFormatted} (${stackInBB}BB)
 
         const info = statusMap[status] || statusMap['disconnected'];
         statusElement.className = `flex items-center gap-2 ${info.color}`;
-        statusElement.innerHTML = `
+        statusElement.innerHTML = DOMPurify.sanitize(`
             <span>${info.icon}</span>
             <span class="text-sm font-medium">${info.text}</span>
-        `;
+        `);
     }
 
     /**
