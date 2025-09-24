@@ -29,15 +29,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/garimto81/virtual_table_db_claude.git"
+    "url": "git+https://github.com/garimto81/virtual_table_db_gpt.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/garimto81/virtual_table_db_claude/issues"
+    "url": "https://github.com/garimto81/virtual_table_db_gpt/issues"
   },
-  "homepage": "https://github.com/garimto81/virtual_table_db_claude#readme",
+  "homepage": "https://github.com/garimto81/virtual_table_db_gpt#readme",
   "dependencies": {
     "@playwright/test": "^1.55.0",
     "@types/cors": "^2.8.19",
