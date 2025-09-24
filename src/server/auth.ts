@@ -128,20 +128,27 @@ export function revokeToken(token: string): void {
  */
 export function authMiddleware(req: Request & { user?: JWTPayload }, res: Response, next: NextFunction): void {
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        res.status(401).json({ error: 'No token provided' });
+        res.status(401).json({
+            error: 'Authentication required',
+            message: 'Please provide a valid JWT token'
+        });
         return;
     }
-    
+
     const token = authHeader.substring(7);
-    
+
     try {
         const decoded = verifyToken(token);
         req.user = decoded;
         next();
     } catch (error) {
-        res.status(401).json({ error: 'Invalid or expired token' });
+        res.status(401).json({
+            error: 'Invalid or expired token',
+            message: (error as Error).message
+        });
+        return;
     }
 }
 

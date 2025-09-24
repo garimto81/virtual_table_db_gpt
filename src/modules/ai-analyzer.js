@@ -36,8 +36,14 @@ class AIAnalyzer {
    * 초기화
    */
   initialize() {
-    // localStorage에서 API 키 로드
-    this.config.apiKey = localStorage.getItem('geminiApiKey') || '';
+    // 🔐 보안 강화: 서버 환경변수에서만 API 키 로드
+    this.config.apiKey = window.ENV_CONFIG?.GEMINI_API_KEY || window.CONFIG?.GEMINI_API_KEY || '';
+
+    if (this.config.apiKey) {
+      console.log('🔐 AIAnalyzer: 서버 환경변수에서 API 키 로드 완료');
+    } else {
+      console.warn('⚠️ AIAnalyzer: API 키를 찾을 수 없습니다. 서버 환경변수를 확인하세요.');
+    }
 
     // 캐시 로드
     this.loadCacheFromStorage();

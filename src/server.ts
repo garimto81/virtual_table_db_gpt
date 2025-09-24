@@ -9,6 +9,7 @@ import dotenv from 'dotenv';
 import { VirtualTableDB } from './index';
 import { helmetConfig, securityMiddleware, rateLimiters } from './server/security';
 import apiProxy from './server/api-proxy';
+import sheetsRouter from './routes/sheets-api';
 
 // 환경 변수 로드
 dotenv.config();
@@ -38,8 +39,28 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(securityMiddleware);
 app.use(rateLimiters.general);
 
+// 모든 요청 로깅 미들웨어 추가 (라우터보다 먼저)
+app.use((req, _res, next) => {
+  console.log(`🔍 요청: ${req.method} ${req.path} ${req.url}`);
+  console.log(`🔍 헤더:`, req.headers.host);
+  next();
+});
+
+// 간단한 테스트 라우트 (라우터보다 먼저)
+app.get('/simple-test', (_req, res) => {
+  console.log('✅ 간단한 테스트 라우트 도달');
+  res.json({ message: 'Simple test success!' });
+});
+
 // API 프록시 라우트
-app.use(apiProxy);
+console.log('=== 메인 앱에서 라우터 마운트 ===');
+console.log('apiProxy 라우터 타입:', typeof apiProxy);
+console.log('apiProxy 라우터 스택 길이:', apiProxy.stack?.length || 'undefined');
+app.use('/', apiProxy);  // 명시적으로 경로 지정
+console.log('✅ API 프록시 라우터 마운트 완료');
+
+// Google Sheets API 라우트
+app.use('/api/sheets', sheetsRouter);
 
 // VirtualTableDB 인스턴스
 const db = new VirtualTableDB();
@@ -106,9 +127,15 @@ app.get('/api/events', (req, res) => {
   });
 });
 
-// 404 핸들러
-app.use((_req, res) => {
-  res.status(404).json({ error: 'Not Found' });
+// 404 핸들러 (디버깅 정보 추가)
+app.use((req, res) => {
+  console.log(`❌ 404 핸들러: ${req.method} ${req.path}`);
+  console.log(`Headers:`, req.headers);
+  res.status(404).json({
+    error: 'Not Found',
+    path: req.path,
+    timestamp: new Date().toISOString()
+  });
 });
 
 // 서버 시작
@@ -136,11 +163,10 @@ const server = app.listen(PORT, () => {
   GET  /health        - 헬스체크
   GET  /api/version   - 버전 정보
 
-🔒 보안 API (인증 필요):
-  POST /api/proxy/gemini/analyze    - AI 분석
-  POST /api/proxy/sheets/update     - Sheets 업데이트
-  POST /api/proxy/filename/generate - 파일명 생성
-  POST /api/proxy/subtitle/generate - 자막 생성
+🔒 포커 핸드 모니터링 API (인증 필요):
+  POST /api/proxy/sheets/update     - Google Sheets 데이터 업데이트
+  POST /api/proxy/filename/generate - 비디오 파일명 생성
+  POST /api/proxy/subtitle/generate - 플레이어 자막 생성
 
 🚀 보안 강화 서버가 성공적으로 시작되었습니다!
   `);

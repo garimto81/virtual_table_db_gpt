@@ -26,6 +26,9 @@
   <!-- 🆕 SSE 실시간 핸드 감지 클라이언트 -->
   <script src="sse-client.js"></script>
 
+  <!-- 🆕 Google Sheets Direct API 클라이언트 (Apps Script 대체) -->
+  <script src="src/client/sheets-client.js"></script>
+
   <!-- 🆕 CORS 프록시 모듈 -->
   <script src="cors-proxy.js"></script>
   <style>
@@ -2866,13 +2869,13 @@ ${stackFormatted} (${stackInBB}BB)
         // 버전별 마이그레이션 (저장된 버전이 없거나 현재 버전보다 낮을 때만)
         if (!storedVersion || compareVersions(storedVersion, APP_VERSION) < 0) {
           console.log('🧹 캐시 초기화 중...');
-          // 중요한 설정은 보존
+          // 중요한 설정은 보존 (API 키는 제외 - 서버에서 관리)
           const keepSettings = {
-            'GEMINI_API_KEY': localStorage.getItem('GEMINI_API_KEY'),
             'read_sheet_url': localStorage.getItem('read_sheet_url'),
             'write_sheet_url': localStorage.getItem('write_sheet_url'),
             'sheet_update_script_url': localStorage.getItem('sheet_update_script_url')
           };
+          // ✅ API 키는 localStorage에 저장하지 않음 (보안 강화)
 
           // 캐시 클리어
           localStorage.clear();
@@ -2907,10 +2910,13 @@ ${stackFormatted} (${stackInBB}BB)
     }
     
     const CONFIG = {
-      // Google Sheets CSV URLs
+      // Google Sheets CSV URLs (읽기용 - 유지)
       CSV_HAND_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=1906746276&single=true&output=csv',
       CSV_INDEX_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=1354012271&single=true&output=csv',
-      APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzbya-VriY5oEDOEO4W80VJz4GaY6QhBb38-3JvSrwl5Qo-7K8D0jqbjTO06bO6VAYj/exec',
+
+      // 🆕 Direct Google Sheets API (Apps Script 대체)
+      SHEETS_API_URL: '/api/sheets',
+      USE_DIRECT_API: true, // true: Direct API, false: Apps Script (레거시)
       
       // 설정
       REFRESH_INTERVAL: 10000,
@@ -2922,9 +2928,13 @@ ${stackFormatted} (${stackInBB}BB)
       AI_PROVIDER: 'gemini',
       GEMINI_API_KEY: '', // GitHub Secrets에서 자동 설정됨
       
-      // 시트 업데이트 설정 (단일 시트로 통합)
-      MAIN_SHEET_URL: 'https://docs.google.com/spreadsheets/d/1M-LM2KkwLNOTygtrPVdnYLqqBoz4MmZvbglUaptSYqE/edit?gid=561799849#gid=561799849', // 메인 시트 URL (읽기/쓰기 모두 사용)
-      SHEET_UPDATE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzbya-VriY5oEDOEO4W80VJz4GaY6QhBb38-3JvSrwl5Qo-7K8D0jqbjTO06bO6VAYj/exec', // 시트 업데이트 전용 Apps Script URL (APPS_SCRIPT_URL과 통일)
+      // Google Sheets 설정 (Direct API)
+      MAIN_SHEET_NAME: 'Virtual', // 기본 시트명
+      MAIN_SHEET_URL: 'https://docs.google.com/spreadsheets/d/1M-LM2KkwLNOTygtrPVdnYLqqBoz4MmZvbglUaptSYqE/edit?gid=561799849#gid=561799849', // 메인 시트 URL (읽기용)
+
+      // 레거시 Apps Script 설정 (호환성용)
+      APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzbya-VriY5oEDOEO4W80VJz4GaY6QhBb38-3JvSrwl5Qo-7K8D0jqbjTO06bO6VAYj/exec', // 필요시 레거시 모드
+      SHEET_UPDATE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzbya-VriY5oEDOEO4W80VJz4GaY6QhBb38-3JvSrwl5Qo-7K8D0jqbjTO06bO6VAYj/exec'
       
       // 기존 URL들 (호환성 유지용 - 추후 제거 예정)
       READ_SHEET_URL: '', // Deprecated - MAIN_SHEET_URL 사용
@@ -6836,68 +6846,86 @@ ${stackFormatted} (${stackInBB}BB)
       return rank.toString();
     }
     
-    // 시트 업데이트 함수 (Apps Script 호출)
+    // 시트 업데이트 함수 (Direct Google Sheets API 사용)
     async function updateHandInSheet(handNumber, data) {
-      // 올바른 Apps Script URL 사용
-      const scriptUrl = CONFIG.SHEET_UPDATE_SCRIPT_URL || CONFIG.APPS_SCRIPT_URL;
-      
-      if (!scriptUrl) {
-        throw new Error('Apps Script URL이 설정되지 않았습니다. 설정에서 URL을 입력해주세요.');
-      }
-      
       // 행 번호 확인 및 검증
       let rowNumber = data.virtualRow;
-      
+
       // virtualRow가 객체인 경우 처리
       if (typeof rowNumber === 'object' && rowNumber !== null) {
         rowNumber = rowNumber.row || rowNumber.rowIndex || null;
       }
-      
+
       // 행 번호가 없으면 오류
       if (!rowNumber || isNaN(parseInt(rowNumber))) {
         console.error('❌ 유효하지 않은 행 번호:', data.virtualRow);
         throw new Error('유효한 행 번호가 필요합니다. Virtual 시트 매칭을 먼저 수행해주세요.');
       }
-      
-      // Apps Script 호환 데이터 구조로 변환
-      const payload = {
-        action: 'updateSheet',  // updateHand 대신 updateSheet 사용
-        sheetUrl: getSheetUrl(),  // 통합된 시트 URL 사용
-        rowNumber: parseInt(rowNumber),  // 정수로 변환
-        handNumber: handNumber,
-        filename: data.filename,
-        aiAnalysis: data.aiSummary,  // aiSummary를 aiAnalysis로 변경
-        timestamp: new Date().toISOString()
-      };
-      
-      console.log('📤 Apps Script로 핸드 업데이트 전송:', payload);
-      console.log('📤 사용 중인 Apps Script URL:', scriptUrl);
-      
+
+      console.log('📤 Direct API로 핸드 업데이트 시작:', {
+        handNumber,
+        rowNumber,
+        filename: data.filename?.substring(0, 50) + '...',
+        method: CONFIG.USE_DIRECT_API ? 'Direct API' : 'Apps Script'
+      });
+
       try {
-        const response = await fetch(scriptUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'text/plain',
-          },
-          body: JSON.stringify(payload)
-        });
-        
-        console.log(`📊 응답 상태: ${response.status} ${response.statusText}`);
-        
-        if (!response.ok) {
-          throw new Error(`Apps Script 요청 실패: HTTP ${response.status} ${response.statusText}`);
+        let result;
+
+        if (CONFIG.USE_DIRECT_API && window.sheetsAPI) {
+          // 🆕 Direct Google Sheets API 사용
+          console.log('✅ Direct API 사용');
+
+          result = await window.sheetsAPI.updateSheet({
+            sheetName: CONFIG.MAIN_SHEET_NAME,
+            rowNumber: parseInt(rowNumber),
+            handNumber: handNumber,
+            filename: data.filename,
+            aiAnalysis: data.aiSummary,
+            status: '미완료', // 기본 상태
+            timestamp: new Date().toISOString()
+          });
+
+        } else {
+          // 🔄 레거시 Apps Script 방식 (폴백)
+          console.log('⚠️ 레거시 Apps Script 사용 (폴백)');
+
+          const scriptUrl = CONFIG.SHEET_UPDATE_SCRIPT_URL || CONFIG.APPS_SCRIPT_URL;
+
+          if (!scriptUrl) {
+            throw new Error('Direct API와 Apps Script URL 모두 사용할 수 없습니다.');
+          }
+
+          const payload = {
+            action: 'updateSheet',
+            sheetUrl: getSheetUrl(),
+            rowNumber: parseInt(rowNumber),
+            handNumber: handNumber,
+            filename: data.filename,
+            aiAnalysis: data.aiSummary,
+            timestamp: new Date().toISOString()
+          };
+
+          const response = await fetch(scriptUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify(payload)
+          });
+
+          if (!response.ok) {
+            throw new Error(`Apps Script 요청 실패: HTTP ${response.status}`);
+          }
+
+          result = await response.json();
         }
-        
-        const result = await response.json();
-        console.log('📦 Apps Script 응답:', result);
-        
-        if (!result.success && result.status !== 'success') {
-          throw new Error(result.error || result.message || 'Apps Script 처리 실패');
+
+        if (result.status === 'success') {
+          console.log('✅ 시트 업데이트 성공:', result);
+          return result;
+        } else {
+          throw new Error(result.message || '시트 업데이트 처리 실패');
         }
-        
-        console.log('✅ 시트 업데이트 성공:', result);
-        return result;
-        
+
       } catch (error) {
         console.error('❌ 시트 업데이트 오류:', error);
         throw error;
@@ -8770,24 +8798,19 @@ ${stackFormatted} (${stackInBB}BB)
     
     // Virtual 시트 URL 저장 기능은 설정 모달에서 처리됨
     
-    // Gemini API 키 로드 (localStorage > GitHub Secrets > 빈값)
+    // 🔐 보안 강화: 서버 사이드 API 키 로드 (localStorage 사용 안 함)
     function loadAPIKeys() {
-      // localStorage에서 먼저 확인
-      let apiKey = localStorage.getItem('GEMINI_API_KEY');
+      let apiKey = '';
       let apiKeySource = '';
 
-      if (apiKey) {
-        apiKeySource = 'localStorage';
-        console.log('📦 Gemini API 키: localStorage에서 로드');
-      } else if (window.ENV_CONFIG?.GEMINI_API_KEY) {
-        // GitHub Secrets에서 로드 및 localStorage에 저장
+      if (window.ENV_CONFIG?.GEMINI_API_KEY) {
+        // ✅ 서버 환경변수에서만 로드 (보안 강화)
         apiKey = window.ENV_CONFIG.GEMINI_API_KEY;
-        apiKeySource = 'GitHub Secrets';
-        localStorage.setItem('GEMINI_API_KEY', apiKey);
-        console.log('🔐 Gemini API 키: GitHub Secrets에서 로드 및 저장');
+        apiKeySource = 'Server Environment';
+        console.log('🔐 Gemini API 키: 서버 환경변수에서 로드');
       } else {
         apiKeySource = '미설정';
-        console.log('⚠️ Gemini API 키: 미설정 상태');
+        console.log('⚠️ Gemini API 키: 서버 환경변수 미설정');
       }
 
       if (apiKey) {
@@ -8795,13 +8818,15 @@ ${stackFormatted} (${stackInBB}BB)
         console.log(`✅ Gemini API 키 설정 완료 [출처: ${apiKeySource}] (길이: ${apiKey.length})`);
       } else {
         CONFIG.GEMINI_API_KEY = '';
-        console.log('🔓 API 키 로드: 없음');
+        console.log('🔓 API 키 로드: 서버 환경변수에서 찾을 수 없음');
+        console.warn('⚠️ 관리자에게 서버 환경변수 GEMINI_API_KEY 설정을 요청하세요');
       }
     }
 
-    // Gemini API 키 저장
+    // 🔐 보안 강화: API 키 저장 비활성화 (서버에서만 관리)
     function saveAPIKeys() {
-      localStorage.setItem('GEMINI_API_KEY', CONFIG.GEMINI_API_KEY);
+      // localStorage에 API 키를 저장하지 않음 (보안 강화)
+      console.log('🔐 보안 정책: API 키는 서버에서만 관리됩니다');
     }
 
     // 디버그 로그 함수
@@ -9374,12 +9399,11 @@ ${stackFormatted} (${stackInBB}BB)
           await localStore.clearAll();
         }
 
-        // localStorage 초기화 (설정 제외)
+        // localStorage 초기화 (시트 URL 설정만 보존)
         const settings = {
           main_sheet_url: localStorage.getItem('main_sheet_url'),
-          sheet_update_script_url: localStorage.getItem('sheet_update_script_url'),
-          GEMINI_API_KEY: localStorage.getItem('GEMINI_API_KEY')
-        };
+          sheet_update_script_url: localStorage.getItem('sheet_update_script_url')
+          // ✅ API 키는 보존하지 않음 (서버에서 관리)
 
         localStorage.clear();
 
